@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>PanQueo - MVP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- SPLASH SCREEN -->
+    <div id="splash-screen" class="screen">
+      <div class="splash-container">
+        <div class="splash-logo-area">
+          <div class="splash-logo">🧁</div>
+          <h1 class="splash-title">PanQueo</h1>
+          <p class="splash-tagline">Gestión inteligente para repostería</p>
+        </div>
+        <div class="splash-footer">
+          <div class="splash-loader"><div class="loader-ring"></div></div>
+          <p class="splash-loading-text">Tocando para comenzar...</p>
+          <p class="splash-version">v1.0.0</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUTH SCREEN -->
+    <div id="auth-screen" class="screen hidden">
+      <div class="auth-container">
+        <div class="logo-area">
+          <div class="logo">🧁</div>
+          <h1 class="app-name">PanQueo</h1>
+        </div>
+        <div class="auth-card" id="login-form">
+          <h2>¡Bienvenido de vuelta!</h2>
+          <p class="auth-subtitle">Inicia sesión para gestionar tu negocio</p>
+          <div id="error-message" class="error-message hidden"></div>
+          <div class="input-group">
+            <div class="input-line">
+              <span class="input-icon">📧</span>
+              <input type="email" id="login-email" placeholder="tucorreo@ejemplo.com" />
+            </div>
+          </div>
+          <div class="input-group">
+            <div class="input-line">
+              <span class="input-icon">🔒</span>
+              <input type="password" id="login-password" placeholder="••••••••" />
+              <span class="input-eye" onclick="togglePassword()">👁️</span>
+            </div>
+          </div>
+          <div class="utilities-row">
+            <label class="remember-me">
+              <input type="checkbox" /> Recordarme
+            </label>
+            <a href="#" onclick="showReset()" class="forgot-link">¿Olvidaste tu contraseña?</a>
+          </div>
+          <button class="btn btn-primary" onclick="handleLogin()">Iniciar Sesión →</button>
+          <p class="auth-footer-text">
+            ¿No tienes una cuenta? <a href="#" onclick="showRegister()">Regístrate aquí</a>
+          </p>
+        </div>
+
+        <div id="register-form" class="auth-card hidden">
+          <h2>Crear Cuenta</h2>
+          <p class="auth-subtitle">Regístrate para gestionar tu negocio</p>
+          <div class="input-group">
+            <div class="input-line"><input type="text" id="reg-nombre" placeholder="Tu nombre" /></div>
+          </div>
+          <div class="input-group">
+            <div class="input-line"><input type="text" id="reg-apellido" placeholder="Tu apellido" /></div>
+          </div>
+          <div class="input-group">
+            <div class="input-line"><input type="email" id="reg-email" placeholder="tucorreo@ejemplo.com" /></div>
+          </div>
+          <div class="input-group">
+            <div class="input-line"><input type="tel" id="reg-telefono" placeholder="+58 412 123 4567" /></div>
+          </div>
+          <div class="input-group">
+            <div class="input-line"><input type="password" id="reg-password" placeholder="••••••••" /></div>
+          </div>
+          <button class="btn btn-primary" onclick="handleRegister()">Registrarse</button>
+          <p class="auth-footer-text">
+            ¿Ya tienes cuenta? <a href="#" onclick="showLogin()">Inicia sesión</a>
+          </p>
+        </div>
+
+        <div id="reset-form" class="auth-card hidden">
+          <h2>Restablecer Contraseña</h2>
+          <p class="auth-subtitle">Ingresa tu correo y te enviaremos las instrucciones.</p>
+          <div class="input-group">
+            <div class="input-line"><input type="email" id="reset-email" placeholder="tucorreo@ejemplo.com" /></div>
+          </div>
+          <button class="btn btn-primary" onclick="handleReset()">Enviar enlace</button>
+          <p class="auth-footer-text">
+            <a href="#" onclick="showLogin()">Volver al inicio de sesión</a>
+          </p>
+        </div>
+
+        <div class="security-badge">
+          <span class="security-check">✓</span>
+          <span class="security-text">ISO 27001 Certified</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="main-screen" class="screen hidden">
+      <nav class="top-nav">
+        <div class="nav-left">
+          <span class="nav-logo">🧁</span>
+          <span class="nav-title">PanQueo</span>
+        </div>
+        <div class="nav-right">
+          <div class="currency-toggle" onclick="toggleCurrency('bs')">
+            <span class="currency-btn bs active" onclick="event.stopPropagation();toggleCurrency('bs')">Bs</span>
+            <span class="currency-btn usd" onclick="event.stopPropagation();toggleCurrency('usd')">USD</span>
+          </div>
+          <span class="nav-notif" onclick="openNotifs()" style="cursor:pointer;">🔔</span>
+          <span class="nav-avatar" onclick="switchTab('profile')" style="cursor:pointer;">🐹</span>
+          <button class="btn btn-outline btn-sm" onclick="handleLogout()">Salir</button>
+        </div>
+      </nav>
+
+      <div class="tab-bar">
+        <button class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">🏠 Inicio</button>
+        <button class="tab" data-tab="inventory" onclick="switchTab('inventory')">📦 Inventario</button>
+        <button class="tab" data-tab="orders" onclick="switchTab('orders')">🛒 Órdenes</button>
+        <button class="tab" data-tab="clients" onclick="switchTab('clients')">👥 Clientes</button>
+        <button class="tab" data-tab="profile" onclick="switchTab('profile')">👤 Perfil</button>
+      </div>
+
+      <main class="main-content">
+        <!-- DASHBOARD -->
+        <section id="tab-dashboard" class="tab-content active">
+          <h2 class="greeting">¡Hola, Capibara!</h2>
+          <p class="greeting-sub">Resumen de tu cocina hoy</p>
+          <div class="kpi-grid">
+            <div class="kpi-card kpi-yellow"><span class="kpi-icon">📦</span><div class="kpi-value">12</div><div class="kpi-label">Pedidos Hoy</div></div>
+            <div class="kpi-card kpi-red"><span class="kpi-icon">⚠️</span><div class="kpi-value">3</div><div class="kpi-label">Stock Bajo</div></div>
+            <div class="kpi-card kpi-blue"><span class="kpi-icon">💰</span><div class="kpi-value">$450</div><div class="kpi-label">Por Cobrar</div></div>
+            <div class="kpi-card kpi-green"><span class="kpi-icon">📈</span><div class="kpi-value">+12%</div><div class="kpi-label">vs Ayer</div></div>
+          </div>
+          <div class="section-header"><h3>Producción Activa</h3><span class="badge warning">3 en cocina</span></div>
+          <div class="order-list" id="dashboard-orders"></div>
+        </section>
+
+        <!-- INVENTORY -->
+        <section id="tab-inventory" class="tab-content">
+          <div class="search-bar"><span class="search-icon">🔍</span><input type="text" placeholder="Buscar ingredientes o productos..." /></div>
+          <div class="alert-banner"><div class="alert-icon">⚠️</div><div><strong>Stock Crítico</strong><p>Harina: 2kg restantes (Mín. 10kg)</p></div>          <button class="btn-reponer" onclick="showRestockForm('Harina 0000')">Reponer</button></div>
+          <div class="summary-stats"><div class="stat-card"><span>Total Insumos</span><strong style="color:#785900;">42</strong></div><div class="stat-card"><span>Alertas</span><strong style="color:#ba1a1a;">3</strong></div></div>
+          <div class="section-header"><h3>Lista de Insumos</h3></div>
+          <div id="inventory-list"></div>
+        </section>
+
+        <!-- ORDERS -->
+        <section id="tab-orders" class="tab-content">
+          <div class="section-header"><h3>Órdenes</h3><button class="btn btn-primary btn-sm" onclick="addMockOrder()">+ Nuevo Pedido</button></div>
+          <div class="search-bar"><span class="search-icon">🔍</span><input type="text" placeholder="Buscar por #pedido, cliente o fecha" /></div>
+          <div class="filter-pills" id="order-filters"></div>
+          <div id="orders-list"></div>
+        </section>
+
+        <!-- CLIENTS -->
+        <section id="tab-clients" class="tab-content">
+          <div class="section-header"><h3>Clientes</h3></div>
+          <div class="search-bar"><span class="search-icon">🔍</span><input type="text" placeholder="Buscar por nombre, teléfono o cédula" /></div>
+          <button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:16px;" onclick="openNewClientForm()">+ Nuevo Cliente</button>
+          <div id="clients-list"></div>
+        </section>
+
+        <!-- PROFILE -->
+        <section id="tab-profile" class="tab-content">
+          <div class="profile-card-web">
+            <div class="profile-avatar-web">🐹</div>
+            <h3>Capibara Sprinkle</h3>
+            <span class="role-badge">Administrador</span>
+            <p>✉️ hello@panqueo.com</p>
+            <p>📱 +34 600 000 000</p>
+            <button class="btn btn-primary btn-sm" style="width:100%;" onclick="openEditProfile()">Editar Perfil</button>
+          </div>
+          <div class="stats-card-web">
+            <h4>ESTADÍSTICAS</h4>
+            <div class="stat-line"><span>Miembro desde</span><strong>01/01/2026</strong></div>
+            <div class="stat-line"><span>Pedidos gestionados</span><strong>124</strong></div>
+            <div class="stat-line"><span>Nivel</span><span class="level-badge">Experto Capibara 🐹</span></div>
+          </div>
+          <button class="btn-logout" onclick="handleLogout()">Cerrar Sesión</button>
+        </section>
+      </main>
+    </div>
+
+    <!-- MODAL SYSTEM -->
+    <div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal()">
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <span id="modal-title" class="modal-title"></span>
+          <span class="modal-close" onclick="closeModal()">✕</span>
+        </div>
+        <div id="modal-body" class="modal-body"></div>
+      </div>
+    </div>
+  </div>
+  <script src="js/app.js"></script>
+</body>
+</html>
