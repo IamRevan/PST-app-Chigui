@@ -1,14 +1,11 @@
 <!DOCTYPE html>
-<html lang="es">
+<html class="light" lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>PanQueo · Sprinkle UI</title>
-  <!-- Google Fonts (Sprinkle) -->
+  <title>PanQueo · Sprinkle</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet" />
-  <!-- Material Symbols -->
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-  <!-- Tailwind con configuración Sprinkle -->
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <script>
     tailwind.config = {
@@ -71,8 +68,8 @@
           },
           spacing: {
             xs: "4px",
-            sm: "12px",
-            base: "8px",
+            sm: "8px",
+            base: "12px",
             md: "16px",
             lg: "24px",
             xl: "32px",
@@ -103,7 +100,6 @@
       }
     }
   </script>
-  <!-- Estilos Sprinkle minimalistas -->
   <style>
     /* Reset y base */
     * { box-sizing: border-box; margin: 0; }
@@ -114,6 +110,7 @@
       margin: 0;
       padding: 0;
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
     .material-symbols-outlined {
       font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -129,9 +126,69 @@
       padding: 2rem 1.5rem;
       text-align: center;
       background: #fcf9f8;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
     }
-    .splash-logo-area { margin-top: 20vh; }
-    .splash-logo { font-size: 80px; }
+    .confetti-container {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 5;
+      overflow: hidden;
+    }
+    .sprinkle {
+      position: absolute;
+      top: -20px;
+      opacity: 0.8;
+      animation: fall linear forwards;
+    }
+    @keyframes fall {
+      0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+      10% { opacity: 0.8; }
+      90% { opacity: 0.8; }
+      100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+    }
+    .animate-entrance {
+      animation: logoEntrance 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    @keyframes logoEntrance {
+      0% { opacity: 0; transform: scale(0.6) translateY(20px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .loader-ring {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(255,193,7,0.1);
+      border-top: 3px solid #ffc107;
+      border-radius: 50%;
+      animation: rotation 0.8s cubic-bezier(0.5,0.1,0.4,0.9) infinite;
+      display: inline-block;
+    }
+    @keyframes rotation { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+    .content-fade-in {
+      animation: fadeIn 1.2s ease-out forwards;
+      animation-delay: 0.3s;
+      opacity: 0;
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    .splash-logo {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 16px;
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 12px 24px rgba(120,89,0,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .splash-logo img {
+      width: 90%;
+      height: 90%;
+      object-fit: contain;
+    }
     .splash-title {
       font-family: 'Poppins', sans-serif;
       font-size: 32px;
@@ -144,7 +201,6 @@
       font-size: 16px;
       color: #625f4d;
     }
-    .splash-footer { display: flex; flex-direction: column; align-items: center; gap: 8px; }
     .splash-loading-text {
       font-family: 'Inter', sans-serif;
       font-size: 14px;
@@ -152,57 +208,31 @@
       color: #625f4d;
       animation: pulse 1.5s infinite;
     }
-    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
     .splash-version {
       font-family: 'Inter', sans-serif;
       font-size: 14px;
       color: #4f4632;
-      opacity: 0.6;
-    }
-    .loader-ring {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(255,193,7,0.1);
-      border-top: 3px solid #ffc107;
-      border-radius: 50%;
-      animation: spin 0.8s cubic-bezier(0.5,0.1,0.4,0.9) infinite;
-    }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .animate-entrance {
-      animation: logoEntrance 1s cubic-bezier(0.34,1.56,0.64,1) forwards;
-    }
-    @keyframes logoEntrance {
-      0% { opacity: 0; transform: scale(0.6) translateY(20px); }
-      100% { opacity: 1; transform: scale(1) translateY(0); }
-    }
-    .content-fade-in {
-      animation: fadeIn 1.2s ease-out forwards;
-      animation-delay: 0.3s;
-      opacity: 0;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      opacity:0.6;
     }
 
     /* Auth */
     .auth-container {
-      max-width: 440px;
-      margin: 0 auto;
-      padding: 32px 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      justify-content: center;
+      max-width: 440px; margin: 0 auto; padding: 32px 16px;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh; justify-content: center;
     }
     .logo-area {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
       margin-bottom: 24px;
     }
-    .logo { font-size: 48px; }
+    .logo-area .logo-img {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+    }
     .app-name {
       font-family: 'Poppins', sans-serif;
       font-size: 28px;
@@ -210,210 +240,254 @@
       color: #ffc107;
     }
     .auth-card {
-      background: #ffffff;
-      border-radius: 0.75rem;
-      box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
-      padding: 24px;
-      width: 100%;
-      margin-bottom: 16px;
+      background:#ffffff; border-radius:0.75rem;
+      box-shadow:0px 4px 12px rgba(0,0,0,0.08);
+      padding:24px; width:100%; margin-bottom:16px;
     }
-    .auth-card h2 {
-      font-family: 'Poppins', sans-serif;
-      font-size: 24px;
-      font-weight: 600;
-      color: #1b1c1c;
-      margin-bottom: 4px;
-    }
-    .auth-subtitle {
-      font-family: 'Inter', sans-serif;
-      font-size: 16px;
-      color: #4f4632;
-      margin-bottom: 24px;
-    }
-    .input-group { margin-bottom: 16px; }
+    .auth-card h2 { font-family:'Poppins',sans-serif; font-size:24px; font-weight:600; color:#1b1c1c; margin-bottom:4px; }
+    .auth-subtitle { font-family:'Inter',sans-serif; font-size:16px; color:#4f4632; margin-bottom:24px; }
+    .input-group { margin-bottom:16px; }
     .input-line {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 4px 0 8px 0;
-      border-bottom: 1px solid #d4c5ab;
-      transition: border-color 0.3s;
+      display:flex; align-items:center; gap:12px;
+      padding:4px 0 8px 0; border-bottom:1px solid #d4c5ab;
+      transition:border-color 0.3s;
     }
-    .input-line:focus-within { border-bottom-color: #ffc107; }
+    .input-line:focus-within { border-bottom-color:#ffc107; }
     .input-line input {
-      flex: 1;
-      border: none;
-      background: transparent;
-      font-family: 'Inter', sans-serif;
-      font-size: 16px;
-      color: #1b1c1c;
-      outline: none;
+      flex:1; border:none; background:transparent;
+      font-family:'Inter',sans-serif; font-size:16px; color:#1b1c1c; outline:none;
     }
-    .input-line input::placeholder { color: #827660; }
-    .input-icon, .input-eye { color: #625f4d; font-size: 20px; cursor: pointer; }
+    .input-line input::placeholder { color:#827660; }
+    .input-icon, .input-eye { color:#625f4d; font-size:20px; cursor:pointer; }
     .utilities-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 14px;
-      margin-bottom: 24px;
+      display:flex; justify-content:space-between; align-items:center;
+      font-size:14px; margin-bottom:24px;
     }
-    .remember-me { display: flex; align-items: center; gap: 6px; color: #4f4632; }
-    .forgot-link { color: #785900; font-weight: 600; text-decoration: none; }
-    .forgot-link:hover { text-decoration: underline; }
+    .remember-me { display:flex; align-items:center; gap:6px; color:#4f4632; }
+    .forgot-link { color:#785900; font-weight:600; text-decoration:none; }
+    .forgot-link:hover { text-decoration:underline; }
     .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      height: 52px;
-      width: 100%;
-      border-radius: 0.75rem;
-      font-family: 'Inter', sans-serif;
-      font-size: 16px;
-      font-weight: 600;
-      letter-spacing: 0.01em;
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s;
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      height:52px; width:100%; border-radius:0.75rem;
+      font-family:'Inter',sans-serif; font-size:16px; font-weight:600;
+      letter-spacing:0.01em; border:none; cursor:pointer;
+      transition:all 0.2s;
     }
-    .btn-primary {
-      background: #ffc107;
-      color: #6d5100;
-    }
-    .btn-primary:hover { filter: brightness(0.95); }
-    .btn-primary:active { transform: scale(0.98); }
-    .btn-outline {
-      background: transparent;
-      border: 2px solid #d4c5ab;
-      color: #4f4632;
-    }
-    .btn-outline:hover { background: #f6f3f2; }
-    .btn-sm { height: 40px; font-size: 14px; padding: 0 16px; width: auto; }
-    .auth-footer-text {
-      text-align: center;
-      font-size: 14px;
-      color: #4f4632;
-      margin-top: 16px;
-    }
-    .auth-footer-text a { color: #785900; font-weight: 600; text-decoration: none; }
-    .auth-footer-text a:hover { text-decoration: underline; }
+    .btn-primary { background:#ffc107; color:#6d5100; }
+    .btn-primary:hover { filter:brightness(0.95); }
+    .btn-primary:active { transform:scale(0.98); }
+    .btn-outline { background:transparent; border:2px solid #d4c5ab; color:#4f4632; }
+    .btn-outline:hover { background:#f6f3f2; }
+    .btn-sm { height:40px; font-size:14px; padding:0 16px; width:auto; }
+    .auth-footer-text { text-align:center; font-size:14px; color:#4f4632; margin-top:16px; }
+    .auth-footer-text a { color:#785900; font-weight:600; text-decoration:none; }
+    .auth-footer-text a:hover { text-decoration:underline; }
     .security-badge {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(255,193,7,0.2);
-      padding: 8px 16px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,193,7,0.3);
-      margin-top: 8px;
+      display:flex; align-items:center; gap:6px;
+      background:rgba(255,193,7,0.2); padding:8px 16px;
+      border-radius:999px; border:1px solid rgba(255,193,7,0.3);
+      margin-top:8px;
     }
-    .security-check { color: #785900; font-weight: 700; }
-    .security-text { font-size: 14px; font-weight: 600; color: #785900; }
+    .security-check { color:#785900; font-weight:700; }
+    .security-text { font-size:14px; font-weight:600; color:#785900; }
 
-    /* Top Nav */
-    .top-nav {
+    /* Main App Layout */
+    #main-app {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 16px;
+      flex-direction: column;
+      height: 100vh;
+      max-width: 440px;
+      margin: 0 auto;
       background: #fcf9f8;
+      position: relative;
+    }
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #ffffff;
       border-bottom: 1px solid #eae7e7;
+      flex-shrink: 0;
       position: sticky;
       top: 0;
       z-index: 10;
     }
-    .nav-left { display: flex; align-items: center; gap: 8px; }
-    .nav-logo { font-size: 28px; }
-    .nav-title {
+    .top-bar .left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .top-bar .left .logo-img {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+    }
+    .top-bar .left .app-title {
       font-family: 'Poppins', sans-serif;
-      font-size: 28px;
+      font-size: 24px;
       font-weight: 700;
       color: #ffc107;
     }
-    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .top-bar .right { display: flex; align-items: center; gap: 12px; }
     .currency-toggle {
       display: flex;
       background: #f0eded;
       border-radius: 999px;
       padding: 2px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       color: #827660;
     }
-    .currency-btn {
-      padding: 4px 12px;
+    .currency-toggle .curr-btn {
+      padding: 3px 10px;
       border-radius: 999px;
       cursor: pointer;
       transition: all 0.2s;
     }
-    .currency-btn.active {
+    .currency-toggle .curr-btn.active {
       background: #ffc107;
       color: #6d5100;
     }
-    .nav-icon { font-size: 24px; cursor: pointer; color: #625f4d; }
-    .nav-avatar {
+    .top-bar .notif-icon { font-size: 24px; cursor: pointer; color: #625f4d; }
+    .top-bar .avatar {
+      width: 36px; height: 36px;
       border-radius: 50%;
       border: 2px solid #ffc107;
-      padding: 2px;
-      font-size: 24px;
+      overflow: hidden;
       cursor: pointer;
     }
+    .top-bar .avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-    /* Tab Bar */
-    .tab-bar {
-      display: flex;
-      justify-content: space-around;
-      background: #ffffff;
-      border-bottom: 1px solid #eae7e7;
-      padding: 4px 0;
-      position: sticky;
-      top: 64px;
-      z-index: 9;
-    }
-    .tab {
-      flex: 1;
-      text-align: center;
-      padding: 8px 0;
-      font-family: 'Inter', sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      color: #625f4d;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: all 0.2s;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-    }
-    .tab .material-symbols-outlined { font-size: 22px; }
-    .tab.active {
-      color: #785900;
-      border-bottom-color: #ffc107;
-    }
-
-    /* Main content */
     .main-content {
-      max-width: 440px;
-      margin: 0 auto;
-      padding: 16px;
-      padding-bottom: 80px;
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 16px 80px;
     }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    .greeting {
-      font-family: 'Poppins', sans-serif;
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-width: 440px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      background: #ffffff;
+      border-top: 1px solid #eae7e7;
+      padding: 6px 0 10px 0;
+      z-index: 50;
+      box-shadow: 0px -4px 12px rgba(0,0,0,0.08);
+    }
+    .bottom-nav .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      background: transparent;
+      border: none;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: #625f4d;
+      transition: all 0.2s;
+      border-radius: 0.75rem;
+    }
+    .bottom-nav .nav-item .material-symbols-outlined { font-size: 22px; }
+    .bottom-nav .nav-item.active {
+      color: #785900;
+      background: #ffc107;
+      color: #6d5100;
+    }
+    .bottom-nav .nav-item.active .material-symbols-outlined {
+      font-variation-settings: 'FILL' 1;
+    }
+
+    /* Full-screen views */
+    .full-screen-view {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #fcf9f8;
+      z-index: 60;
+      overflow-y: auto;
+      padding: 0 16px 32px;
+      max-width: 440px;
+      margin: 0 auto;
+      display: none;
+    }
+    .full-screen-view.active { display: block; }
+    .full-screen-view .back-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 0;
+      border-bottom: 1px solid #eae7e7;
+      margin-bottom: 16px;
+    }
+    .full-screen-view .back-header .back-btn {
+      background: none;
+      border: none;
       font-size: 24px;
+      cursor: pointer;
+      color: #4f4632;
+      padding: 4px;
+    }
+    .full-screen-view .back-header .title {
+      font-family: 'Poppins', sans-serif;
+      font-size: 20px;
       font-weight: 600;
       color: #1b1c1c;
     }
-    .greeting-sub { color: #4f4632; font-size: 16px; margin-bottom: 16px; }
 
-    /* KPI Cards */
+    /* Card shadow unificado */
+    .card-shadow {
+      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.06);
+      border: 1px solid rgba(0,0,0,0.04);
+    }
+
+    /* Inputs Sprinkle */
+    .input-focus-effect:focus-within .input-border {
+      height: 2px;
+      background-color: #ffc107;
+      width: 100%;
+    }
+    .input-focus-effect:focus-within { background-color: #fffdf0; }
+    .input-underline {
+      border: none;
+      border-bottom: 1px solid #d4c5ab;
+      background: transparent;
+      transition: all 0.3s ease;
+    }
+    .input-underline:focus {
+      outline: none;
+      border-bottom: 2px solid #FFC107;
+      background: #FFF8E1;
+    }
+    .tab-active {
+      background-color: #ffc107;
+      color: #6d5100;
+    }
+    .active-pill { background-color: #ffc107; color: #6d5100; }
+    .inactive-pill { background-color: #f0eded; color: #4f4632; }
+
+    /* Componentes reutilizables */
+    .greeting {
+      font-family: 'Poppins', sans-serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: #1b1c1c;
+    }
+    .greeting-sub { color: #4f4632; font-size: 14px; margin-bottom: 16px; }
+
     .kpi-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -424,15 +498,17 @@
       background: #ffffff;
       border-radius: 0.75rem;
       padding: 16px;
-      box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
-      border: 1px solid #e5e2e1;
+      box-shadow: 0px 4px 12px rgba(0,0,0,0.06);
+      border: 1px solid #eae7e7;
       display: flex;
       flex-direction: column;
       gap: 4px;
+      transition: all 0.2s;
     }
+    .kpi-card:hover { transform: translateY(-2px); box-shadow: 0px 6px 16px rgba(0,0,0,0.08); }
     .kpi-icon { font-size: 24px; }
-    .kpi-value { font-size: 24px; font-weight: 700; }
-    .kpi-label { font-size: 14px; color: #4f4632; }
+    .kpi-value { font-size: 22px; font-weight: 700; }
+    .kpi-label { font-size: 13px; color: #4f4632; }
     .kpi-yellow .kpi-value { color: #785900; }
     .kpi-red .kpi-value { color: #ba1a1a; }
     .kpi-blue .kpi-value { color: #1565C0; }
@@ -442,18 +518,18 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin: 16px 0 12px 0;
+      margin: 18px 0 12px 0;
     }
     .section-header h3 {
       font-family: 'Poppins', sans-serif;
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 600;
       color: #1b1c1c;
     }
     .badge {
       background: #ffc107;
       color: #261a00;
-      padding: 4px 12px;
+      padding: 2px 12px;
       border-radius: 999px;
       font-size: 12px;
       font-weight: 600;
@@ -463,25 +539,27 @@
     .order-item {
       background: #ffffff;
       border-radius: 0.75rem;
-      padding: 16px;
-      box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
-      border: 1px solid #e5e2e1;
+      padding: 14px 16px;
+      box-shadow: 0px 4px 12px rgba(0,0,0,0.06);
+      border: 1px solid #eae7e7;
       margin-bottom: 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      transition: all 0.2s;
     }
-    .order-item .order-id { font-weight: 600; color: #785900; }
+    .order-item:hover { border-color: #ffc107; }
+    .order-item .order-id { font-weight: 600; color: #785900; font-size: 14px; }
     .order-item .order-detail { font-size: 14px; color: #4f4632; }
     .order-item .order-status {
       font-size: 12px;
       font-weight: 600;
-      padding: 4px 8px;
+      padding: 3px 10px;
       border-radius: 999px;
-      background: #e5e2e1;
     }
     .order-status.production { background: #ffdf9e; color: #5b4300; }
     .order-status.done { background: #94f990; color: #005313; }
+    .order-status.pending { background: #ffecb3; color: #7f6000; }
 
     .search-bar {
       display: flex;
@@ -489,7 +567,7 @@
       gap: 8px;
       background: #f6f3f2;
       border-radius: 0.75rem;
-      padding: 8px 16px;
+      padding: 8px 14px;
       margin-bottom: 16px;
     }
     .search-bar input {
@@ -497,10 +575,10 @@
       border: none;
       background: transparent;
       font-family: 'Inter', sans-serif;
-      font-size: 16px;
+      font-size: 14px;
       outline: none;
     }
-    .search-icon { color: #827660; }
+    .search-icon { color: #827660; font-size: 20px; }
 
     .alert-banner {
       display: flex;
@@ -508,38 +586,35 @@
       gap: 12px;
       background: #ffdad6;
       border-radius: 0.75rem;
-      padding: 12px 16px;
+      padding: 10px 16px;
       margin-bottom: 16px;
     }
-    .alert-icon { font-size: 24px; }
-    .alert-banner strong { color: #ba1a1a; }
-    .alert-banner p { margin: 0; font-size: 14px; color: #93000a; }
+    .alert-icon { font-size: 22px; }
+    .alert-banner strong { color: #ba1a1a; font-size: 14px; }
+    .alert-banner p { margin: 0; font-size: 13px; color: #93000a; }
     .btn-reponer {
       background: #ffc107;
       border: none;
-      padding: 6px 16px;
+      padding: 4px 16px;
       border-radius: 999px;
       font-weight: 600;
-      font-size: 14px;
+      font-size: 13px;
       color: #6d5100;
       cursor: pointer;
       margin-left: auto;
     }
 
-    .summary-stats {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
+    .summary-stats { display: flex; gap: 12px; margin-bottom: 16px; }
     .stat-card {
       flex: 1;
       background: #ffffff;
       border-radius: 0.75rem;
       padding: 12px;
-      box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
+      box-shadow: 0px 4px 12px rgba(0,0,0,0.06);
+      border: 1px solid #eae7e7;
       text-align: center;
     }
-    .stat-card span { display: block; font-size: 14px; color: #4f4632; }
+    .stat-card span { display: block; font-size: 13px; color: #4f4632; }
     .stat-card strong { font-size: 20px; }
 
     .inventory-item {
@@ -549,42 +624,81 @@
       padding: 12px 0;
       border-bottom: 1px solid #eae7e7;
     }
-    .inventory-item .name { font-weight: 500; }
+    .inventory-item .name { font-weight: 500; font-size: 14px; }
     .inventory-item .stock { font-size: 14px; color: #4f4632; }
     .inventory-item .stock.low { color: #ba1a1a; font-weight: 600; }
 
-    /* Profile */
-    .profile-card-web {
+    /* Profile refinado */
+    .profile-card {
       background: #ffffff;
       border-radius: 0.75rem;
       padding: 24px;
-      box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
+      box-shadow: 0px 4px 12px rgba(0,0,0,0.06);
+      border: 1px solid #eae7e7;
       text-align: center;
       margin-bottom: 16px;
     }
-    .profile-avatar-web { font-size: 64px; }
-    .role-badge {
+    .profile-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 3px solid #ffc107;
+      margin: 0 auto 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 44px;
+      background: #f6f3f2;
+    }
+    .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-name {
+      font-family: 'Poppins', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: #1b1c1c;
+    }
+    .profile-role {
       background: #7ce17b;
-      padding: 4px 12px;
+      padding: 2px 14px;
       border-radius: 999px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       color: #006419;
       display: inline-block;
       margin-bottom: 8px;
     }
-    .stats-card-web {
+    .profile-contact {
+      font-size: 14px;
+      color: #4f4632;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin: 4px 0;
+    }
+    .profile-contact .material-symbols-outlined { font-size: 18px; }
+
+    .stats-card {
       background: #ffffff;
       border-radius: 0.75rem;
       padding: 16px;
-      box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
+      box-shadow: 0px 4px 12px rgba(0,0,0,0.06);
+      border: 1px solid #eae7e7;
+      margin-bottom: 16px;
     }
-    .stats-card-web h4 { font-size: 12px; letter-spacing: 0.5px; color: #827660; margin-bottom: 8px; }
+    .stats-card h4 {
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      color: #827660;
+      margin-bottom: 8px;
+    }
     .stat-line {
       display: flex;
       justify-content: space-between;
       padding: 8px 0;
       border-bottom: 1px solid #eae7e7;
+      font-size: 14px;
     }
     .stat-line:last-child { border-bottom: none; }
     .stat-line strong { color: #1b1c1c; }
@@ -592,33 +706,69 @@
       background: #e9e2cc;
       padding: 2px 12px;
       border-radius: 999px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
     }
+
+    .quick-access {
+      background: #ffffff;
+      border-radius: 0.75rem;
+      box-shadow: 0px 4px 12px rgba(0,0,0,0.06);
+      border: 1px solid #eae7e7;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .quick-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid #f0eded;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .quick-item:last-child { border-bottom: none; }
+    .quick-item:hover { background: #f6f3f2; }
+    .quick-item .left { display: flex; align-items: center; gap: 12px; }
+    .quick-item .icon-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 0.5rem;
+      background: #f0eded;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #785900;
+      transition: all 0.2s;
+    }
+    .quick-item:hover .icon-box { background: #ffc107; color: #6d5100; }
+    .quick-item .label { font-weight: 600; font-size: 14px; }
+    .quick-item .chevron { color: #4f4632; }
+
     .btn-logout {
       width: 100%;
-      margin-top: 16px;
       padding: 12px;
       background: transparent;
       border: 2px solid #ba1a1a;
       color: #ba1a1a;
       border-radius: 0.75rem;
       font-weight: 600;
-      font-size: 16px;
+      font-size: 15px;
       cursor: pointer;
       transition: all 0.2s;
     }
     .btn-logout:hover { background: #ffdad6; }
 
-    .filter-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .filter-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
     .filter-pill {
-      padding: 4px 16px;
+      padding: 4px 14px;
       border-radius: 999px;
       background: #f6f3f2;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
       cursor: pointer;
       border: 1px solid transparent;
+      transition: all 0.2s;
     }
     .filter-pill.active {
       background: #ffc107;
@@ -626,7 +776,6 @@
       color: #6d5100;
     }
 
-    /* Modal */
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -635,71 +784,62 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 100;
+      z-index: 70;
       padding: 16px;
     }
     .modal-overlay.hidden { display: none; }
-    .modal-content {
+    .modal-box {
       background: #ffffff;
       border-radius: 0.75rem;
-      max-width: 440px;
+      max-width: 400px;
       width: 100%;
-      max-height: 80vh;
-      overflow-y: auto;
+      padding: 24px;
       box-shadow: 0px 4px 20px rgba(0,0,0,0.2);
     }
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px 20px;
-      border-bottom: 1px solid #eae7e7;
+    .modal-box h3 { font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+    .modal-box p { color: #4f4632; margin-bottom: 16px; font-size: 14px; }
+    .modal-box .btn-close {
+      background: #ffc107;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #6d5100;
     }
-    .modal-title { font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 600; }
-    .modal-close { font-size: 24px; cursor: pointer; color: #827660; }
-    .modal-body { padding: 20px; }
-    .error-message {
-      background: #ffdad6;
-      color: #ba1a1a;
-      padding: 8px 16px;
-      border-radius: 0.5rem;
-      margin-bottom: 16px;
-      font-size: 14px;
-    }
-    .hidden { display: none !important; }
 
-    /* Utilidades */
-    .flex-center { display: flex; align-items: center; justify-content: center; }
-    .gap-sm { gap: 8px; }
+    .hidden { display: none !important; }
     .text-muted { color: #4f4632; }
   </style>
 </head>
 <body>
 
 <div id="app">
-
-  <!-- SPLASH -->
-  <div id="splash-screen" class="screen splash-container">
-    <div class="splash-logo-area animate-entrance">
-      <div class="splash-logo">🧁</div>
+  <!-- ===== SPLASH ===== -->
+  <div id="splash-screen" class="splash-container">
+    <div class="confetti-container" id="confetti-container"></div>
+    <div class="splash-logo-area animate-entrance" style="position:relative;z-index:10;">
+      <div class="splash-logo">
+        <!-- LOGO: ruta relativa a la imagen (misma carpeta) -->
+        <img src="PANQUEO ICONO.png" alt="PanQueo Logo">
+      </div>
       <h1 class="splash-title">PanQueo</h1>
       <p class="splash-tagline">Gestión inteligente para repostería</p>
     </div>
-    <div class="splash-footer content-fade-in">
+    <div class="splash-footer content-fade-in" style="position:relative;z-index:10;">
       <div class="loader-ring"></div>
       <p class="splash-loading-text">Tocando para comenzar...</p>
       <p class="splash-version">v1.0.0</p>
     </div>
   </div>
 
-  <!-- AUTH -->
+  <!-- ===== AUTH ===== -->
   <div id="auth-screen" class="screen hidden auth-container">
     <div class="logo-area">
-      <span class="logo">🧁</span>
+      <!-- LOGO en autenticación -->
+      <img class="logo-img" src="PANQUEO ICONO.png" alt="PanQueo Logo">
       <span class="app-name">PanQueo</span>
     </div>
-
-    <!-- Login -->
     <div id="login-form" class="auth-card">
       <h2>¡Bienvenido de vuelta!</h2>
       <p class="auth-subtitle">Inicia sesión para gestionar tu negocio</p>
@@ -724,8 +864,6 @@
       <button class="btn btn-primary" onclick="handleLogin()">Iniciar Sesión <span class="material-symbols-outlined" style="font-size:20px;">arrow_forward</span></button>
       <p class="auth-footer-text">¿No tienes una cuenta? <a href="#" onclick="showRegister()">Regístrate aquí</a></p>
     </div>
-
-    <!-- Register -->
     <div id="register-form" class="auth-card hidden">
       <h2>Crear Cuenta</h2>
       <p class="auth-subtitle">Regístrate para gestionar tu negocio</p>
@@ -737,8 +875,6 @@
       <button class="btn btn-primary" onclick="handleRegister()">Registrarse</button>
       <p class="auth-footer-text">¿Ya tienes cuenta? <a href="#" onclick="showLogin()">Inicia sesión</a></p>
     </div>
-
-    <!-- Reset -->
     <div id="reset-form" class="auth-card hidden">
       <h2>Restablecer Contraseña</h2>
       <p class="auth-subtitle">Ingresa tu correo y te enviaremos las instrucciones.</p>
@@ -746,52 +882,33 @@
       <button class="btn btn-primary" onclick="handleReset()">Enviar enlace</button>
       <p class="auth-footer-text"><a href="#" onclick="showLogin()">Volver al inicio de sesión</a></p>
     </div>
-
     <div class="security-badge">
       <span class="security-check">✓</span>
       <span class="security-text">ISO 27001 Certified</span>
     </div>
   </div>
 
-  <!-- MAIN APP -->
-  <div id="main-screen" class="screen hidden">
-    <!-- Top Nav -->
-    <nav class="top-nav">
-      <div class="nav-left">
-        <span class="nav-logo">🧁</span>
-        <span class="nav-title">PanQueo</span>
+  <!-- ===== MAIN APP ===== -->
+  <div id="main-app" class="screen hidden">
+    <div class="top-bar">
+      <div class="left">
+        <!-- LOGO en la barra superior -->
+        <img class="logo-img" src="PANQUEO ICONO.png" alt="PanQueo Logo">
+        <span class="app-title">PanQueo</span>
       </div>
-      <div class="nav-right">
+      <div class="right">
         <div class="currency-toggle">
-          <span class="currency-btn bs active" onclick="event.stopPropagation();toggleCurrency('bs')">Bs</span>
-          <span class="currency-btn usd" onclick="event.stopPropagation();toggleCurrency('usd')">USD</span>
+          <span class="curr-btn bs active" onclick="event.stopPropagation();toggleCurrency('bs')">Bs</span>
+          <span class="curr-btn usd" onclick="event.stopPropagation();toggleCurrency('usd')">USD</span>
         </div>
-        <span class="nav-icon material-symbols-outlined" onclick="openNotifs()">notifications</span>
-        <span class="nav-avatar material-symbols-outlined" onclick="switchTab('profile')">face</span>
-        <button class="btn btn-outline btn-sm" onclick="handleLogout()">Salir</button>
+        <span class="notif-icon material-symbols-outlined" onclick="openNotifs()">notifications</span>
+        <div class="avatar" onclick="switchTab('profile')">
+          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Ccircle cx='18' cy='18' r='18' fill='%23f6f3f2'/%3E%3Ctext x='18' y='24' font-size='20' text-anchor='middle' fill='%23625f4d' font-family='sans-serif'%3E🐹%3C/text%3E%3C/svg%3E" alt="Avatar">
+        </div>
       </div>
-    </nav>
-
-    <!-- Tab Bar -->
-    <div class="tab-bar">
-      <button class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">
-        <span class="material-symbols-outlined">home</span> Inicio
-      </button>
-      <button class="tab" data-tab="inventory" onclick="switchTab('inventory')">
-        <span class="material-symbols-outlined">inventory_2</span> Inventario
-      </button>
-      <button class="tab" data-tab="orders" onclick="switchTab('orders')">
-        <span class="material-symbols-outlined">receipt_long</span> Órdenes
-      </button>
-      <button class="tab" data-tab="clients" onclick="switchTab('clients')">
-        <span class="material-symbols-outlined">group</span> Clientes
-      </button>
-      <button class="tab" data-tab="profile" onclick="switchTab('profile')">
-        <span class="material-symbols-outlined">person</span> Perfil
-      </button>
     </div>
 
-    <main class="main-content">
+    <div class="main-content" id="main-content">
       <!-- DASHBOARD -->
       <section id="tab-dashboard" class="tab-content active">
         <h2 class="greeting">¡Hola, Capibara!</h2>
@@ -808,111 +925,601 @@
 
       <!-- INVENTORY -->
       <section id="tab-inventory" class="tab-content">
-        <div class="search-bar"><span class="search-icon material-symbols-outlined">search</span><input type="text" placeholder="Buscar ingredientes o productos..." /></div>
-        <div class="alert-banner">
-          <span class="alert-icon material-symbols-outlined">warning</span>
-          <div><strong>Stock Crítico</strong><p>Harina: 2kg restantes (Mín. 10kg)</p></div>
-          <button class="btn-reponer" onclick="showRestockForm('Harina 0000')">Reponer</button>
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+          <div class="relative flex-grow max-w-lg">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline" style="font-size:20px;">search</span>
+            <input class="w-full pl-8 pr-3 py-2 bg-surface-container-lowest border-b border-outline-variant focus:border-primary-container focus:ring-0 transition-all rounded-xl shadow-sm text-body-md font-body-md" placeholder="Buscar por nombre o código" type="text" id="inventory-search">
+          </div>
+          <button class="bg-primary-container text-on-primary-container h-[44px] px-4 rounded-xl font-button-text text-button-text flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-transform" onclick="openRegisterLot()">
+            <span class="material-symbols-outlined" style="font-size:18px;">add_box</span> Agregar Lote
+          </button>
         </div>
-        <div class="summary-stats">
-          <div class="stat-card"><span>Total Insumos</span><strong style="color:#785900;">42</strong></div>
-          <div class="stat-card"><span>Alertas</span><strong style="color:#ba1a1a;">3</strong></div>
+        <div class="flex gap-1 overflow-x-auto pb-2" id="inventory-filters">
+          <button class="active-pill px-3 py-1 rounded-full font-label-bold text-label-bold whitespace-nowrap transition-all shadow-sm text-xs" data-filter="all">Todos</button>
+          <button class="inactive-pill px-3 py-1 rounded-full font-label-bold text-label-bold whitespace-nowrap hover:bg-secondary-container/50 transition-all shadow-sm text-xs" data-filter="low">Stock Bajo</button>
+          <button class="inactive-pill px-3 py-1 rounded-full font-label-bold text-label-bold whitespace-nowrap hover:bg-secondary-container/50 transition-all shadow-sm text-xs" data-filter="expiring">Próximo a Vencer</button>
+          <button class="inactive-pill px-3 py-1 rounded-full font-label-bold text-label-bold whitespace-nowrap hover:bg-secondary-container/50 transition-all shadow-sm text-xs" data-filter="out">Sin Stock</button>
         </div>
-        <div class="section-header"><h3>Lista de Insumos</h3></div>
-        <div id="inventory-list"></div>
+        <div id="inventory-list" class="grid grid-cols-1 gap-3"></div>
+        <button class="fixed bottom-24 right-4 w-12 h-12 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform z-40" onclick="openRegisterLot()">
+          <span class="material-symbols-outlined text-2xl">add</span>
+        </button>
       </section>
 
       <!-- ORDERS -->
       <section id="tab-orders" class="tab-content">
-        <div class="section-header"><h3>Órdenes</h3><button class="btn btn-primary btn-sm" onclick="addMockOrder()"><span class="material-symbols-outlined" style="font-size:18px;">add</span> Nuevo</button></div>
-        <div class="search-bar"><span class="search-icon material-symbols-outlined">search</span><input type="text" placeholder="Buscar por #pedido, cliente o fecha" /></div>
-        <div class="filter-pills" id="order-filters"></div>
-        <div id="orders-list"></div>
+        <div class="flex items-center justify-between mt-1 mb-3">
+          <h2 class="font-title-sm text-[18px] text-on-surface">Órdenes</h2>
+          <button class="bg-primary-container text-on-primary-container font-button-text text-button-text h-[44px] px-4 rounded-xl flex items-center gap-1 transition-transform active:scale-95 shadow-sm hover:opacity-90 text-sm" onclick="openSelectClient()">
+            <span class="material-symbols-outlined" style="font-size:18px;">add</span> Nuevo
+          </button>
+        </div>
+        <div class="relative mb-3">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" style="font-size:20px;">search</span>
+          <input class="w-full bg-surface-container-lowest border-b border-outline-variant py-2 pl-8 pr-3 focus:outline-none focus:border-primary-container focus:bg-orange-50/30 transition-all rounded-t-lg text-sm" placeholder="Buscar por #pedido, cliente o fecha" type="text" id="orders-search">
+        </div>
+        <div class="flex gap-1 overflow-x-auto pb-2 mb-3" id="orders-filters">
+          <button class="px-3 py-1 rounded-full bg-primary-container text-on-primary-container font-label-bold text-label-bold whitespace-nowrap text-xs" data-filter="all">Todos</button>
+          <button class="px-3 py-1 rounded-full bg-surface-container-highest text-on-surface-variant font-label-bold text-label-bold whitespace-nowrap hover:bg-secondary-container/50 transition-colors text-xs" data-filter="pending">Pendientes</button>
+          <button class="px-3 py-1 rounded-full bg-surface-container-highest text-on-surface-variant font-label-bold text-label-bold whitespace-nowrap hover:bg-secondary-container/50 transition-colors text-xs" data-filter="production">En Cocina</button>
+          <button class="px-3 py-1 rounded-full bg-surface-container-highest text-on-surface-variant font-label-bold text-label-bold whitespace-nowrap hover:bg-secondary-container/50 transition-colors text-xs" data-filter="done">Listos</button>
+          <button class="px-3 py-1 rounded-full bg-surface-container-highest text-on-surface-variant font-label-bold text-label-bold whitespace-nowrap hover:bg-secondary-container/50 transition-colors text-xs" data-filter="delivered">Entregados</button>
+        </div>
+        <div id="orders-list" class="space-y-3"></div>
       </section>
 
       <!-- CLIENTS -->
       <section id="tab-clients" class="tab-content">
-        <div class="section-header"><h3>Clientes</h3></div>
-        <div class="search-bar"><span class="search-icon material-symbols-outlined">search</span><input type="text" placeholder="Buscar por nombre, teléfono o cédula" /></div>
-        <button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:16px;" onclick="openNewClientForm()"><span class="material-symbols-outlined" style="font-size:18px;">person_add</span> Nuevo Cliente</button>
-        <div id="clients-list"></div>
+        <div class="mb-3 space-y-2">
+          <h2 class="font-display-lg-mobile text-[18px] font-bold leading-tight text-on-surface">Clientes</h2>
+          <div class="flex flex-col gap-2">
+            <div class="relative flex items-center group">
+              <span class="material-symbols-outlined absolute left-0 text-[#757575] pointer-events-none" style="font-size:20px;">search</span>
+              <input class="w-full pl-7 py-2 bg-transparent border-b border-[#E0E0E0] font-body-sm text-sm placeholder:text-[#757575] focus:border-primary-container focus:ring-0 focus:bg-[#FFF8E1] transition-all" placeholder="Buscar por nombre, teléfono o cédula" type="text" id="clients-search">
+            </div>
+            <button class="h-[44px] w-full bg-[#FFC107] text-white rounded-xl font-button-text text-button-text flex items-center justify-center gap-1 hover:brightness-90 transition-all active:scale-[0.98] shadow-sm text-sm" onclick="openRegisterClient()">
+              <span class="material-symbols-outlined" style="font-size:18px;">add</span> Nuevo Cliente
+            </button>
+          </div>
+        </div>
+        <div id="clients-list" class="space-y-3"></div>
       </section>
 
       <!-- PROFILE -->
       <section id="tab-profile" class="tab-content">
-        <div class="profile-card-web">
-          <div class="profile-avatar-web">🐹</div>
-          <h3>Capibara Sprinkle</h3>
-          <span class="role-badge">Administrador</span>
-          <p>✉️ hello@panqueo.com</p>
-          <p>📱 +34 600 000 000</p>
-          <button class="btn btn-primary btn-sm" style="width:100%;" onclick="openEditProfile()">Editar Perfil</button>
+        <div class="profile-card">
+          <div class="profile-avatar">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Ccircle cx='40' cy='40' r='40' fill='%23f6f3f2'/%3E%3Ctext x='40' y='52' font-size='36' text-anchor='middle' fill='%23625f4d' font-family='sans-serif'%3E🐹%3C/text%3E%3C/svg%3E" alt="Avatar">
+          </div>
+          <div class="profile-name">Capibara Sprinkle</div>
+          <span class="profile-role">Administrador</span>
+          <div class="profile-contact"><span class="material-symbols-outlined">mail</span> hello@panqueo.com</div>
+          <div class="profile-contact"><span class="material-symbols-outlined">phone_iphone</span> +34 600 000 000</div>
+          <button class="btn btn-primary btn-sm" style="width:100%;margin-top:12px;height:44px;font-size:14px;" onclick="openEditProfile()">Editar Perfil</button>
         </div>
-        <div class="stats-card-web">
+        <div class="stats-card">
           <h4>ESTADÍSTICAS</h4>
           <div class="stat-line"><span>Miembro desde</span><strong>01/01/2026</strong></div>
           <div class="stat-line"><span>Pedidos gestionados</span><strong>124</strong></div>
           <div class="stat-line"><span>Nivel</span><span class="level-badge">Experto Capibara 🐹</span></div>
         </div>
+        <div class="quick-access">
+          <div class="quick-item" onclick="openSettings()">
+            <div class="left"><div class="icon-box"><span class="material-symbols-outlined">settings_suggest</span></div><span class="label">Configuración</span></div>
+            <span class="chevron material-symbols-outlined">chevron_right</span>
+          </div>
+          <div class="quick-item" onclick="openSecurity()">
+            <div class="left"><div class="icon-box"><span class="material-symbols-outlined">security</span></div><span class="label">Seguridad</span></div>
+            <span class="chevron material-symbols-outlined">chevron_right</span>
+          </div>
+          <div class="quick-item" onclick="openHelp()">
+            <div class="left"><div class="icon-box"><span class="material-symbols-outlined">help_center</span></div><span class="label">Ayuda</span></div>
+            <span class="chevron material-symbols-outlined">chevron_right</span>
+          </div>
+        </div>
         <button class="btn-logout" onclick="handleLogout()">Cerrar Sesión</button>
       </section>
-    </main>
+    </div>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav" id="bottom-nav">
+      <button class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+        <span class="material-symbols-outlined">home</span> Inicio
+      </button>
+      <button class="nav-item" data-tab="inventory" onclick="switchTab('inventory')">
+        <span class="material-symbols-outlined">inventory_2</span> Inventario
+      </button>
+      <button class="nav-item" data-tab="orders" onclick="switchTab('orders')">
+        <span class="material-symbols-outlined">receipt_long</span> Órdenes
+      </button>
+      <button class="nav-item" data-tab="clients" onclick="switchTab('clients')">
+        <span class="material-symbols-outlined">group</span> Clientes
+      </button>
+      <button class="nav-item" data-tab="profile" onclick="switchTab('profile')">
+        <span class="material-symbols-outlined">person</span> Perfil
+      </button>
+    </nav>
   </div>
 
-  <!-- MODAL -->
-  <div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <span id="modal-title" class="modal-title"></span>
-        <span class="modal-close material-symbols-outlined" onclick="closeModal()">close</span>
+  <!-- ============================================================ -->
+  <!-- ====== FULL-SCREEN VIEWS (todas las pantallas) ====== -->
+  <!-- ============================================================ -->
+
+  <!-- Registrar Lote -->
+  <div id="view-register-lot" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-register-lot')">arrow_back</button>
+      <span class="title">Registrar Lote</span>
+    </div>
+    <div class="bg-white rounded-xl card-shadow p-4">
+      <form class="space-y-4" id="lotForm">
+        <div class="relative group">
+          <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Producto</label>
+          <div class="flex items-center border-b border-outline-variant py-1 transition-all input-focus-effect">
+            <span class="material-symbols-outlined text-outline mr-2">search</span>
+            <input autocomplete="off" class="w-full bg-transparent border-none focus:ring-0 font-body-md text-sm" placeholder="Buscar producto..." type="text" id="lot-product">
+          </div>
+        </div>
+        <div>
+          <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Cantidad</label>
+          <div class="flex items-center justify-between border-b border-outline-variant py-1 transition-all input-focus-effect">
+            <div class="flex items-center">
+              <span class="material-symbols-outlined text-outline mr-2">numbers</span>
+              <input class="w-20 bg-transparent border-none focus:ring-0 font-body-md text-sm" id="lot-qty" min="1" type="number" value="1">
+            </div>
+            <div class="flex gap-2">
+              <button class="w-7 h-7 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high active:scale-95 transition-all" onclick="adjustQty(-1)" type="button">
+                <span class="material-symbols-outlined text-sm">remove</span>
+              </button>
+              <button class="w-7 h-7 flex items-center justify-center rounded-full bg-primary-container hover:bg-primary active:scale-95 transition-all" onclick="adjustQty(1)" type="button">
+                <span class="material-symbols-outlined text-sm">add</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Ingreso</label>
+            <div class="flex items-center border-b border-outline-variant py-1 transition-all input-focus-effect">
+              <span class="material-symbols-outlined text-outline mr-2">calendar_today</span>
+              <input class="w-full bg-transparent border-none focus:ring-0 font-body-md text-sm" id="lot-entry" type="date">
+            </div>
+          </div>
+          <div>
+            <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Vencimiento</label>
+            <div class="flex items-center border-b border-outline-variant py-1 transition-all input-focus-effect" id="expiryContainer">
+              <span class="material-symbols-outlined text-outline mr-2">event_busy</span>
+              <input class="w-full bg-transparent border-none focus:ring-0 font-body-md text-sm" id="lot-expiry" type="date">
+            </div>
+          </div>
+        </div>
+        <div>
+          <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Número de Lote</label>
+          <div class="flex items-center border-b border-outline-variant py-1 transition-all input-focus-effect">
+            <span class="material-symbols-outlined text-outline mr-2">tag</span>
+            <input class="w-full bg-transparent border-none focus:ring-0 font-body-md text-sm uppercase tracking-wider font-semibold" type="text" value="L-2024-001">
+          </div>
+        </div>
+        <div>
+          <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Proveedor <span class="font-normal opacity-60">(Opcional)</span></label>
+          <div class="flex items-center border-b border-outline-variant py-1 transition-all input-focus-effect">
+            <span class="material-symbols-outlined text-outline mr-2">local_shipping</span>
+            <input class="w-full bg-transparent border-none focus:ring-0 font-body-md text-sm" placeholder="Ej: Distribuidora Central" type="text">
+          </div>
+        </div>
+        <div class="flex items-center gap-2 bg-[#FFF8E1] px-3 py-2 rounded-lg border border-[#FFC107]/20">
+          <span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings:'FILL'1;">verified_user</span>
+          <span class="text-primary font-label-bold text-xs">Registro seguro de trazabilidad</span>
+        </div>
+        <button class="h-[44px] bg-primary-container text-on-primary-container font-button-text text-button-text rounded-xl shadow-md hover:brightness-90 active:scale-95 transition-all flex items-center justify-center gap-2 text-sm" type="submit" onclick="event.preventDefault();alert('Lote guardado (mock)');closeView('view-register-lot')">Guardar Lote</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Registrar Cliente -->
+  <div id="view-register-client" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-register-client')">arrow_back</button>
+      <span class="title">Edición de Cliente</span>
+    </div>
+    <div class="auth-card bg-surface-container-lowest w-full rounded-xl p-4 flex flex-col gap-3 border border-surface-container">
+      <form class="flex flex-col gap-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="flex flex-col gap-1">
+            <label class="font-label-bold text-label-bold text-on-surface-variant px-1 text-sm">Nombre</label>
+            <input class="w-full bg-transparent border-b border-outline-variant py-1 focus:border-primary-container transition-all font-body-md text-sm" placeholder="Ej: Maria" type="text" value="Maria">
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="font-label-bold text-label-bold text-on-surface-variant px-1 text-sm">Apellido</label>
+            <input class="w-full bg-transparent border-b border-outline-variant py-1 focus:border-primary-container transition-all font-body-md text-sm" placeholder="Ej: Lopez" type="text" value="Lopez">
+          </div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-bold text-label-bold text-on-surface-variant px-1 text-sm">Cédula</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-0 top-1 text-[#757575] text-sm">badge</span>
+            <input class="w-full bg-transparent border-b border-error py-1 pl-6 focus:border-error transition-all font-body-md text-sm text-error" type="text" value="25.889.001">
+          </div>
+          <span class="font-body-sm text-xs text-error flex items-center gap-1"><span class="material-symbols-outlined text-xs">warning</span> ⚠️ Esta cédula ya está registrada</span>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-bold text-label-bold text-on-surface-variant px-1 text-sm">Teléfono</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-0 top-1 text-[#757575] text-sm">phone_iphone</span>
+            <input class="w-full bg-transparent border-b border-outline-variant py-1 pl-6 focus:border-primary-container transition-all font-body-md text-sm" placeholder="+58 412 000 0000" type="tel" value="+58 424 555 1234">
+          </div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-bold text-label-bold text-on-surface-variant px-1 text-sm">Dirección</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-0 top-1 text-[#757575] text-sm">location_on</span>
+            <input class="w-full bg-transparent border-b border-outline-variant py-1 pl-6 focus:border-primary-container transition-all font-body-md text-sm" placeholder="Av. Principal, Edificio Sprinkle" type="text" value="Calle 5 con Av. Libertador, Local 12">
+          </div>
+        </div>
+        <div class="flex flex-col gap-2 mt-2">
+          <button class="h-[44px] bg-primary-container text-on-primary-container font-button-text text-button-text rounded-xl soft-skeuo hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm" onclick="alert('Cliente guardado (mock)');closeView('view-register-client')">
+            <span class="material-symbols-outlined">save</span> Guardar Cliente
+          </button>
+          <button class="h-[44px] border border-outline text-outline font-button-text text-button-text rounded-xl hover:bg-surface-container transition-all flex items-center justify-center gap-2 text-sm" onclick="closeView('view-register-client')">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Historial del Cliente -->
+  <div id="view-client-history" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-client-history')">arrow_back</button>
+      <span class="title">Historial del Cliente</span>
+    </div>
+    <div class="space-y-4">
+      <div class="bg-surface-container-lowest rounded-xl p-4 card-shadow flex flex-col md:flex-row items-center md:items-start gap-4">
+        <div class="w-20 h-20 rounded-full bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed font-display-lg text-2xl border-4 border-white shadow-md">M</div>
+        <div class="flex-1 text-center md:text-left">
+          <h1 class="font-headline-md text-lg text-on-surface">Mariana Rodríguez</h1>
+          <div class="flex flex-col md:flex-row md:items-center gap-1 text-on-surface-variant font-body-sm text-xs mt-1">
+            <div class="flex items-center gap-1 justify-center md:justify-start"><span class="material-symbols-outlined text-sm">phone</span> +58 412 555 1234</div>
+            <div class="flex items-center gap-1 justify-center md:justify-start"><span class="material-symbols-outlined text-sm">location_on</span> Av. Francisco de Miranda</div>
+            <div class="flex items-center gap-1 justify-center md:justify-start"><span class="material-symbols-outlined text-sm">badge</span> C.I. 25.123.456</div>
+          </div>
+          <button class="mt-2 bg-primary-container text-on-primary-container px-3 py-1 rounded-xl font-button-text text-button-text flex items-center gap-1 text-sm shadow-sm" onclick="alert('Nuevo pedido para este cliente (mock)')"><span class="material-symbols-outlined text-sm">add</span> Nuevo Pedido</button>
+        </div>
       </div>
-      <div id="modal-body" class="modal-body"></div>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="bg-surface-container-low p-3 rounded-xl card-shadow"><p class="text-on-surface-variant text-xs font-label-bold uppercase">Total Pedidos</p><p class="text-headline-md text-lg text-primary">12</p></div>
+        <div class="bg-surface-container-low p-3 rounded-xl card-shadow"><p class="text-on-surface-variant text-xs font-label-bold uppercase">Total Gastado</p><p class="text-headline-md text-lg text-primary">Bs 1.250,00</p></div>
+        <div class="bg-secondary-container/30 p-3 rounded-xl card-shadow border border-secondary-fixed/50"><p class="text-on-secondary-container text-xs font-label-bold uppercase">Producto Favorito</p><p class="text-title-sm text-sm text-on-surface truncate">Pastel de Tres Leches</p></div>
+        <div class="bg-secondary-container/30 p-3 rounded-xl card-shadow border border-secondary-fixed/50"><p class="text-on-secondary-container text-xs font-label-bold uppercase">Última Compra</p><p class="text-title-sm text-sm text-on-surface">15/06/2026</p></div>
+      </div>
+      <div class="bg-surface-container-lowest rounded-xl card-shadow overflow-hidden">
+        <div class="px-3 py-2 bg-surface-container-high/30 border-b border-outline-variant/10"><h2 class="font-title-sm text-sm text-on-surface">Historial de Pedidos</h2></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead><tr class="bg-surface-container-low"><th class="px-3 py-2 font-label-bold text-on-surface-variant"># Pedido</th><th class="px-3 py-2 font-label-bold text-on-surface-variant">Fecha</th><th class="px-3 py-2 font-label-bold text-on-surface-variant">Total</th><th class="px-3 py-2 font-label-bold text-on-surface-variant text-right">Estado</th></tr></thead>
+            <tbody>
+              <tr><td class="px-3 py-2 font-label-bold text-primary">#1042</td><td class="px-3 py-2">15/06/2026</td><td class="px-3 py-2 font-semibold">Bs 450,00</td><td class="px-3 py-2 text-right"><span class="bg-tertiary-container text-on-tertiary-container px-2 py-0.5 rounded-full text-xs font-label-bold">Entregado</span></td></tr>
+              <tr><td class="px-3 py-2 font-label-bold text-primary">#1028</td><td class="px-3 py-2">02/06/2026</td><td class="px-3 py-2 font-semibold">Bs 210,00</td><td class="px-3 py-2 text-right"><span class="bg-tertiary-container text-on-tertiary-container px-2 py-0.5 rounded-full text-xs font-label-bold">Entregado</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detalle de Producto -->
+  <div id="view-product-detail" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-product-detail')">arrow_back</button>
+      <span class="title">Detalle de Producto</span>
+    </div>
+    <div class="space-y-4">
+      <div class="bg-surface-container-lowest rounded-xl card-shadow p-4 flex flex-col md:flex-row gap-4 items-start md:items-center">
+        <div class="w-20 h-20 bg-primary-container/10 rounded-full flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-primary text-4xl">star</span></div>
+        <div class="flex-1">
+          <div class="flex flex-wrap items-center gap-2"><h2 class="font-headline-md text-lg text-primary">Azúcar Blanca</h2><span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full font-label-bold text-xs">AZU-001</span></div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-1"><div><p class="text-on-surface-variant text-xs font-label-bold">Stock Mínimo</p><p class="font-title-sm text-sm text-on-surface">5kg</p></div><div><p class="text-on-surface-variant text-xs font-label-bold">Unidad</p><p class="font-title-sm text-sm text-on-surface">kg</p></div><div><p class="text-on-surface-variant text-xs font-label-bold">Total Actual</p><p class="font-title-sm text-sm text-on-surface">42.5kg</p></div><div><p class="text-on-surface-variant text-xs font-label-bold">Ubicación</p><p class="font-title-sm text-sm text-on-surface">Pasillo A-2</p></div></div>
+        </div>
+        <div class="flex flex-col w-full md:w-auto gap-2">
+          <button class="h-[40px] bg-primary-container text-on-primary-container font-button-text text-button-text rounded-xl px-4 hover:brightness-90 active:scale-[0.98] transition-all flex items-center justify-center gap-1 text-sm" onclick="openAdjustStock()"><span class="material-symbols-outlined text-sm">edit_note</span> Ajustar Stock</button>
+          <button class="h-[40px] border-2 border-outline text-primary font-button-text text-button-text rounded-xl px-4 hover:bg-surface-container-low active:scale-[0.98] transition-all flex items-center justify-center gap-1 text-sm"><span class="material-symbols-outlined text-sm">history</span> Historial</button>
+        </div>
+      </div>
+      <div class="bg-surface-container-lowest rounded-xl card-shadow overflow-hidden">
+        <div class="px-4 py-2 bg-surface-container-low"><h3 class="font-title-sm text-sm flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm">layers</span> Lotes en Inventario (FIFO)</h3></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead class="bg-surface-container-low"><tr><th class="px-3 py-2 font-label-bold text-on-surface-variant">N° Lote</th><th class="px-3 py-2 font-label-bold text-on-surface-variant">Cantidad</th><th class="px-3 py-2 font-label-bold text-on-surface-variant">Vencimiento</th><th class="px-3 py-2 font-label-bold text-on-surface-variant">Estado</th></tr></thead>
+            <tbody>
+              <tr><td class="px-3 py-2 font-label-bold">LT-10293</td><td class="px-3 py-2 font-title-sm text-primary">12.5 kg</td><td class="px-3 py-2 text-error font-label-bold flex items-center gap-1"><span class="material-symbols-outlined text-xs" style="font-variation-settings:'FILL'1;">warning</span>10 Oct 2023</td><td class="px-3 py-2"><span class="bg-error-container text-on-error-container px-2 py-0.5 rounded-full text-xs font-label-bold">Vencido</span></td></tr>
+              <tr><td class="px-3 py-2 font-label-bold">LT-10350</td><td class="px-3 py-2 font-title-sm text-primary">15.0 kg</td><td class="px-3 py-2">15 Mar 2024</td><td class="px-3 py-2"><span class="bg-tertiary-fixed text-on-tertiary-fixed px-2 py-0.5 rounded-full text-xs font-label-bold">Vigente</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ajuste de Inventario -->
+  <div id="view-adjust-stock" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-adjust-stock')">arrow_back</button>
+      <span class="title">Ajuste de Inventario</span>
+    </div>
+    <div class="space-y-4">
+      <div class="space-y-2">
+        <label class="text-label-bold text-on-surface-variant text-sm">Tipo de Ajuste</label>
+        <div class="flex bg-surface-container rounded-xl p-1 gap-1">
+          <button class="flex-1 py-2 text-label-bold rounded-lg transition-all tab-active text-sm" id="btn-entrada" onclick="selectAdjustType('entrada')">Entrada</button>
+          <button class="flex-1 py-2 text-label-bold rounded-lg transition-all text-secondary text-sm" id="btn-salida" onclick="selectAdjustType('salida')">Salida</button>
+          <button class="flex-1 py-2 text-label-bold rounded-lg transition-all text-secondary text-sm" id="btn-merma" onclick="selectAdjustType('merma')">Merma</button>
+        </div>
+      </div>
+      <div class="space-y-2">
+        <label class="text-label-bold text-on-surface-variant flex items-center gap-1 text-sm"><span class="material-symbols-outlined text-sm">search</span> Producto</label>
+        <input class="w-full p-2 input-underline text-body-md text-sm" placeholder="Buscar producto por nombre o SKU..." type="text" value="Donas de Chocolate Glaseadas">
+        <p class="text-[10px] text-secondary px-1 uppercase tracking-wider font-bold">SKU: DON-01 | Stock: 150 und</p>
+      </div>
+      <div class="space-y-2">
+        <label class="text-label-bold text-on-surface-variant flex items-center gap-1 text-sm"><span class="material-symbols-outlined text-sm">numbers</span> Cantidad</label>
+        <input class="w-full p-2 input-underline font-title-sm text-sm" id="adjust-qty" placeholder="0.00" type="number" oninput="validateAdjustAmount(this.value)">
+      </div>
+      <div class="hidden bg-error-container p-2 rounded-xl flex gap-2 border border-error/20" id="adjust-warning">
+        <span class="material-symbols-outlined text-error text-sm" style="font-variation-settings:'FILL'1;">warning</span>
+        <p class="text-body-sm text-on-error-container text-xs">⚠️ Este ajuste supera el 20% de lo esperado. Se registrará en el log de anomalías.</p>
+      </div>
+      <div class="space-y-2">
+        <label class="text-label-bold text-on-surface-variant flex items-center gap-1 text-sm"><span class="material-symbols-outlined text-sm">edit_note</span> Motivo (Opcional)</label>
+        <textarea class="w-full p-2 input-underline text-body-md resize-none text-sm" rows="2" placeholder="Ej. Devolución de proveedor, error de conteo..."></textarea>
+      </div>
+      <button class="w-full h-[44px] bg-primary-container text-on-primary-container rounded-xl font-button-text text-button-text shadow-md hover:brightness-95 active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm" onclick="alert('Ajuste confirmado (mock)');openAdjustSuccess()"><span class="material-symbols-outlined" style="font-variation-settings:'FILL'1;">check_circle</span> Confirmar Ajuste</button>
+    </div>
+  </div>
+
+  <!-- Ajuste Exitoso -->
+  <div id="view-adjust-success" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-adjust-success')">arrow_back</button>
+      <span class="title">Éxito</span>
+    </div>
+    <div class="flex flex-col items-center text-center">
+      <div class="w-20 h-20 bg-tertiary-container text-on-tertiary-container rounded-full flex items-center justify-center mb-4 shadow-lg"><span class="material-symbols-outlined text-4xl" style="font-variation-settings:'wght'600;">check_circle</span></div>
+      <h2 class="font-headline-md text-lg text-on-surface mb-1">¡Ajuste Realizado con Éxito!</h2>
+      <p class="text-body-sm text-on-surface-variant mb-4">El stock ha sido actualizado correctamente.</p>
+      <div class="w-full bg-surface-container-lowest rounded-xl p-4 card-shadow text-left mb-4">
+        <div class="flex items-center gap-3 mb-3"><div class="w-12 h-12 rounded-lg bg-surface-container"><span class="material-symbols-outlined text-primary text-2xl">donut_small</span></div><div><h3 class="font-title-sm text-sm text-on-surface">Donas de Chocolate Glaseadas</h3><span class="text-label-bold font-label-bold text-on-surface-variant/70 text-xs uppercase">SKU: DON-01</span></div></div>
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-outline-variant/30"><div><p class="text-body-sm text-xs text-on-surface-variant">Tipo de Ajuste</p><div class="flex items-center gap-1 text-tertiary font-label-bold text-xs"><span class="material-symbols-outlined text-xs">add_circle</span> Entrada (+50)</div></div><div><p class="text-body-sm text-xs text-on-surface-variant">Stock Actualizado</p><span class="bg-primary-container text-on-primary-container px-2 py-0.5 rounded-md font-label-bold text-xs">200 UND</span></div></div>
+      </div>
+      <button class="w-full h-[44px] bg-primary-container text-on-primary-container rounded-xl font-button-text text-button-text hover:bg-[#fabd00] active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm" onclick="closeView('view-adjust-success')">Ver Inventario General</button>
+    </div>
+  </div>
+
+  <!-- Seleccionar Cliente -->
+  <div id="view-select-client" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-select-client')">arrow_back</button>
+      <span class="title">Seleccionar Cliente</span>
+    </div>
+    <div class="bg-surface-container-lowest rounded-xl card-shadow p-4">
+      <h2 class="font-headline-md text-lg text-on-surface mb-3">¿Quién compra hoy?</h2>
+      <div class="relative mb-3 group"><span class="material-symbols-outlined absolute left-0 top-1/2 -translate-y-1/2 text-outline text-sm">search</span><input class="w-full pl-6 pr-2 py-1 bg-transparent border-b border-outline-variant focus:border-primary focus:ring-0 focus:bg-[#FFF8E1] transition-all font-body-md text-sm" placeholder="Buscar por nombre, cédula o teléfono" type="text"></div>
+      <button class="flex items-center justify-center gap-1 w-full h-[40px] bg-primary-container text-on-primary-container rounded-xl font-button-text text-button-text hover:brightness-90 active:scale-95 transition-all text-sm mb-3" onclick="openRegisterClient()"><span class="material-symbols-outlined text-sm">person_add</span> Registrar Nuevo Cliente</button>
+      <div class="space-y-2">
+        <div class="flex items-center justify-between p-2 rounded-xl hover:bg-surface-container transition-colors cursor-pointer" onclick="openNewOrder()"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center font-title-sm text-sm text-on-primary-container">AM</div><div><h3 class="font-label-bold text-sm text-on-surface">Ana Martínez</h3><p class="font-body-sm text-xs text-on-surface-variant">V-12.345.678 • 0424-1234567</p></div></div><span class="material-symbols-outlined text-xs text-outline-variant">chevron_right</span></div>
+        <div class="flex items-center justify-between p-2 rounded-xl hover:bg-surface-container transition-colors cursor-pointer" onclick="openNewOrder()"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center font-title-sm text-sm text-on-primary-container">RG</div><div><h3 class="font-label-bold text-sm text-on-surface">Ricardo Gómez</h3><p class="font-body-sm text-xs text-on-surface-variant">V-10.987.654 • 0412-9876543</p></div></div><span class="material-symbols-outlined text-xs text-outline-variant">chevron_right</span></div>
+      </div>
+      <div class="flex items-center gap-2 bg-[#FFF8E1] p-2 rounded-xl border border-primary-container/20 mt-3"><span class="material-symbols-outlined text-xs text-on-primary-container" style="font-variation-settings:'FILL'1;">stars</span><span class="font-body-sm text-xs text-on-primary-container">Los clientes frecuentes acumulan puntos Sprinkle.</span></div>
+    </div>
+  </div>
+
+  <!-- Nuevo Pedido (Productos) -->
+  <div id="view-new-order" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-new-order')">arrow_back</button>
+      <span class="title">Nuevo Pedido</span>
+    </div>
+    <div class="relative mb-4"><span class="material-symbols-outlined absolute left-0 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span><input class="search-input w-full pl-6 py-1 font-body-md text-sm placeholder:text-on-surface-variant/50" placeholder="Buscar producto o receta" type="text"></div>
+    <div class="space-y-3">
+      <div class="product-card bg-surface-container-lowest rounded-xl p-3 card-shadow flex gap-3 items-center">
+        <div class="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container"><span class="material-symbols-outlined text-4xl text-primary">donut_small</span></div>
+        <div class="flex-grow"><h3 class="font-title-sm text-sm text-on-surface">Donas de Chocolate</h3><div class="flex items-center gap-1 mt-0.5"><span class="px-2 py-0.5 bg-surface-container rounded-full text-[11px] text-on-surface-variant">Disp: 50 un</span><span class="font-label-bold text-primary text-sm">$1.50</span></div></div>
+        <div class="flex flex-col items-center bg-surface-container-low rounded-xl p-1"><button class="stepper-btn material-symbols-outlined text-primary text-sm">add_circle</button><span class="font-label-bold py-0.5 text-sm">12</span><button class="stepper-btn material-symbols-outlined text-on-surface-variant text-sm">do_not_disturb_on</button></div>
+      </div>
+      <div class="product-card bg-surface-container-lowest rounded-xl p-3 card-shadow flex gap-3 items-center">
+        <div class="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container"><span class="material-symbols-outlined text-4xl text-primary">cake</span></div>
+        <div class="flex-grow"><h3 class="font-title-sm text-sm text-on-surface">Pastel de Vainilla</h3><div class="flex items-center gap-1 mt-0.5"><span class="px-2 py-0.5 bg-surface-container rounded-full text-[11px] text-on-surface-variant">Disp: 5 un</span><span class="font-label-bold text-primary text-sm">$20.00</span></div></div>
+        <div class="flex flex-col items-center bg-surface-container-low rounded-xl p-1"><button class="stepper-btn material-symbols-outlined text-primary text-sm">add_circle</button><span class="font-label-bold py-0.5 text-sm">1</span><button class="stepper-btn material-symbols-outlined text-on-surface-variant text-sm">do_not_disturb_on</button></div>
+      </div>
+    </div>
+    <div class="fixed bottom-24 left-0 w-full px-4 pointer-events-none">
+      <div class="bg-surface-container-lowest p-3 rounded-2xl shadow-[0px_-4px_12px_rgba(0,0,0,0.08)] flex flex-col gap-2 pointer-events-auto border border-outline-variant/10 max-w-[440px] mx-auto">
+        <div class="flex justify-between items-center"><span class="text-body-sm text-xs text-on-surface-variant">Total acumulado</span><span class="font-display-lg text-lg text-on-surface">$38.00</span></div>
+        <button class="py-2 bg-primary-container text-on-primary-container rounded-xl font-button-text text-button-text shadow-md hover:brightness-95 active:scale-[0.98] transition-all text-sm" onclick="openOrderSuccess()">Siguiente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pedido Exitoso -->
+  <div id="view-order-success" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-order-success')">arrow_back</button>
+      <span class="title">Pedido Exitoso</span>
+    </div>
+    <div class="flex flex-col items-center text-center">
+      <div class="w-20 h-20 bg-tertiary-container text-on-tertiary-container rounded-full flex items-center justify-center mb-4 shadow-lg"><span class="material-symbols-outlined text-4xl" style="font-variation-settings:'wght'600;">check_circle</span></div>
+      <h2 class="font-headline-md text-lg text-on-surface mb-1">¡Pedido Procesado con Éxito!</h2>
+      <p class="text-body-sm text-secondary mb-4">El pedido #1045 ha pasado a producción y el inventario se ha actualizado.</p>
+      <div class="w-full bg-surface-container-lowest rounded-xl p-4 card-shadow text-left mb-4">
+        <div class="flex justify-between items-center mb-2"><span class="font-label-bold text-label-bold text-outline text-xs">PEDIDO ID: #1045</span><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-bold uppercase">En Cocina</span></div>
+        <div class="space-y-1 mb-2"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm">cake</span><span class="font-body-md text-sm">Pastel de Chocolate</span></div><div class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm">donut_small</span><span class="font-body-md text-sm">Donas de Chocolate</span></div></div>
+        <div class="bg-[#FFF8E1] border border-primary-fixed-dim rounded-lg p-2 flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings:'FILL'1;">inventory</span><p class="font-body-sm text-xs text-on-primary-container">Se ha aplicado el descuento FIFO a los ingredientes.</p></div>
+      </div>
+      <button class="w-full h-[44px] bg-primary-container text-on-primary-container rounded-xl font-button-text text-button-text hover:brightness-90 active:scale-[0.98] transition-all shadow-md text-sm" onclick="closeView('view-order-success')">Ver Lista de Pedidos</button>
+    </div>
+  </div>
+
+  <!-- Detalle de Pedido -->
+  <div id="view-order-detail" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-order-detail')">arrow_back</button>
+      <span class="title">Detalle de Pedido</span>
+    </div>
+    <div class="space-y-4">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2"><div><div class="flex items-center gap-2"><h2 class="font-headline-md text-lg">Pedido #1045</h2><span class="bg-[#FFF8E1] text-[#FFC107] px-2 py-0.5 rounded-full font-label-bold text-xs flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-[#FFC107]"></span>Pendiente</span></div><p class="font-body-sm text-xs text-on-surface-variant">Realizado el 20 de Junio, 2024</p></div><div class="flex flex-wrap gap-2"><button class="bg-primary-container hover:opacity-90 active:scale-95 transition-all text-on-primary-container h-[40px] px-4 rounded-xl font-button-text text-button-text flex items-center gap-1 text-sm"><span class="material-symbols-outlined text-sm">sync_alt</span> Cambiar Estado</button></div></div>
+      <div class="bg-surface-container-lowest rounded-xl card-shadow p-4"><h3 class="font-title-sm text-sm mb-3 border-b border-surface-variant pb-2">Información del Cliente</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container"><span class="material-symbols-outlined text-sm">person</span></div><div><p class="font-label-bold text-xs text-on-surface-variant">Cliente</p><p class="font-body-md text-sm font-semibold">Juan Pérez</p><p class="font-body-sm text-xs text-on-surface-variant">555-0123</p></div></div><div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed"><span class="material-symbols-outlined text-sm">local_shipping</span></div><div><p class="font-label-bold text-xs text-on-surface-variant">Envío</p><p class="font-body-md text-sm font-semibold">Av. Las Flores 123</p><p class="font-body-sm text-xs text-on-surface-variant">Delivery Solicitado: Sí 🚚</p></div></div></div></div>
+      <div class="bg-surface-container-lowest rounded-xl card-shadow overflow-hidden"><div class="p-4 border-b border-surface-variant"><h3 class="font-title-sm text-sm">Productos del Pedido</h3></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse text-sm"><thead class="bg-surface-container-low"><tr><th class="px-4 py-2 font-label-bold text-on-surface-variant">Producto</th><th class="px-4 py-2 font-label-bold text-on-surface-variant text-center">Cant.</th><th class="px-4 py-2 font-label-bold text-on-surface-variant text-right">Total</th></tr></thead><tbody><tr><td class="px-4 py-2"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">cake</span> Pastel de Chocolate</div></td><td class="px-4 py-2 text-center">1</td><td class="px-4 py-2 text-right font-semibold">$25.00</td></tr><tr><td class="px-4 py-2"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">celebration</span> Velas</div></td><td class="px-4 py-2 text-center">1</td><td class="px-4 py-2 text-right font-semibold">$0.50</td></tr></tbody></table></div></div>
+      <div class="bg-surface-container-lowest rounded-xl card-shadow p-4"><h3 class="font-title-sm text-sm mb-3 border-b border-surface-variant pb-2">Resumen</h3><div class="space-y-2"><div class="flex justify-between"><span class="text-body-sm text-xs text-on-surface-variant">Subtotal</span><span class="text-body-sm text-sm font-semibold">$25.50</span></div><div class="flex justify-between"><span class="text-body-sm text-xs text-on-surface-variant">Descuento</span><span class="text-body-sm text-sm text-tertiary">-$0.00</span></div><div class="flex justify-between pt-2 border-t border-surface-variant"><span class="font-title-sm text-sm">Total</span><span class="font-display-lg text-lg text-[#FFC107] font-bold">$25.50</span></div></div><div class="bg-surface-container-low rounded-lg p-2 mt-3"><div class="flex items-center justify-between"><span class="font-label-bold text-xs text-on-surface-variant">Estado de Pago</span><span class="text-error font-label-bold text-xs">Pendiente</span></div></div></div>
+    </div>
+  </div>
+
+  <!-- Error de Stock -->
+  <div id="view-stock-error" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-stock-error')">arrow_back</button>
+      <span class="title">Error</span>
+    </div>
+    <div class="flex flex-col items-center text-center">
+      <div class="w-16 h-16 bg-error-container text-error rounded-full flex items-center justify-center mb-4"><span class="material-symbols-outlined text-3xl" style="font-variation-settings:'FILL'1;">error</span></div>
+      <h2 class="font-headline-md text-lg text-on-surface mb-2">❌ Stock insuficiente</h2>
+      <p class="text-body-sm text-on-surface text-sm">No hay suficiente stock para los siguientes productos:</p>
+      <div class="w-full bg-surface-container-low p-3 rounded-lg border-l-4 border-error mt-3 text-left"><ul><li class="flex items-start gap-2"><span class="material-symbols-outlined text-error text-sm">remove_shopping_cart</span><div class="text-sm"><span class="font-label-bold text-on-surface">Harina</span><br><span class="text-on-surface-variant">Disponible: <span class="text-error font-semibold">1kg</span></span><span class="text-on-surface-variant mx-1">•</span><span class="text-on-surface-variant">Requerido: <span class="text-primary font-semibold">2kg</span></span></div></li></ul></div>
+      <p class="text-body-sm text-xs text-on-surface-variant mt-3">Por favor, ajusta las cantidades o repón el inventario.</p>
+      <button class="w-full h-[44px] bg-primary-container text-on-primary-container rounded-xl font-button-text text-button-text shadow-md hover:brightness-90 active:scale-[0.98] transition-all text-sm mt-4" onclick="closeView('view-stock-error')">Entendido</button>
+    </div>
+  </div>
+
+  <!-- Configuración -->
+  <div id="view-settings" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-settings')">arrow_back</button>
+      <span class="title">Configuración</span>
+    </div>
+    <div class="bg-surface-container-lowest w-full rounded-xl card-shadow p-4">
+      <form class="space-y-4" id="settingsForm">
+        <div class="flex flex-col gap-1">
+          <label class="font-label-bold text-label-bold text-on-surface-variant text-sm">Moneda predeterminada</label>
+          <div class="relative input-focus-animate">
+            <select class="w-full bg-transparent border-none py-1 px-0 font-body-md text-body-md focus:ring-0 appearance-none cursor-pointer text-sm">
+              <option value="Bs">Bs (Bolívares)</option>
+              <option selected value="USD">USD (Dólares)</option>
+            </select>
+            <span class="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-outline">expand_more</span>
+            <div class="border-bottom-line"></div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between py-1">
+          <div><span class="font-body-md text-sm font-semibold text-on-surface">Notificaciones push</span><span class="font-body-sm text-xs text-on-surface-variant block">Recibir alertas de tus pedidos</span></div>
+          <label class="relative inline-flex items-center cursor-pointer"><input checked class="sr-only peer" type="checkbox"><div class="w-10 h-5 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-container"></div></label>
+        </div>
+        <div class="flex items-center justify-between py-1">
+          <div><span class="font-body-md text-sm font-semibold text-on-surface">Modo visual</span><span class="font-body-sm text-xs text-on-surface-variant block">Modo claro seleccionado</span></div>
+          <div class="flex bg-surface-container-low rounded-lg p-1">
+            <button class="flex items-center gap-1 px-2 py-1 rounded-md transition-all duration-200 bg-white shadow-sm text-primary" onclick="setTheme('light')" type="button"><span class="material-symbols-outlined text-sm">light_mode</span><span class="font-label-bold text-xs">Claro</span></button>
+            <button class="flex items-center gap-1 px-2 py-1 rounded-md transition-all duration-200 text-on-surface-variant" onclick="setTheme('dark')" type="button"><span class="material-symbols-outlined text-sm">dark_mode</span><span class="font-label-bold text-xs">Oscuro</span></button>
+          </div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-bold text-label-bold text-on-surface-variant text-sm">Idioma</label>
+          <div class="relative input-focus-animate"><select class="w-full bg-transparent border-none py-1 px-0 font-body-md text-body-md focus:ring-0 appearance-none cursor-pointer text-sm"><option selected value="es">Español</option><option value="en">Inglés</option></select><span class="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-outline">translate</span><div class="border-bottom-line"></div></div>
+        </div>
+        <div class="flex items-center gap-3 bg-[#FFF8E1] p-3 rounded-lg border border-[#FFECB3]"><span class="material-symbols-outlined text-primary-container" style="font-variation-settings:'FILL'1;">stars</span><div><p class="font-label-bold text-label-bold text-primary text-sm">Nivel Repostería Gold</p><p class="font-body-sm text-xs text-on-surface-variant">¡Tus ajustes ayudan a mejorar tus sugerencias!</p></div></div>
+        <button class="w-full h-[44px] bg-primary-container text-on-primary-container font-button-text text-button-text rounded-xl shadow-md hover:bg-[#E6AF06] active:scale-[0.98] transition-all flex items-center justify-center gap-1 text-sm" type="submit"><span class="material-symbols-outlined">save</span> Guardar Configuración</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Editar Perfil -->
+  <div id="view-edit-profile" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-edit-profile')">arrow_back</button>
+      <span class="title">Editar Perfil</span>
+    </div>
+    <div class="bg-surface-container-lowest w-full rounded-xl card-shadow p-4 flex flex-col gap-3">
+      <div class="flex flex-col items-center gap-1">
+        <div class="relative group cursor-pointer">
+          <div class="w-24 h-24 rounded-full overflow-hidden border-4 border-primary-container shadow-lg">
+            <img alt="Profile Preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Ccircle cx='48' cy='48' r='48' fill='%23f6f3f2'/%3E%3Ctext x='48' y='62' font-size='40' text-anchor='middle' fill='%23625f4d' font-family='sans-serif'%3E🐹%3C/text%3E%3C/svg%3E">
+          </div>
+          <div class="absolute bottom-1 right-1 bg-primary text-on-primary w-8 h-8 rounded-full flex items-center justify-center shadow-md border-2 border-surface-container-lowest group-hover:scale-110 transition-transform"><span class="material-symbols-outlined text-sm">photo_camera</span></div>
+        </div>
+        <button class="font-label-bold text-label-bold text-primary hover:underline text-xs">Cambiar foto de perfil</button>
+      </div>
+      <form class="flex flex-col gap-3">
+        <div class="flex flex-col gap-1 transition-all duration-200 rounded-lg p-1 input-focus-effect">
+          <label class="font-label-bold text-label-bold text-on-surface-variant px-1 text-xs">Nombre</label>
+          <div class="flex items-center px-1 py-0.5 gap-2"><span class="material-symbols-outlined text-outline" style="font-size:18px;">person</span><input class="w-full bg-transparent border-none py-1 font-body-md text-sm text-on-surface placeholder:text-outline-variant" placeholder="Tu nombre" type="text" value="Capy"></div>
+          <div class="input-border h-[1px] bg-outline-variant transition-all duration-300 mx-1"></div>
+        </div>
+        <div class="flex flex-col gap-1 transition-all duration-200 rounded-lg p-1 input-focus-effect">
+          <label class="font-label-bold text-label-bold text-on-surface-variant px-1 text-xs">Apellido</label>
+          <div class="flex items-center px-1 py-0.5 gap-2"><span class="material-symbols-outlined text-outline" style="font-size:18px;">badge</span><input class="w-full bg-transparent border-none py-1 font-body-md text-sm text-on-surface placeholder:text-outline-variant" placeholder="Tu apellido" type="text" value="Bara"></div>
+          <div class="input-border h-[1px] bg-outline-variant transition-all duration-300 mx-1"></div>
+        </div>
+        <div class="flex flex-col gap-1 transition-all duration-200 rounded-lg p-1 input-focus-effect">
+          <label class="font-label-bold text-label-bold text-on-surface-variant px-1 text-xs">Email</label>
+          <div class="flex items-center px-1 py-0.5 gap-2"><span class="material-symbols-outlined text-outline" style="font-size:18px;">mail</span><input class="w-full bg-transparent border-none py-1 font-body-md text-sm text-on-surface placeholder:text-outline-variant" placeholder="tu@email.com" type="email" value="hola@capybara.app"></div>
+          <div class="input-border h-[1px] bg-outline-variant transition-all duration-300 mx-1"></div>
+        </div>
+        <div class="flex flex-col gap-1 transition-all duration-200 rounded-lg p-1 input-focus-effect">
+          <label class="font-label-bold text-label-bold text-on-surface-variant px-1 text-xs">Teléfono</label>
+          <div class="flex items-center px-1 py-0.5 gap-2"><span class="material-symbols-outlined text-outline" style="font-size:18px;">call</span><input class="w-full bg-transparent border-none py-1 font-body-md text-sm text-on-surface placeholder:text-outline-variant" placeholder="+34 000 000 000" type="tel" value="+34 600 000 000"></div>
+          <div class="input-border h-[1px] bg-outline-variant transition-all duration-300 mx-1"></div>
+        </div>
+      </form>
+      <div class="flex items-center gap-2 bg-tertiary-fixed text-on-tertiary-fixed p-2 rounded-lg"><span class="material-symbols-outlined" style="font-variation-settings:'FILL'1;">verified</span><p class="font-body-sm text-xs">Tu cuenta está verificada y lista para recibir Sprinkles.</p></div>
+      <button class="h-[44px] w-full bg-primary-container text-on-primary-container font-button-text text-button-text rounded-xl shadow-md hover:brightness-95 active:scale-[0.98] transition-all flex items-center justify-center gap-1 text-sm" onclick="closeView('view-edit-profile')">Guardar Cambios</button>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <h3 id="modal-title">Título</h3>
+      <p id="modal-body-text">Contenido</p>
+      <button class="btn-close" onclick="closeModal()">Cerrar</button>
     </div>
   </div>
 </div>
 
-<!-- ============================================================ -->
-<!-- JAVASCRIPT (lógica PanQueo + micro-interacciones)             -->
-<!-- ============================================================ -->
 <script>
-  // ---------- DATA MOCK ----------
-  const mockInventory = [
-    { id: 1, name: 'Harina 0000', stock: 2, unit: 'kg', min: 10 },
-    { id: 2, name: 'Azúcar', stock: 8, unit: 'kg', min: 5 },
-    { id: 3, name: 'Huevos', stock: 30, unit: 'un', min: 20 },
-    { id: 4, name: 'Manteca', stock: 4, unit: 'kg', min: 3 },
-    { id: 5, name: 'Levadura', stock: 1.5, unit: 'kg', min: 2 },
-  ];
+  // ========== SPLASH ==========
+  function createSprinkle() {
+    const container = document.getElementById('confetti-container');
+    if (!container) return;
+    const sprinkle = document.createElement('div');
+    sprinkle.classList.add('sprinkle');
+    const colors = ['#ffc107', '#625f4d', '#ffffff', '#fabd00'];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const isOval = Math.random() > 0.5;
+    const width = Math.random() * 4 + 4;
+    const height = Math.random() * 8 + 6;
+    sprinkle.style.width = width + 'px';
+    sprinkle.style.height = height + 'px';
+    sprinkle.style.backgroundColor = color;
+    if (isOval) sprinkle.style.borderRadius = '999px';
+    sprinkle.style.left = Math.random() * 100 + 'vw';
+    const duration = Math.random() * 3 + 4;
+    const delay = Math.random() * 5;
+    sprinkle.style.animationDuration = duration + 's';
+    sprinkle.style.animationDelay = delay + 's';
+    container.appendChild(sprinkle);
+    setTimeout(() => { sprinkle.remove(); }, (duration + delay) * 1000);
+  }
+  for (let i = 0; i < 40; i++) createSprinkle();
+  setInterval(createSprinkle, 250);
 
-  let orders = [
-    { id: 1042, client: 'Cliente A', product: 'Pastel de Tres Leches', status: 'production', due: '14:00' },
-    { id: 1043, client: 'Cliente B', product: 'Docena de Empanadas', status: 'production', due: '16:30' },
-    { id: 1044, client: 'Evento Z', product: 'Torta de Chocolate', status: 'production', due: '18:00' },
-    { id: 1045, client: 'Cliente C', product: 'Galletas surtidas', status: 'done', due: '12:00' },
-  ];
-
-  const clients = [
-    { id: 1, name: 'María Gómez', phone: '+58 412 1234567', cedula: 'V-12345678' },
-    { id: 2, name: 'Juan Pérez', phone: '+58 414 9876543', cedula: 'E-87654321' },
-  ];
-
-  let currentTab = 'dashboard';
-  let currentCurrency = 'bs';
-
-  // ---------- SPLASH ----------
-  setTimeout(() => {
-    document.getElementById('splash-screen').classList.add('hidden');
+  const splash = document.getElementById('splash-screen');
+  splash.addEventListener('click', function() {
+    this.classList.add('hidden');
     document.getElementById('auth-screen').classList.remove('hidden');
-  }, 1500);
+  });
 
-  // ---------- AUTH ----------
+  // ========== AUTH ==========
   function togglePassword() {
     const pwd = document.getElementById('login-password');
     const eye = document.querySelector('.input-eye');
     if (pwd.type === 'password') { pwd.type = 'text'; eye.textContent = 'visibility_off'; }
     else { pwd.type = 'password'; eye.textContent = 'visibility'; }
   }
-
   function showLogin() {
     document.getElementById('login-form').classList.remove('hidden');
     document.getElementById('register-form').classList.add('hidden');
@@ -928,7 +1535,6 @@
     document.getElementById('register-form').classList.add('hidden');
     document.getElementById('reset-form').classList.remove('hidden');
   }
-
   function handleLogin() {
     const email = document.getElementById('login-email').value.trim();
     const pass = document.getElementById('login-password').value.trim();
@@ -940,10 +1546,9 @@
     }
     err.classList.add('hidden');
     document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('main-screen').classList.remove('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
     renderAll();
   }
-
   function handleRegister() {
     const nombre = document.getElementById('reg-nombre').value.trim();
     const apellido = document.getElementById('reg-apellido').value.trim();
@@ -957,61 +1562,126 @@
     alert('Registro exitoso (mock). Ahora inicia sesión.');
     showLogin();
   }
-
   function handleReset() {
     const email = document.getElementById('reset-email').value.trim();
     if (!email) { alert('Ingresa tu correo'); return; }
     alert('Se ha enviado un enlace de restablecimiento a ' + email);
     showLogin();
   }
-
   function handleLogout() {
     if (confirm('¿Cerrar sesión?')) {
-      document.getElementById('main-screen').classList.add('hidden');
+      document.getElementById('main-app').classList.add('hidden');
       document.getElementById('auth-screen').classList.remove('hidden');
       showLogin();
     }
   }
 
-  // ---------- CURRENCY ----------
+  // ========== CURRENCY ==========
   function toggleCurrency(type) {
-    currentCurrency = type;
-    document.querySelectorAll('.currency-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector(`.currency-btn.${type}`).classList.add('active');
+    document.querySelectorAll('.curr-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.curr-btn.${type}`).classList.add('active');
     const kpiValues = document.querySelectorAll('.kpi-value');
-    if (type === 'usd') {
-      kpiValues[2].textContent = '$450';
-    } else {
-      kpiValues[2].textContent = 'Bs 1200';
-    }
+    if (type === 'usd') kpiValues[2].textContent = '$450';
+    else kpiValues[2].textContent = 'Bs 1200';
   }
 
-  // ---------- TABS ----------
-  function switchTab(tab) {
-    currentTab = tab;
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.getElementById(`tab-${tab}`).classList.add('active');
+  // ========== TABS ==========
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    const target = document.getElementById('tab-' + tabId);
+    if (target) target.classList.add('active');
+    document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => {
+      btn.classList.remove('active');
+      if (btn.dataset.tab === tabId) btn.classList.add('active');
+    });
+    document.querySelectorAll('.full-screen-view.active').forEach(v => v.classList.remove('active'));
     renderAll();
   }
 
-  // ---------- RENDER FUNCTIONS ----------
+  // ========== NAVEGACIÓN ==========
+  function openView(viewId) {
+    document.querySelectorAll('.full-screen-view').forEach(v => v.classList.remove('active'));
+    document.getElementById(viewId).classList.add('active');
+  }
+  function closeView(viewId) {
+    document.getElementById(viewId).classList.remove('active');
+  }
+  function openRegisterLot() { openView('view-register-lot'); }
+  function openRegisterClient() { openView('view-register-client'); }
+  function openClientHistory() { openView('view-client-history'); }
+  function openProductDetail() { openView('view-product-detail'); }
+  function openAdjustStock() { openView('view-adjust-stock'); }
+  function openAdjustSuccess() { openView('view-adjust-success'); }
+  function openSelectClient() { openView('view-select-client'); }
+  function openNewOrder() { openView('view-new-order'); }
+  function openOrderSuccess() { openView('view-order-success'); }
+  function openOrderDetail() { openView('view-order-detail'); }
+  function openStockError() { openView('view-stock-error'); }
+  function openSettings() { openView('view-settings'); }
+  function openEditProfile() { openView('view-edit-profile'); }
+  function openSecurity() { openModal('Seguridad', 'Aquí puedes gestionar la seguridad de tu cuenta (función simulada).'); }
+  function openHelp() { openModal('Ayuda', '¿Necesitas asistencia? Revisa nuestras FAQs o contacta con soporte (función simulada).'); }
+  function openNotifs() { openModal('Notificaciones', 'Tienes 3 notificaciones sin leer (función simulada).'); }
+
+  // ========== MODAL ==========
+  function openModal(title, body) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body-text').textContent = body;
+    document.getElementById('modal-overlay').classList.remove('hidden');
+  }
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.add('hidden');
+  }
+
+  // ========== CONFIGURACIÓN ==========
+  function setTheme(mode) {
+    const html = document.documentElement;
+    const lightBtn = document.getElementById('light-btn');
+    const darkBtn = document.getElementById('dark-btn');
+    if (mode === 'dark') {
+      html.classList.add('dark');
+      darkBtn.classList.add('bg-white', 'shadow-sm', 'text-primary');
+      darkBtn.classList.remove('text-on-surface-variant');
+      lightBtn.classList.remove('bg-white', 'shadow-sm', 'text-primary');
+      lightBtn.classList.add('text-on-surface-variant');
+    } else {
+      html.classList.remove('dark');
+      lightBtn.classList.add('bg-white', 'shadow-sm', 'text-primary');
+      lightBtn.classList.remove('text-on-surface-variant');
+      darkBtn.classList.remove('bg-white', 'shadow-sm', 'text-primary');
+      darkBtn.classList.add('text-on-surface-variant');
+    }
+  }
+
+  // ========== DATA MOCK ==========
+  const mockInventory = [
+    { id: 1, name: 'Harina Todo Uso', stock: 2, unit: 'kg', min: 10, sku: 'INV-001', critical: true },
+    { id: 2, name: 'Azúcar Blanca', stock: 45, unit: 'kg', min: 5, sku: 'INV-002', critical: false },
+    { id: 3, name: 'Cartón de Huevos', stock: 5, unit: 'un', min: 20, sku: 'INV-003', critical: false },
+    { id: 4, name: 'Chips de Chocolate', stock: 12, unit: 'kg', min: 3, sku: 'INV-004', critical: false },
+    { id: 5, name: 'Levadura Fresca', stock: 1.5, unit: 'kg', min: 2, sku: 'INV-005', critical: true },
+  ];
+  let orders = [
+    { id: 1045, client: 'Juan Pérez', product: 'Pastel de Chocolate', status: 'pending', due: '10:00', total: '$25.50' },
+    { id: 1044, client: 'María García', product: 'Docena de Empanadas', status: 'production', due: '09:30', total: 'Bs 850,00' },
+    { id: 1043, client: 'Eventos S.A.', product: 'Torta de Chocolate', status: 'done', due: '16:00', total: '$120.00' },
+  ];
+  const clients = [
+    { id: 1, name: 'María Pérez', phone: '+591 7XXXXXXX', orders: 12, last: '15/06/2026' },
+    { id: 2, name: 'Juan Rodríguez', phone: '+591 6XXXXXXX', orders: 5, last: '10/06/2026' },
+    { id: 3, name: 'Ana Martínez', phone: '+591 7XXXXXXX', orders: 28, last: '14/06/2026' },
+    { id: 4, name: 'Roberto Salas', phone: '+591 7XXXXXXX', orders: 1, last: '01/06/2026' },
+  ];
+
+  // ========== RENDER ==========
   function renderDashboardOrders() {
     const container = document.getElementById('dashboard-orders');
-    const active = orders.filter(o => o.status === 'production');
-    if (active.length === 0) {
-      container.innerHTML = '<p class="text-muted" style="padding:8px 0;">No hay pedidos activos en producción.</p>';
-      return;
-    }
+    const active = orders.filter(o => o.status === 'production' || o.status === 'pending');
+    if (!active.length) { container.innerHTML = '<p class="text-muted" style="padding:6px 0;font-size:13px;">No hay pedidos activos en producción.</p>'; return; }
     container.innerHTML = active.map(o => `
       <div class="order-item">
-        <div>
-          <div class="order-id">#${o.id}</div>
-          <div class="order-detail">${o.product} · ${o.client}</div>
-          <div style="font-size:12px;color:#827660;">Due: ${o.due}</div>
-        </div>
-        <span class="order-status production">En cocina</span>
+        <div><div class="order-id">#${o.id}</div><div class="order-detail">${o.product} · ${o.client}</div><div style="font-size:11px;color:#827660;">Due: ${o.due}</div></div>
+        <span class="order-status ${o.status}">${o.status === 'pending' ? 'Pendiente' : 'En cocina'}</span>
       </div>
     `).join('');
   }
@@ -1019,137 +1689,67 @@
   function renderInventory() {
     const container = document.getElementById('inventory-list');
     container.innerHTML = mockInventory.map(item => `
-      <div class="inventory-item">
-        <span class="name">${item.name}</span>
-        <span class="stock ${item.stock < item.min ? 'low' : ''}">${item.stock} ${item.unit}</span>
+      <div class="bg-surface-container-lowest p-3 rounded-xl card-shadow flex flex-col gap-2 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-1.5 h-full ${item.critical ? 'bg-error' : 'bg-tertiary'}"></div>
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-10 h-10 rounded-lg bg-primary-container/20 flex items-center justify-center">
+              <span class="material-symbols-outlined text-primary text-2xl">${item.id === 1 ? 'bakery_dining' : item.id === 2 ? 'star' : item.id === 3 ? 'egg' : 'cookie'}</span>
+            </div>
+            <div><h3 class="font-title-sm text-sm text-on-surface">${item.name}</h3><p class="font-body-sm text-xs text-outline">${item.sku}</p></div>
+          </div>
+          <div class="text-right">
+            <span class="${item.critical ? 'text-error' : 'text-tertiary'} font-label-bold text-xs flex items-center justify-end gap-1">
+              <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL'1;">${item.critical ? 'warning' : 'check_circle'}</span>
+              ${item.critical ? 'Crítico' : 'Óptimo'}
+            </span>
+            <p class="font-display-lg text-lg ${item.critical ? 'text-error' : 'text-tertiary'}">${item.stock} ${item.unit}</p>
+          </div>
+        </div>
+        <div class="flex items-center justify-between mt-1 pt-2 border-t border-surface-variant">
+          <div class="flex items-center gap-1 text-on-surface-variant"><span class="material-symbols-outlined text-sm">calendar_today</span><span class="font-body-sm text-xs">Vence: 12/08/2024</span></div>
+          <div class="flex gap-1">
+            <button class="p-1.5 rounded-lg bg-surface-container-high text-on-surface-variant hover:bg-primary-container hover:text-on-primary-container transition-all active:scale-90" onclick="openProductDetail()"><span class="material-symbols-outlined text-sm">visibility</span></button>
+            <button class="flex items-center gap-0.5 px-2 py-1.5 rounded-lg bg-secondary-fixed text-on-secondary-fixed font-label-bold text-xs hover:bg-secondary-fixed-dim transition-all active:scale-90" onclick="openProductDetail()">Ver Lotes <span class="material-symbols-outlined text-sm">chevron_right</span></button>
+          </div>
+        </div>
       </div>
     `).join('');
   }
 
   function renderOrders() {
     const container = document.getElementById('orders-list');
-    const filters = document.getElementById('order-filters');
-    filters.innerHTML = ['Todos', 'En cocina', 'Finalizados'].map(f => `
-      <span class="filter-pill ${f === 'Todos' ? 'active' : ''}" onclick="filterOrders('${f}')">${f}</span>
-    `).join('');
-
-    const filtered = orders.filter(o => {
-      if (window._filter === 'En cocina') return o.status === 'production';
-      if (window._filter === 'Finalizados') return o.status === 'done';
-      return true;
-    });
-    if (filtered.length === 0) {
-      container.innerHTML = '<p style="padding:16px 0;color:#4f4632;">No hay órdenes con este filtro.</p>';
-      return;
-    }
-    container.innerHTML = filtered.map(o => `
-      <div class="order-item">
-        <div>
-          <div class="order-id">#${o.id}</div>
-          <div class="order-detail">${o.product} · ${o.client}</div>
-          <div style="font-size:12px;color:#827660;">Due: ${o.due}</div>
+    const statusMap = {
+      'pending': { label: 'Pendiente', class: 'bg-[#FFF8E1] text-[#FF9800]' },
+      'production': { label: 'En Cocina', class: 'bg-blue-50 text-blue-600' },
+      'done': { label: 'Listo', class: 'bg-tertiary-container/20 text-tertiary' }
+    };
+    container.innerHTML = orders.map(o => `
+      <div class="bg-surface-container-lowest p-3 rounded-xl card-shadow border-l-3 ${o.status === 'pending' ? 'border-orange-400' : o.status === 'production' ? 'border-blue-400' : 'border-tertiary-container'}">
+        <div class="flex justify-between items-start mb-2">
+          <div class="flex items-center gap-1.5"><span class="font-label-bold text-sm text-on-surface">#${o.id}</span><span class="${statusMap[o.status].class} px-2 py-0.5 rounded-lg text-xs font-label-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full ${o.status === 'pending' ? 'bg-[#FF9800]' : o.status === 'production' ? 'bg-blue-600' : 'bg-tertiary'}"></span>${statusMap[o.status].label}</span></div>
+          <span class="text-primary font-title-sm text-sm">${o.total}</span>
         </div>
-        <span class="order-status ${o.status === 'production' ? 'production' : 'done'}">${o.status === 'production' ? 'En cocina' : 'Finalizado'}</span>
+        <div class="grid grid-cols-2 gap-y-0.5 text-xs text-on-surface-variant mb-2"><span class="font-label-bold">Cliente:</span><span>${o.client}</span><span class="font-label-bold">Fecha:</span><span>18/06/2024 - ${o.due}</span></div>
+        <button class="w-full flex items-center justify-between text-primary font-button-text py-1.5 border-t border-surface-variant mt-1.5 group text-sm" onclick="openOrderDetail()">Ver Detalle <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform text-sm">arrow_forward</span></button>
       </div>
     `).join('');
-  }
-
-  window._filter = 'Todos';
-  function filterOrders(filter) {
-    window._filter = filter;
-    renderOrders();
-    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
-    event.target.classList.add('active');
   }
 
   function renderClients() {
     const container = document.getElementById('clients-list');
-    container.innerHTML = clients.map(c => `
-      <div class="order-item">
-        <div>
-          <div style="font-weight:600;">${c.name}</div>
-          <div style="font-size:14px;color:#4f4632;">${c.phone}</div>
-          <div style="font-size:12px;color:#827660;">${c.cedula}</div>
+    const initials = ['M', 'J', 'A', 'R'];
+    container.innerHTML = clients.map((c, idx) => `
+      <div class="bg-surface-container-lowest p-3 rounded-xl card-shadow flex items-center justify-between group active:scale-[0.99] transition-transform">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-[#FFC107] flex items-center justify-center text-on-primary-container font-bold text-sm">${initials[idx]}</div>
+          <div><h3 class="font-title-sm text-sm font-semibold text-on-surface">${c.name}</h3><p class="text-xs text-[#757575] flex items-center gap-1"><span class="material-symbols-outlined text-sm">call</span> ${c.phone}</p><p class="text-[11px] font-medium text-primary bg-[#FFF8E1] px-2 py-0.5 rounded-full inline-block">${c.orders} pedidos · Último: ${c.last}</p></div>
         </div>
-        <button class="btn btn-outline btn-sm" style="width:auto;" onclick="alert('Ver detalle de ${c.name}')">Ver</button>
+        <button class="w-8 h-8 rounded-full flex items-center justify-center text-[#FFC107] hover:bg-secondary-container transition-colors" onclick="openClientHistory()"><span class="material-symbols-outlined text-sm">arrow_forward_ios</span></button>
       </div>
     `).join('');
   }
 
-  function addMockOrder() {
-    const newId = Math.max(...orders.map(o => o.id)) + 1;
-    orders.push({
-      id: newId,
-      client: 'Nuevo Cliente',
-      product: 'Pedido de prueba',
-      status: 'production',
-      due: '12:00'
-    });
-    renderAll();
-  }
-
-  function openNewClientForm() {
-    openModal('Nuevo Cliente', `
-      <div class="input-group"><div class="input-line"><input type="text" placeholder="Nombre completo" id="new-client-name" /></div></div>
-      <div class="input-group"><div class="input-line"><input type="tel" placeholder="Teléfono" id="new-client-phone" /></div></div>
-      <div class="input-group"><div class="input-line"><input type="text" placeholder="Cédula" id="new-client-id" /></div></div>
-      <button class="btn btn-primary" onclick="saveNewClient()">Guardar Cliente</button>
-    `);
-  }
-
-  function saveNewClient() {
-    const name = document.getElementById('new-client-name').value.trim();
-    const phone = document.getElementById('new-client-phone').value.trim();
-    const cedula = document.getElementById('new-client-id').value.trim();
-    if (!name || !phone || !cedula) { alert('Completa todos los campos'); return; }
-    clients.push({ id: clients.length + 1, name, phone, cedula });
-    closeModal();
-    renderClients();
-  }
-
-  function showRestockForm(product) {
-    openModal('Reponer Stock', `
-      <p style="margin-bottom:12px;">Producto: <strong>${product}</strong></p>
-      <div class="input-group"><div class="input-line"><input type="number" placeholder="Cantidad a reponer" id="restock-qty" /></div></div>
-      <button class="btn btn-primary" onclick="confirmRestock('${product}')">Confirmar reposición</button>
-    `);
-  }
-
-  function confirmRestock(product) {
-    const qty = document.getElementById('restock-qty').value;
-    if (!qty || qty <= 0) { alert('Ingresa una cantidad válida'); return; }
-    alert(`Reponiendo ${qty} unidades de ${product} (mock)`);
-    closeModal();
-  }
-
-  function openEditProfile() {
-    openModal('Editar Perfil', `
-      <div class="input-group"><div class="input-line"><input type="text" value="Capibara Sprinkle" placeholder="Nombre" /></div></div>
-      <div class="input-group"><div class="input-line"><input type="email" value="hello@panqueo.com" placeholder="Email" /></div></div>
-      <div class="input-group"><div class="input-line"><input type="tel" value="+34 600 000 000" placeholder="Teléfono" /></div></div>
-      <button class="btn btn-primary" onclick="closeModal()">Guardar Cambios</button>
-    `);
-  }
-
-  function openNotifs() {
-    openModal('Notificaciones', `
-      <div class="order-item"><div><div style="font-weight:600;">Pedido #1045</div><div style="font-size:14px;color:#4f4632;">Actualizado a "Finalizado"</div></div><span style="font-size:12px;color:#827660;">Hace 2h</span></div>
-      <div class="order-item"><div><div style="font-weight:600;">Stock bajo</div><div style="font-size:14px;color:#4f4632;">Harina: 2kg restantes</div></div><span style="font-size:12px;color:#827660;">Hace 5h</span></div>
-    `);
-  }
-
-  // ---------- MODAL ----------
-  function openModal(title, bodyHtml) {
-    document.getElementById('modal-title').textContent = title;
-    document.getElementById('modal-body').innerHTML = bodyHtml;
-    document.getElementById('modal-overlay').classList.remove('hidden');
-  }
-
-  function closeModal() {
-    document.getElementById('modal-overlay').classList.add('hidden');
-  }
-
-  // ---------- RENDER ALL ----------
   function renderAll() {
     renderDashboardOrders();
     renderInventory();
@@ -1157,14 +1757,28 @@
     renderClients();
   }
 
+  // ========== UTILIDADES ==========
+  function adjustQty(delta) {
+    const input = document.getElementById('lot-qty');
+    let val = parseInt(input.value) || 0;
+    val += delta;
+    if (val < 1) val = 1;
+    input.value = val;
+  }
+  function selectAdjustType(type) {
+    ['entrada','salida','merma'].forEach(t => {
+      const el = document.getElementById(`btn-${t}`);
+      if (t === type) { el.classList.add('tab-active'); el.classList.remove('text-secondary'); }
+      else { el.classList.remove('tab-active'); el.classList.add('text-secondary'); }
+    });
+  }
+  function validateAdjustAmount(val) {
+    const warning = document.getElementById('adjust-warning');
+    if (parseFloat(val) > 30) warning.classList.remove('hidden');
+    else warning.classList.add('hidden');
+  }
+
   document.addEventListener('DOMContentLoaded', renderAll);
-
-  // Click en splash para continuar
-  document.getElementById('splash-screen').addEventListener('click', function() {
-    this.classList.add('hidden');
-    document.getElementById('auth-screen').classList.remove('hidden');
-  });
 </script>
-
 </body>
 </html>
