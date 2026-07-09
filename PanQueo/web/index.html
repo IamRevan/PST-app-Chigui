@@ -351,7 +351,8 @@
     }
     .top-bar .notif-icon { font-size: 24px; cursor: pointer; color: #625f4d; }
     .top-bar .avatar {
-      width: 36px; height: 36px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       border: 2px solid #ffc107;
       overflow: hidden;
@@ -648,7 +649,6 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 44px;
       background: #f6f3f2;
     }
     .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -820,7 +820,7 @@
     <div class="confetti-container" id="confetti-container"></div>
     <div class="splash-logo-area animate-entrance" style="position:relative;z-index:10;">
       <div class="splash-logo">
-        <!-- LOGO: ruta relativa a la imagen (misma carpeta) -->
+        <!-- LOGO principal (PANQUEO ICONO.png) -->
         <img src="PANQUEO ICONO.png" alt="PanQueo Logo">
       </div>
       <h1 class="splash-title">PanQueo</h1>
@@ -902,8 +902,9 @@
           <span class="curr-btn usd" onclick="event.stopPropagation();toggleCurrency('usd')">USD</span>
         </div>
         <span class="notif-icon material-symbols-outlined" onclick="openNotifs()">notifications</span>
+        <!-- AVATAR en barra superior (SPARKLE.png) -->
         <div class="avatar" onclick="switchTab('profile')">
-          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Ccircle cx='18' cy='18' r='18' fill='%23f6f3f2'/%3E%3Ctext x='18' y='24' font-size='20' text-anchor='middle' fill='%23625f4d' font-family='sans-serif'%3E🐹%3C/text%3E%3C/svg%3E" alt="Avatar">
+          <img src="SPARKLE.png" alt="Avatar">
         </div>
       </div>
     </div>
@@ -988,8 +989,9 @@
       <!-- PROFILE -->
       <section id="tab-profile" class="tab-content">
         <div class="profile-card">
+          <!-- AVATAR en perfil (SPARKLE.png) -->
           <div class="profile-avatar">
-            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Ccircle cx='40' cy='40' r='40' fill='%23f6f3f2'/%3E%3Ctext x='40' y='52' font-size='36' text-anchor='middle' fill='%23625f4d' font-family='sans-serif'%3E🐹%3C/text%3E%3C/svg%3E" alt="Avatar">
+            <img src="SPARKLE.png" alt="Avatar de perfil">
           </div>
           <div class="profile-name">Capibara Sprinkle</div>
           <span class="profile-role">Administrador</span>
@@ -1437,7 +1439,8 @@
       <div class="flex flex-col items-center gap-1">
         <div class="relative group cursor-pointer">
           <div class="w-24 h-24 rounded-full overflow-hidden border-4 border-primary-container shadow-lg">
-            <img alt="Profile Preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Ccircle cx='48' cy='48' r='48' fill='%23f6f3f2'/%3E%3Ctext x='48' y='62' font-size='40' text-anchor='middle' fill='%23625f4d' font-family='sans-serif'%3E🐹%3C/text%3E%3C/svg%3E">
+            <!-- Foto de perfil en editar (SPARKLE.png) -->
+            <img alt="Profile Preview" src="SPARKLE.png">
           </div>
           <div class="absolute bottom-1 right-1 bg-primary text-on-primary w-8 h-8 rounded-full flex items-center justify-center shadow-md border-2 border-surface-container-lowest group-hover:scale-110 transition-transform"><span class="material-symbols-outlined text-sm">photo_camera</span></div>
         </div>
