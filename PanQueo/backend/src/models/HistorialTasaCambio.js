@@ -23,7 +23,6 @@ const HistorialTasaCambio = sequelize.define('HistorialTasaCambio', {
 }, {
   tableName: 'historial_tasa_cambio',
   underscored: true,
-  timestamps: false,
 });
 
 module.exports = HistorialTasaCambio;

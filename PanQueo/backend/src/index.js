@@ -9,12 +9,13 @@ const start = async () => {
 
     if (config.nodeEnv === 'development') {
       await sequelize.sync({ alter: false });
-      console.log('Modelos sincronizados');
+      console.log('Modelos sincronizados (development mode)');
     }
 
     app.listen(config.port, () => {
       console.log(`PanQueo API corriendo en puerto ${config.port}`);
       console.log(`Entorno: ${config.nodeEnv}`);
+      console.log(`Usar "npm run migrate" para ejecutar migraciones`);
     });
   } catch (error) {
     console.error('Error al iniciar:', error);

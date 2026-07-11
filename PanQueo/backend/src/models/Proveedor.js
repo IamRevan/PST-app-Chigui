@@ -26,7 +26,6 @@ const Proveedor = sequelize.define('Proveedor', {
 }, {
   tableName: 'proveedores',
   underscored: true,
-  timestamps: false,
 });
 
 module.exports = Proveedor;

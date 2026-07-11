@@ -1,0 +1,133 @@
+erDiagram
+    PROVEEDORES {
+        int id_proveedor PK
+        varchar nombre
+        varchar contacto
+        varchar telefono
+        text direccion
+        datetime created_at
+        datetime updated_at
+    }
+
+    INGREDIENTES {
+        int id_ingrediente PK
+        varchar nombre_ing UK
+        decimal stock_minimo
+        varchar unidad_medida
+        int id_proveedor FK
+        varchar categoria
+        datetime created_at
+        datetime updated_at
+    }
+
+    LOTES_INGREDIENTES {
+        int id_lote PK
+        int id_ingrediente FK
+        decimal cantidad_actual
+        decimal cantidad_inicial
+        date fecha_ingreso
+        date fecha_venc
+        decimal precio_compra_unitario
+        varchar moneda
+        datetime created_at
+        datetime updated_at
+    }
+
+    RECETAS {
+        int id_receta PK
+        varchar nombre_receta UK
+        text instrucciones
+        varchar rendimiento
+        decimal precio_sugerido
+        datetime created_at
+        datetime updated_at
+    }
+
+    RECETA_INGREDIENTES {
+        int id_receta_ing PK
+        int id_receta FK
+        int id_ingrediente FK
+        decimal cantidad_requerida
+        datetime created_at
+        datetime updated_at
+    }
+
+    CLIENTES {
+        int id_cliente PK
+        varchar nombre
+        varchar apellido
+        varchar cedula UK
+        varchar telefono
+        text direccion
+        int puntos_fidelidad
+        datetime created_at
+        datetime updated_at
+    }
+
+    PEDIDOS {
+        int id_pedido PK
+        int id_cliente FK
+        int id_receta FK
+        date fecha_pedido
+        date fecha_entrega
+        decimal costo_total
+        decimal monto_abonado
+        varchar estado_pago
+        varchar estado_entrega
+        boolean es_delivery
+        text direccion_delivery
+        text observaciones
+        datetime created_at
+        datetime updated_at
+    }
+
+    USUARIOS {
+        int id_usuario PK
+        varchar nombre
+        varchar apellido
+        varchar email UK
+        varchar telefono
+        varchar password
+        varchar rol
+        boolean activo
+        datetime created_at
+        datetime updated_at
+    }
+
+    LISTA_COMPRAS {
+        int id_lista PK
+        date fecha_creacion
+        varchar estado_lista
+        text observaciones
+        datetime created_at
+        datetime updated_at
+    }
+
+    DETALLE_LISTA_COMPRAS {
+        int id_detalle_lista PK
+        int id_lista FK
+        int id_ingrediente FK
+        decimal cantidad_sugerida
+        decimal cantidad_comprada
+        decimal precio_estimado_unitario
+        datetime created_at
+        datetime updated_at
+    }
+
+    HISTORIAL_TASA_CAMBIO {
+        int id_tasa PK
+        date fecha_registro
+        decimal valor_bs_por_usd
+        varchar fuente_referencia
+        datetime created_at
+        datetime updated_at
+    }
+
+    PROVEEDORES ||--o{ INGREDIENTES : "provee"
+    INGREDIENTES ||--o{ LOTES_INGREDIENTES : "tiene lotes"
+    INGREDIENTES ||--o{ RECETA_INGREDIENTES : "se usa en"
+    INGREDIENTES ||--o{ DETALLE_LISTA_COMPRAS : "se compra en"
+    RECETAS ||--o{ RECETA_INGREDIENTES : "contiene"
+    RECETAS ||--o{ PEDIDOS : "produce para"
+    CLIENTES ||--o{ PEDIDOS : "realiza"
+    LISTA_COMPRAS ||--o{ DETALLE_LISTA_COMPRAS : "tiene detalle"
