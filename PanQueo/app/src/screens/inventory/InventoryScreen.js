@@ -193,7 +193,8 @@ export const InventoryScreen = ({ navigation }) => {
         <TouchableOpacity
           style={styles.fab}
           onPress={() => {
-            setSelectedIngrediente("");
+            // Se asume el primer ingrediente por defecto si no hay ninguno seleccionado (para evitar crash en el modal)
+            setSelectedIngrediente(ingredientes?.[0]?.id_ingrediente || "");
             setShowLoteModal(true);
           }}
         >

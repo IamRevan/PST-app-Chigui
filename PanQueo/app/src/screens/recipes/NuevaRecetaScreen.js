@@ -1,34 +1,44 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { ScreenWrapper } from '../../components/navigation/ScreenWrapper';
-import { Button, Input, Card } from '../../components/ui';
-import { colors, typography, spacing, borderRadius, shadows } from '../../lib/theme';
-
-const INGREDIENTES_DISPONIBLES = [
-  { id: '1', name: 'Harina de Trigo', unit: 'kg' },
-  { id: '2', name: 'Azúcar Blanca', unit: 'kg' },
-  { id: '3', name: 'Mantequilla', unit: 'kg' },
-  { id: '4', name: 'Huevos', unit: 'und' },
-  { id: '5', name: 'Levadura', unit: 'g' },
-  { id: '6', name: 'Esencia de Vainilla', unit: 'ml' },
-  { id: '7', name: 'Leche', unit: 'L' },
-  { id: '8', name: 'Sal', unit: 'g' },
-];
+import { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+} from "react-native";
+import { ScreenWrapper } from "../../components/navigation/ScreenWrapper";
+import { Button, Input, Card } from "../../components/ui";
+import {
+  colors,
+  typography,
+  spacing,
+  borderRadius,
+  shadows,
+} from "../../lib/theme";
+import { useInventario } from "../../lib/hooks/useInventario";
+import apiClient from "../../lib/api/client";
+import { ENDPOINTS } from "../../lib/api/endpoints";
 
 export const NuevaRecetaScreen = ({ navigation }) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [portions, setPortions] = useState('');
+  const { data: ingredientesDisponibles, loading } = useInventario();
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [portions, setPortions] = useState("");
   const [ingredients, setIngredients] = useState([]);
   const [selectedIngredient, setSelectedIngredient] = useState(null);
-  const [quantity, setQuantity] = useState('');
+  const [quantity, setQuantity] = useState("");
   const [showIngredientPicker, setShowIngredientPicker] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const addIngredient = () => {
     if (!selectedIngredient || !quantity) return;
-    setIngredients([...ingredients, { ...selectedIngredient, quantity: parseFloat(quantity) }]);
+    setIngredients([
+      ...ingredients,
+      { ...selectedIngredient, quantity: parseFloat(quantity) },
+    ]);
     setSelectedIngredient(null);
-    setQuantity('');
+    setQuantity("");
     setShowIngredientPicker(false);
   };
 
@@ -36,18 +46,43 @@ export const NuevaRecetaScreen = ({ navigation }) => {
     setIngredients(ingredients.filter((i) => i.id !== id));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim() || ingredients.length === 0) {
-      Alert.alert('Campos requeridos', 'Debes agregar un nombre y al menos un ingrediente');
+      Alert.alert(
+        "Campos requeridos",
+        "Debes agregar un nombre y al menos un ingrediente",
+      );
       return;
     }
-    navigation.goBack();
-    setTimeout(() => Alert.alert('Receta guardada', `"${name}" se ha creado exitosamente`), 300);
+
+    setSaving(true);
+    try {
+      const payload = {
+        nombre_receta: name.trim(),
+        instrucciones: description.trim(),
+        rendimiento: portions,
+        ingredientes: ingredients.map((i) => ({
+          id_ingrediente: i.id_ingrediente,
+          cantidad_requerida: i.quantity,
+        })),
+      };
+
+      await apiClient.post(ENDPOINTS.RECETAS, payload);
+      Alert.alert("Receta guardada", `"${name}" se ha creado exitosamente`);
+      navigation.goBack();
+    } catch (err) {
+      Alert.alert("Error", err.message || "Hubo un error al guardar la receta");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <ScreenWrapper>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+      >
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.backIcon}>←</Text>
@@ -56,18 +91,37 @@ export const NuevaRecetaScreen = ({ navigation }) => {
           <View style={{ width: 32 }} />
         </View>
 
-        <Input label="Nombre de la receta" value={name} onChangeText={setName} placeholder="Ej: Pan de Mantequilla" />
-        <Input label="Descripción" value={description} onChangeText={setDescription} placeholder="Opcional" multiline />
+        <Input
+          label="Nombre de la receta"
+          value={name}
+          onChangeText={setName}
+          placeholder="Ej: Pan de Mantequilla"
+        />
+        <Input
+          label="Descripción"
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Opcional"
+          multiline
+        />
 
         <Text style={styles.sectionTitle}>Ingredientes</Text>
         {ingredients.map((ing) => (
-          <Card key={ing.id} variant="border" style={styles.ingredientCard}>
+          <Card
+            key={ing.id_ingrediente}
+            variant="border"
+            style={styles.ingredientCard}
+          >
             <View style={styles.ingredientRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.ingredientName}>{ing.name}</Text>
-                <Text style={styles.ingredientQty}>{ing.quantity} {ing.unit}</Text>
+                <Text style={styles.ingredientName}>{ing.nombre_ing}</Text>
+                <Text style={styles.ingredientQty}>
+                  {ing.quantity} {ing.unidad_medida}
+                </Text>
               </View>
-              <TouchableOpacity onPress={() => removeIngredient(ing.id)}>
+              <TouchableOpacity
+                onPress={() => removeIngredient(ing.id_ingrediente)}
+              >
                 <Text style={styles.removeIcon}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -77,18 +131,43 @@ export const NuevaRecetaScreen = ({ navigation }) => {
         {showIngredientPicker ? (
           <Card variant="border" style={styles.pickerCard}>
             <Text style={styles.pickerLabel}>Selecciona un ingrediente</Text>
-            <ScrollView style={styles.pickerList} nestedScrollEnabled>
-              {INGREDIENTES_DISPONIBLES.filter((i) => !ingredients.find((x) => x.id === i.id)).map((ing) => (
-                <TouchableOpacity
-                  key={ing.id}
-                  style={[styles.pickerItem, selectedIngredient?.id === ing.id && styles.pickerItemSelected]}
-                  onPress={() => setSelectedIngredient(ing)}
-                >
-                  <Text style={[styles.pickerItemText, selectedIngredient?.id === ing.id && styles.pickerItemTextSelected]}>{ing.name}</Text>
-                  <Text style={styles.pickerItemUnit}>{ing.unit}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            {loading ? (
+              <Text>Cargando ingredientes...</Text>
+            ) : (
+              <ScrollView style={styles.pickerList} nestedScrollEnabled>
+                {ingredientesDisponibles
+                  .filter(
+                    (i) =>
+                      !ingredients.find(
+                        (x) => x.id_ingrediente === i.id_ingrediente,
+                      ),
+                  )
+                  .map((ing) => (
+                    <TouchableOpacity
+                      key={ing.id_ingrediente}
+                      style={[
+                        styles.pickerItem,
+                        selectedIngredient?.id_ingrediente ===
+                          ing.id_ingrediente && styles.pickerItemSelected,
+                      ]}
+                      onPress={() => setSelectedIngredient(ing)}
+                    >
+                      <Text
+                        style={[
+                          styles.pickerItemText,
+                          selectedIngredient?.id_ingrediente ===
+                            ing.id_ingrediente && styles.pickerItemTextSelected,
+                        ]}
+                      >
+                        {ing.nombre_ing}
+                      </Text>
+                      <Text style={styles.pickerItemUnit}>
+                        {ing.unidad_medida}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+              </ScrollView>
+            )}
             {selectedIngredient && (
               <View style={styles.qtyRow}>
                 <Input
@@ -99,21 +178,48 @@ export const NuevaRecetaScreen = ({ navigation }) => {
                   keyboardType="numeric"
                   style={{ flex: 1 }}
                 />
-                <Button title="Agregar" variant="primary" onPress={addIngredient} style={styles.addBtn} />
+                <Button
+                  title="Agregar"
+                  variant="primary"
+                  onPress={addIngredient}
+                  style={styles.addBtn}
+                />
               </View>
             )}
           </Card>
         ) : (
-          <Button title="+ Agregar Ingrediente" variant="outline" onPress={() => setShowIngredientPicker(true)} />
+          <Button
+            title="+ Agregar Ingrediente"
+            variant="outline"
+            onPress={() => setShowIngredientPicker(true)}
+          />
         )}
 
         <Text style={styles.sectionTitle}>Rendimiento</Text>
-        <Input label="Porciones" value={portions} onChangeText={setPortions} placeholder="Ej: 12" keyboardType="numeric" />
+        <Input
+          label="Porciones"
+          value={portions}
+          onChangeText={setPortions}
+          placeholder="Ej: 12"
+          keyboardType="numeric"
+        />
 
         <View style={styles.saveRow}>
-          <Button title="Cancelar" variant="outline" onPress={() => navigation.goBack()} style={{ flex: 1 }} />
+          <Button
+            title="Cancelar"
+            variant="outline"
+            onPress={() => navigation.goBack()}
+            disabled={saving}
+            style={{ flex: 1 }}
+          />
           <View style={{ width: spacing.sm }} />
-          <Button title="Guardar Receta" variant="primary" onPress={handleSave} style={{ flex: 1 }} />
+          <Button
+            title={saving ? "Guardando..." : "Guardar Receta"}
+            variant="primary"
+            onPress={handleSave}
+            disabled={saving}
+            style={{ flex: 1 }}
+          />
         </View>
       </ScrollView>
     </ScreenWrapper>
@@ -123,24 +229,67 @@ export const NuevaRecetaScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.gutter, gap: spacing.md, paddingBottom: 40 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.sm,
+  },
   backIcon: { fontSize: 24, color: colors.onSurface },
   title: { ...typography.titleSm, color: colors.onSurface },
-  sectionTitle: { ...typography.labelBold, color: colors.onSurfaceVariant, marginTop: spacing.sm, marginBottom: spacing.xs },
-  ingredientCard: { paddingVertical: spacing.sm, paddingHorizontal: spacing.base },
-  ingredientRow: { flexDirection: 'row', alignItems: 'center' },
-  ingredientName: { ...typography.bodyMd, color: colors.onSurface, fontWeight: '600' },
-  ingredientQty: { ...typography.metadata, color: colors.onSurfaceVariant, marginTop: 2 },
+  sectionTitle: {
+    ...typography.labelBold,
+    color: colors.onSurfaceVariant,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  ingredientCard: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.base,
+  },
+  ingredientRow: { flexDirection: "row", alignItems: "center" },
+  ingredientName: {
+    ...typography.bodyMd,
+    color: colors.onSurface,
+    fontWeight: "600",
+  },
+  ingredientQty: {
+    ...typography.metadata,
+    color: colors.onSurfaceVariant,
+    marginTop: 2,
+  },
   removeIcon: { fontSize: 16, color: colors.error, padding: spacing.base },
   pickerCard: { padding: spacing.md, maxHeight: 300 },
-  pickerLabel: { ...typography.labelBold, color: colors.onSurfaceVariant, marginBottom: spacing.base },
+  pickerLabel: {
+    ...typography.labelBold,
+    color: colors.onSurfaceVariant,
+    marginBottom: spacing.base,
+  },
   pickerList: { maxHeight: 160 },
-  pickerItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.base, paddingHorizontal: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.outlineVariant },
-  pickerItemSelected: { backgroundColor: colors.primaryContainer, borderRadius: borderRadius.md },
+  pickerItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: spacing.base,
+    paddingHorizontal: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outlineVariant,
+  },
+  pickerItemSelected: {
+    backgroundColor: colors.primaryContainer,
+    borderRadius: borderRadius.md,
+  },
   pickerItemText: { ...typography.bodyMd, color: colors.onSurface },
-  pickerItemTextSelected: { color: colors.onPrimaryContainer, fontWeight: '600' },
+  pickerItemTextSelected: {
+    color: colors.onPrimaryContainer,
+    fontWeight: "600",
+  },
   pickerItemUnit: { ...typography.metadata, color: colors.onSurfaceVariant },
-  qtyRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.base, marginTop: spacing.sm },
+  qtyRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing.base,
+    marginTop: spacing.sm,
+  },
   addBtn: { height: 52 },
-  saveRow: { flexDirection: 'row', marginTop: spacing.md },
+  saveRow: { flexDirection: "row", marginTop: spacing.md },
 });

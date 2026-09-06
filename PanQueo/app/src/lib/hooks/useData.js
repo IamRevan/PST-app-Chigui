@@ -14,6 +14,11 @@ export const useData = (endpoint, cacheKey, options = {}) => {
 
   const fetchData = useCallback(
     async (background = false) => {
+      if (!endpoint) {
+        setLoading(false);
+        return;
+      }
+
       if (!background) setLoading(true);
       setError(null);
       setIsOffline(false);

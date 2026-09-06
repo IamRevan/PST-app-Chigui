@@ -106,7 +106,7 @@ export const HistorialClienteScreen = ({ navigation, route }) => {
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Total Pedidos</Text>
-            <Text style={styles.statValue}>{pedidos.length}</Text>
+            <Text style={styles.statValue}>{pedidos ? pedidos.length : 0}</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Total Gastado</Text>
@@ -121,7 +121,7 @@ export const HistorialClienteScreen = ({ navigation, route }) => {
           <View style={[styles.statCard, styles.statCardAccent]}>
             <Text style={styles.statLabel}>Última Visita</Text>
             <Text style={styles.statValueSm}>
-              {pedidos[0]?.fecha_pedido || "N/A"}
+              {pedidos && pedidos.length > 0 ? pedidos[0].fecha_pedido : "N/A"}
             </Text>
           </View>
         </View>
