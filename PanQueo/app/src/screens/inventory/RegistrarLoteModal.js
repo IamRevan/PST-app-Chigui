@@ -1,0 +1,119 @@
+import { useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Button, Input, ErrorMessage } from "../../components/ui";
+import { SheetModal } from "../../components/ui/Modal";
+import { colors, typography, spacing, borderRadius } from "../../lib/theme";
+
+export const RegistrarLoteModal = ({
+  visible,
+  onClose,
+  onSuccess,
+  initialIngredienteId = "",
+}) => {
+  const [form, setForm] = useState({
+    cantidad_actual: "",
+    fecha_venc: "",
+    precio_compra: "",
+  });
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = () => {
+    if (!form.cantidad_actual || !form.fecha_venc) {
+      setError("Completa cantidad y vencimiento");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    setTimeout(() => {
+      onSuccess?.();
+      setSaving(false);
+      setForm({ cantidad_actual: "", fecha_venc: "", precio_compra: "" });
+      onClose();
+    }, 800);
+  };
+
+  return (
+    <SheetModal
+      visible={visible}
+      onClose={onClose}
+      title="Registrar Lote Rápido"
+    >
+      <View style={styles.content}>
+        <ErrorMessage message={error} />
+
+        {/* Usamos initialIngredienteId para mostrar el contexto, en app real lo buscaría */}
+        {initialIngredienteId && (
+          <Text style={styles.contextText}>
+            Ingrediente seleccionado: ID {initialIngredienteId}
+          </Text>
+        )}
+
+        <View style={styles.row}>
+          <View style={styles.half}>
+            <Input
+              label="Cantidad"
+              value={form.cantidad_actual}
+              onChangeText={(v) => {
+                setForm({ ...form, cantidad_actual: v });
+                setError(null);
+              }}
+              placeholder="Ej: 10"
+              keyboardType="decimal-pad"
+            />
+          </View>
+          <View style={styles.half}>
+            <Input
+              label="Precio (opc.)"
+              value={form.precio_compra}
+              onChangeText={(v) => {
+                setForm({ ...form, precio_compra: v });
+              }}
+              placeholder="$ 0.00"
+              keyboardType="decimal-pad"
+            />
+          </View>
+        </View>
+
+        <Input
+          label="Vencimiento"
+          value={form.fecha_venc}
+          onChangeText={(v) => {
+            setForm({ ...form, fecha_venc: v });
+            setError(null);
+          }}
+          placeholder="YYYY-MM-DD"
+        />
+
+        <Text style={styles.infoText}>
+          * Ingreso: Automático (Hoy) / Moneda: USD
+        </Text>
+
+        <Button
+          title={saving ? "Guardando..." : "Confirmar Lote"}
+          onPress={handleSubmit}
+          disabled={saving}
+          style={styles.confirmBtn}
+        />
+      </View>
+    </SheetModal>
+  );
+};
+
+const styles = StyleSheet.create({
+  content: { gap: spacing.sm },
+  row: { flexDirection: "row", gap: spacing.md },
+  half: { flex: 1 },
+  contextText: {
+    ...typography.bodySm,
+    color: colors.primary,
+    marginBottom: spacing.sm,
+  },
+  infoText: {
+    ...typography.metadata,
+    color: colors.onSurfaceVariant,
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  confirmBtn: {},
+});

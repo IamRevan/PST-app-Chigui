@@ -20,10 +20,7 @@ import { NotificacionesScreen } from '../screens/notifications/NotificacionesScr
 // Phase B screens
 import { NuevoPedidoScreen } from '../screens/orders/NuevoPedidoScreen';
 import { DetallePedidoScreen } from '../screens/orders/DetallePedidoScreen';
-import { RegistrarLoteScreen } from '../screens/inventory/RegistrarLoteScreen';
-import { AjusteInventarioScreen } from '../screens/inventory/AjusteInventarioScreen';
 import { AlertasVencimientoScreen } from '../screens/inventory/AlertasVencimientoScreen';
-import { RegistrarClienteScreen } from '../screens/clients/RegistrarClienteScreen';
 import { HistorialClienteScreen } from '../screens/clients/HistorialClienteScreen';
 import { DetalleProductoScreen } from '../screens/inventory/DetalleProductoScreen';
 import { ConfiguracionScreen } from '../screens/profile/ConfiguracionScreen';
@@ -59,10 +56,7 @@ const MainStack = () => (
     <Stack.Screen name="Notificaciones" component={NotificacionesScreen} />
     <Stack.Screen name="NuevoPedido" component={NuevoPedidoScreen} />
     <Stack.Screen name="DetallePedido" component={DetallePedidoScreen} />
-    <Stack.Screen name="RegistrarLote" component={RegistrarLoteScreen} />
-    <Stack.Screen name="AjusteInventario" component={AjusteInventarioScreen} />
     <Stack.Screen name="AlertasVencimiento" component={AlertasVencimientoScreen} />
-    <Stack.Screen name="RegistrarCliente" component={RegistrarClienteScreen} />
     <Stack.Screen name="HistorialCliente" component={HistorialClienteScreen} />
     <Stack.Screen name="DetalleProducto" component={DetalleProductoScreen} />
     <Stack.Screen name="Configuracion" component={ConfiguracionScreen} />

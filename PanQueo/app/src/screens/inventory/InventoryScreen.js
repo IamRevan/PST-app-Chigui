@@ -1,26 +1,62 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
-import { ScreenWrapper } from '../../components/navigation/ScreenWrapper';
-import { Card, Badge } from '../../components/ui';
-import { colors, typography, spacing, borderRadius, shadows } from '../../lib/theme';
+import { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+} from "react-native";
+import { ScreenWrapper } from "../../components/navigation/ScreenWrapper";
+import { Card, Badge } from "../../components/ui";
+import {
+  colors,
+  typography,
+  spacing,
+  borderRadius,
+  shadows,
+} from "../../lib/theme";
+import { RegistrarLoteModal } from "./RegistrarLoteModal";
 
 const MOCK_ITEMS = [
-  { id_ingrediente: 1, nombre_ing: 'Harina de Trigo', unidad_medida: 'kg', stock_minimo: 50 },
-  { id_ingrediente: 2, nombre_ing: 'Azúcar Refinada', unidad_medida: 'kg', stock_minimo: 0 },
-  { id_ingrediente: 3, nombre_ing: 'Mantequilla', unidad_medida: 'lb', stock_minimo: 10 },
-  { id_ingrediente: 4, nombre_ing: 'Levadura Seca', unidad_medida: 'g', stock_minimo: 0 },
+  {
+    id_ingrediente: 1,
+    nombre_ing: "Harina de Trigo",
+    unidad_medida: "kg",
+    stock_minimo: 50,
+  },
+  {
+    id_ingrediente: 2,
+    nombre_ing: "Azúcar Refinada",
+    unidad_medida: "kg",
+    stock_minimo: 0,
+  },
+  {
+    id_ingrediente: 3,
+    nombre_ing: "Mantequilla",
+    unidad_medida: "lb",
+    stock_minimo: 10,
+  },
+  {
+    id_ingrediente: 4,
+    nombre_ing: "Levadura Seca",
+    unidad_medida: "g",
+    stock_minimo: 0,
+  },
 ];
 
 const MOCK_ALERTAS = {
   totalAlertas: 2,
   stockBajo: [
-    { id_ingrediente: 1, nombre_ing: 'Harina de Trigo', stock_minimo: 50 },
-    { id_ingrediente: 3, nombre_ing: 'Mantequilla', stock_minimo: 10 },
+    { id_ingrediente: 1, nombre_ing: "Harina de Trigo", stock_minimo: 50 },
+    { id_ingrediente: 3, nombre_ing: "Mantequilla", stock_minimo: 10 },
   ],
 };
 
 export const InventoryScreen = ({ navigation }) => {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
+  const [showLoteModal, setShowLoteModal] = useState(false);
+  const [selectedIngrediente, setSelectedIngrediente] = useState("");
 
   const ingredientes = MOCK_ITEMS;
   const alertas = MOCK_ALERTAS;
@@ -29,18 +65,21 @@ export const InventoryScreen = ({ navigation }) => {
   const criticalItem = alertas?.stockBajo?.[0];
 
   const filtered = ingredientes.filter((i) =>
-    i.nombre_ing.toLowerCase().includes(search.toLowerCase())
+    i.nombre_ing.toLowerCase().includes(search.toLowerCase()),
   );
 
   const getStockStatus = (ing) => {
     return parseFloat(ing.stock_minimo) > 0
-      ? { label: 'Bajo', variant: 'critical', color: colors.error }
-      : { label: 'En Stock', variant: 'success', color: colors.tertiary };
+      ? { label: "Bajo", variant: "critical", color: colors.error }
+      : { label: "En Stock", variant: "success", color: colors.tertiary };
   };
 
   return (
     <ScreenWrapper>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+      >
         <View style={styles.inputRow}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
@@ -60,10 +99,17 @@ export const InventoryScreen = ({ navigation }) => {
             <View style={styles.alertText}>
               <Text style={styles.alertTitle}>Stock Crítico</Text>
               <Text style={styles.alertDesc}>
-                {criticalItem.nombre_ing || 'Ingrediente'}: Stock por debajo del mínimo
+                {criticalItem.nombre_ing || "Ingrediente"}: Stock por debajo del
+                mínimo
               </Text>
             </View>
-            <TouchableOpacity style={styles.alertBtn} onPress={() => navigation.navigate('RegistrarLote')}>
+            <TouchableOpacity
+              style={styles.alertBtn}
+              onPress={() => {
+                setSelectedIngrediente(criticalItem?.id_ingrediente);
+                setShowLoteModal(true);
+              }}
+            >
               <Text style={styles.alertBtnText}>Reponer</Text>
             </TouchableOpacity>
           </View>
@@ -72,11 +118,15 @@ export const InventoryScreen = ({ navigation }) => {
         <View style={styles.summaryGrid}>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Total Insumos</Text>
-            <Text style={[styles.summaryValue, { color: colors.primary }]}>{ingredientes.length}</Text>
+            <Text style={[styles.summaryValue, { color: colors.primary }]}>
+              {ingredientes.length}
+            </Text>
           </View>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Alertas</Text>
-            <Text style={[styles.summaryValue, { color: colors.error }]}>{alertas?.totalAlertas || 0}</Text>
+            <Text style={[styles.summaryValue, { color: colors.error }]}>
+              {alertas?.totalAlertas || 0}
+            </Text>
           </View>
         </View>
 
@@ -84,13 +134,19 @@ export const InventoryScreen = ({ navigation }) => {
           <Text style={styles.listTitle}>Lista de Insumos</Text>
         </View>
 
-        <TouchableOpacity style={styles.alertasLink} onPress={() => navigation.navigate('AlertasVencimiento')}>
+        <TouchableOpacity
+          style={styles.alertasLink}
+          onPress={() => navigation.navigate("AlertasVencimiento")}
+        >
           <Text style={styles.alertasIcon}>⏰</Text>
           <Text style={styles.alertasLabel}>Alertas de Vencimiento</Text>
           <Text style={styles.alertasArrow}>→</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.comprasLink} onPress={() => navigation.navigate('ListaCompras')}>
+        <TouchableOpacity
+          style={styles.comprasLink}
+          onPress={() => navigation.navigate("ListaCompras")}
+        >
           <Text style={styles.comprasIcon}>🛒</Text>
           <Text style={styles.comprasLabel}>Lista de Compras</Text>
           <Text style={styles.comprasArrow}>→</Text>
@@ -101,11 +157,18 @@ export const InventoryScreen = ({ navigation }) => {
           return (
             <TouchableOpacity
               key={ing.id_ingrediente}
-              style={[styles.itemCard, status.label === 'Bajo' && styles.itemCardCritical]}
+              style={[
+                styles.itemCard,
+                status.label === "Bajo" && styles.itemCardCritical,
+              ]}
               activeOpacity={0.7}
-              onPress={() => navigation.navigate('DetalleProducto', { ingredienteId: ing.id_ingrediente })}
+              onPress={() =>
+                navigation.navigate("DetalleProducto", {
+                  ingredienteId: ing.id_ingrediente,
+                })
+              }
             >
-              {status.label === 'Bajo' && <View style={styles.criticalBar} />}
+              {status.label === "Bajo" && <View style={styles.criticalBar} />}
               <View style={styles.itemTop}>
                 <View style={styles.itemInfo}>
                   <View style={styles.itemIcon}>
@@ -113,30 +176,57 @@ export const InventoryScreen = ({ navigation }) => {
                   </View>
                   <View>
                     <Text style={styles.itemName}>{ing.nombre_ing}</Text>
-                    <Text style={styles.itemUnit}>Unidad: {ing.unidad_medida}</Text>
+                    <Text style={styles.itemUnit}>
+                      Unidad: {ing.unidad_medida}
+                    </Text>
                   </View>
                 </View>
                 <Badge label={status.label} variant={status.variant} />
               </View>
               <View style={styles.itemActions}>
-                <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('RegistrarLote', { ingredienteId: ing.id_ingrediente })}>
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={() => {
+                    setSelectedIngrediente(ing.id_ingrediente);
+                    setShowLoteModal(true);
+                  }}
+                >
                   <Text style={styles.actionBtnText}>+ Lote</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, styles.actionBtnPrimary]}
-                  onPress={() => navigation.navigate('RegistrarLote')}
+                  onPress={() => {
+                    setSelectedIngrediente(ing.id_ingrediente);
+                    setShowLoteModal(true);
+                  }}
                 >
-                  <Text style={[styles.actionBtnText, styles.actionBtnTextPrimary]}>Restock</Text>
+                  <Text
+                    style={[styles.actionBtnText, styles.actionBtnTextPrimary]}
+                  >
+                    Restock
+                  </Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
           );
         })}
 
-        <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('RegistrarLote')}>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => {
+            setSelectedIngrediente("");
+            setShowLoteModal(true);
+          }}
+        >
           <Text style={styles.fabText}>+</Text>
         </TouchableOpacity>
       </ScrollView>
+      <RegistrarLoteModal
+        visible={showLoteModal}
+        onClose={() => setShowLoteModal(false)}
+        initialIngredienteId={selectedIngrediente}
+        onSuccess={() => navigation.navigate("LoteExitoso")}
+      />
     </ScreenWrapper>
   );
 };
@@ -145,8 +235,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.gutter, paddingBottom: 100 },
   inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
@@ -156,10 +246,15 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   searchIcon: { fontSize: 20 },
-  searchInput: { ...typography.bodyMd, color: colors.onSurface, flex: 1, paddingVertical: 0 },
+  searchInput: {
+    ...typography.bodyMd,
+    color: colors.onSurface,
+    flex: 1,
+    paddingVertical: 0,
+  },
   alertBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.errorContainer,
     padding: spacing.md,
     borderRadius: borderRadius.lg,
@@ -171,8 +266,8 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   alertIconText: { fontSize: 18 },
   alertText: { flex: 1 },
@@ -186,7 +281,7 @@ const styles = StyleSheet.create({
   },
   alertBtnText: { ...typography.labelBold, color: colors.white, fontSize: 13 },
   summaryGrid: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.md,
     marginBottom: spacing.lg,
   },
@@ -202,16 +297,16 @@ const styles = StyleSheet.create({
   summaryLabel: { ...typography.bodySm, color: colors.onSurfaceVariant },
   summaryValue: { ...typography.headlineMd },
   listHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: spacing.md,
   },
   listTitle: { ...typography.titleSm, color: colors.onSurface },
   filterIcon: { fontSize: 20, color: colors.onSurfaceVariant },
   alertasLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.errorContainer,
     padding: spacing.md,
     borderRadius: borderRadius.lg,
@@ -219,11 +314,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   alertasIcon: { fontSize: 20 },
-  alertasLabel: { ...typography.labelBold, color: colors.onErrorContainer, flex: 1 },
+  alertasLabel: {
+    ...typography.labelBold,
+    color: colors.onErrorContainer,
+    flex: 1,
+  },
   alertasArrow: { fontSize: 18, color: colors.onErrorContainer },
   comprasLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.primaryContainer,
     padding: spacing.md,
     borderRadius: borderRadius.lg,
@@ -231,7 +330,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   comprasIcon: { fontSize: 20 },
-  comprasLabel: { ...typography.labelBold, color: colors.onPrimaryContainer, flex: 1 },
+  comprasLabel: {
+    ...typography.labelBold,
+    color: colors.onPrimaryContainer,
+    flex: 1,
+  },
   comprasArrow: { fontSize: 18, color: colors.onPrimaryContainer },
   itemCard: {
     backgroundColor: colors.surface,
@@ -245,25 +348,25 @@ const styles = StyleSheet.create({
   },
   itemCardCritical: {
     borderColor: `${colors.error}33`,
-    position: 'relative',
-    overflow: 'hidden',
+    position: "relative",
+    overflow: "hidden",
   },
   criticalBar: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     width: 4,
-    height: '100%',
+    height: "100%",
     backgroundColor: colors.error,
   },
   itemTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
   },
   itemInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.md,
   },
   itemIcon: {
@@ -271,31 +374,35 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: borderRadius.md,
     backgroundColor: colors.secondaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   itemIconText: { fontSize: 24 },
   itemName: { ...typography.labelBold, color: colors.onSurface },
   itemUnit: { ...typography.bodySm, color: colors.onSurfaceVariant },
   stockRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   stockLabel: { ...typography.bodySm, color: colors.onSurfaceVariant },
-  stockValue: { ...typography.labelBold, color: colors.onSurface, fontSize: 13 },
+  stockValue: {
+    ...typography.labelBold,
+    color: colors.onSurface,
+    fontSize: 13,
+  },
   barBg: {
-    width: '100%',
+    width: "100%",
     height: 8,
     backgroundColor: colors.surfaceVariant,
     borderRadius: 4,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   barFill: {
-    height: '100%',
+    height: "100%",
     borderRadius: 4,
   },
   itemActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.sm,
   },
   actionBtn: {
@@ -303,24 +410,32 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceContainerHigh,
     paddingVertical: spacing.base,
     borderRadius: borderRadius.md,
-    alignItems: 'center',
+    alignItems: "center",
   },
   actionBtnPrimary: {
     backgroundColor: colors.primary,
   },
-  actionBtnText: { ...typography.labelBold, color: colors.onSurface, fontSize: 13 },
+  actionBtnText: {
+    ...typography.labelBold,
+    color: colors.onSurface,
+    fontSize: 13,
+  },
   actionBtnTextPrimary: { color: colors.white },
   fab: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 24,
     right: 16,
     width: 56,
     height: 56,
     borderRadius: 28,
     backgroundColor: colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     ...shadows.md,
   },
-  fabText: { fontSize: 28, color: colors.onPrimaryContainer, fontWeight: '600' },
+  fabText: {
+    fontSize: 28,
+    color: colors.onPrimaryContainer,
+    fontWeight: "600",
+  },
 });
