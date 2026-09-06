@@ -16,37 +16,10 @@ import {
   shadows,
 } from "../../lib/theme";
 import { ResumenPedidoModal } from "./ResumenPedidoModal";
-
-const PRODUCTOS = Array.from({ length: 20 }, (_, i) => ({
-  id_receta: i + 1,
-  nombre_receta: [
-    "Pan de Molde",
-    "Pan Frances",
-    "Pan Integral",
-    "Pan de Ajo",
-    "Pan de Yema",
-    "Pan de Campo",
-    "Pan de Centeno",
-    "Pan de Maíz",
-    "Pan de Hamburguesa",
-    "Pan de Perro Caliente",
-    "Pan de Caja",
-    "Pan de Masa Madre",
-    "Pan Dulce",
-    "Pan de Pasas",
-    "Pan de Canela",
-    "Pan de Chocolate",
-    "Pan de Vainilla",
-    "Pan de Queso",
-    "Pan de Jamón",
-    "Pan de Mantequilla",
-  ][i],
-  precio_sugerido: (Math.random() * 10 + 1).toFixed(2),
-  rendimiento: `${Math.floor(Math.random() * 20 + 10)} unidades`,
-}));
+import { useRecetas } from "../../lib/hooks/useRecetas";
 
 export const NuevoPedidoScreen = ({ navigation, route }) => {
-  const [recetas] = useState(PRODUCTOS);
+  const { data: recetas, loading } = useRecetas();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState([]);
   const [error, setError] = useState(null);
@@ -110,49 +83,58 @@ export const NuevoPedidoScreen = ({ navigation, route }) => {
           onChangeText={setSearch}
         />
 
-        {filtered.map((receta) => {
-          const isSelected = selected.find(
-            (p) => p.id_receta === receta.id_receta,
-          );
-          return (
-            <TouchableOpacity
-              key={receta.id_receta}
-              style={[
-                styles.productCard,
-                isSelected && styles.productCardSelected,
-              ]}
-              onPress={() => toggleProduct(receta)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.productInfo}>
-                <Text style={styles.productName}>{receta.nombre_receta}</Text>
-                <Text style={styles.productMeta}>
-                  {receta.rendimiento || ""}
-                </Text>
-                <Text style={styles.productPrice}>
-                  ${parseFloat(receta.precio_sugerido || 0).toFixed(2)}
-                </Text>
-              </View>
-              {isSelected && (
-                <View style={styles.stepper}>
-                  <TouchableOpacity
-                    style={styles.stepperBtn}
-                    onPress={() => updateCantidad(receta.id_receta, -1)}
-                  >
-                    <Text style={styles.stepperBtnText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.stepperValue}>{isSelected.cantidad}</Text>
-                  <TouchableOpacity
-                    style={styles.stepperBtn}
-                    onPress={() => updateCantidad(receta.id_receta, 1)}
-                  >
-                    <Text style={styles.stepperBtnText}>+</Text>
-                  </TouchableOpacity>
+        {loading && (
+          <Text style={{ textAlign: "center", padding: 20 }}>
+            Cargando recetas...
+          </Text>
+        )}
+
+        {!loading &&
+          filtered.map((receta) => {
+            const isSelected = selected.find(
+              (p) => p.id_receta === receta.id_receta,
+            );
+            return (
+              <TouchableOpacity
+                key={receta.id_receta}
+                style={[
+                  styles.productCard,
+                  isSelected && styles.productCardSelected,
+                ]}
+                onPress={() => toggleProduct(receta)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.productInfo}>
+                  <Text style={styles.productName}>{receta.nombre_receta}</Text>
+                  <Text style={styles.productMeta}>
+                    {receta.rendimiento || ""}
+                  </Text>
+                  <Text style={styles.productPrice}>
+                    ${parseFloat(receta.precio_sugerido || 0).toFixed(2)}
+                  </Text>
                 </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
+                {isSelected && (
+                  <View style={styles.stepper}>
+                    <TouchableOpacity
+                      style={styles.stepperBtn}
+                      onPress={() => updateCantidad(receta.id_receta, -1)}
+                    >
+                      <Text style={styles.stepperBtnText}>−</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.stepperValue}>
+                      {isSelected.cantidad}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.stepperBtn}
+                      onPress={() => updateCantidad(receta.id_receta, 1)}
+                    >
+                      <Text style={styles.stepperBtnText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
 
         {selected.length > 0 && (
           <Button

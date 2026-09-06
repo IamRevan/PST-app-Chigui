@@ -23,9 +23,11 @@ export const AuthProvider = ({ children }) => {
   const loadStoredAuth = async () => {
     try {
       const storedToken = await getItem(STORAGE_KEYS.AUTH_TOKEN);
+      const storedUser = await getItem(STORAGE_KEYS.USER_DATA);
       if (storedToken) {
-        // Configuramos el token localmente primero para el chequeo
+        // Configuramos el token y user localmente primero para el chequeo y fallback offline
         setToken(storedToken);
+        if (storedUser) setUser(storedUser);
 
         // Verificamos vigencia con el backend
         const response = await apiClient.get("/api/auth/perfil", {

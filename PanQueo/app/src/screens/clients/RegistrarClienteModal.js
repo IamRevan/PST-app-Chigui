@@ -3,6 +3,8 @@ import { View, Text, StyleSheet } from "react-native";
 import { Button, Input } from "../../components/ui";
 import { SheetModal } from "../../components/ui/Modal";
 import { colors, typography, spacing } from "../../lib/theme";
+import apiClient from "../../lib/api/client";
+import { ENDPOINTS } from "../../lib/api/endpoints";
 
 export const RegistrarClienteModal = ({ visible, onClose, onSuccess }) => {
   const [form, setForm] = useState({
@@ -19,21 +21,32 @@ export const RegistrarClienteModal = ({ visible, onClose, onSuccess }) => {
     setError(null);
   };
 
-  const handleSubmit = () => {
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
     if (!form.nombre || !form.apellido || !form.cedula || !form.telefono) {
       setError("Completa todos los campos requeridos");
       return;
     }
-    // Simulate save
-    onSuccess?.(form);
-    setForm({
-      nombre: "",
-      apellido: "",
-      cedula: "",
-      telefono: "",
-      direccion: "",
-    });
-    onClose();
+
+    setSaving(true);
+    setError(null);
+    try {
+      await apiClient.post(ENDPOINTS.CLIENTES, form);
+      onSuccess?.(form);
+      setForm({
+        nombre: "",
+        apellido: "",
+        cedula: "",
+        telefono: "",
+        direccion: "",
+      });
+      onClose();
+    } catch (err) {
+      setError(err.message || "Error al guardar el cliente");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -75,14 +88,16 @@ export const RegistrarClienteModal = ({ visible, onClose, onSuccess }) => {
 
         <View style={styles.actions}>
           <Button
-            title={"Guardar Cliente"}
+            title={saving ? "Guardando..." : "Guardar Cliente"}
             onPress={handleSubmit}
+            disabled={saving}
             style={styles.saveBtn}
           />
           <Button
             title="Cancelar"
             variant="outline"
             onPress={onClose}
+            disabled={saving}
             style={styles.cancelBtn}
           />
         </View>

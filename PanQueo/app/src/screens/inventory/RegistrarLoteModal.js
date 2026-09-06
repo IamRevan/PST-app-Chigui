@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Button, Input, ErrorMessage } from "../../components/ui";
 import { SheetModal } from "../../components/ui/Modal";
 import { colors, typography, spacing, borderRadius } from "../../lib/theme";
+import apiClient from "../../lib/api/client";
+import { ENDPOINTS } from "../../lib/api/endpoints";
 
 export const RegistrarLoteModal = ({
   visible,
@@ -18,19 +20,29 @@ export const RegistrarLoteModal = ({
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const handleSubmit = () => {
-    if (!form.cantidad_actual || !form.fecha_venc) {
-      setError("Completa cantidad y vencimiento");
+  const handleSubmit = async () => {
+    if (!form.cantidad_actual || !form.fecha_venc || !initialIngredienteId) {
+      setError("Faltan datos requeridos o ingrediente no seleccionado");
       return;
     }
     setSaving(true);
     setError(null);
-    setTimeout(() => {
+    try {
+      const payload = {
+        id_ingrediente: initialIngredienteId,
+        cantidad_actual: form.cantidad_actual,
+        fecha_ingreso: new Date().toISOString().split("T")[0],
+        fecha_venc: form.fecha_venc,
+      };
+      await apiClient.post(ENDPOINTS.LOTES, payload);
       onSuccess?.();
-      setSaving(false);
       setForm({ cantidad_actual: "", fecha_venc: "", precio_compra: "" });
       onClose();
-    }, 800);
+    } catch (err) {
+      setError(err.message || 'Error al guardar el lote');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

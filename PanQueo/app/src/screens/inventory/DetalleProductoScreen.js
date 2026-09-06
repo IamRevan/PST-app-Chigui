@@ -17,37 +17,16 @@ import {
   shadows,
 } from "../../lib/theme";
 import { AjusteInventarioModal } from "./AjusteInventarioModal";
+import { useLotesByIngrediente } from "../../lib/hooks/useLotes";
+import { useIngredienteById } from "../../lib/hooks/useInventario";
 
-const LOTS = [
-  {
-    id: "LT-10293",
-    qty: "12.5 kg",
-    ingress: "15 May 2023",
-    expiry: "10 Oct 2023",
-    status: "Vencido",
-    expired: true,
-  },
-  {
-    id: "LT-10350",
-    qty: "15.0 kg",
-    ingress: "22 Jul 2023",
-    expiry: "15 Mar 2024",
-    status: "Vigente",
-    expired: false,
-  },
-  {
-    id: "LT-10412",
-    qty: "15.0 kg",
-    ingress: "05 Sep 2023",
-    expiry: "20 Dec 2024",
-    status: "Vigente",
-    expired: false,
-  },
-];
-
-export const DetalleProductoScreen = ({ navigation }) => {
+export const DetalleProductoScreen = ({ navigation, route }) => {
+  const ingredienteId = route?.params?.ingredienteId || 1;
   const [showAjusteModal, setShowAjusteModal] = useState(false);
   const [selectedLote, setSelectedLote] = useState(null);
+
+  const { data: ingrediente, loading: loadingIngrediente } = useIngredienteById(ingredienteId);
+  const { data: lotes, loading: loadingLotes } = useLotesByIngrediente(ingredienteId);
 
   const handleAjuste = (lote = null) => {
     setSelectedLote(lote);
@@ -74,53 +53,55 @@ export const DetalleProductoScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.infoCard}>
-          <View style={styles.iconCircle}>
-            <Text style={styles.productIcon}>⭐</Text>
-          </View>
-          <View style={styles.infoContent}>
-            <View style={styles.nameRow}>
-              <Text style={styles.productName}>Azúcar Blanca</Text>
-              <View style={styles.skuBadge}>
-                <Text style={styles.skuText}>AZU-001</Text>
+          {loadingIngrediente ? (
+             <Text style={{textAlign: "center"}}>Cargando ingrediente...</Text>
+          ) : (
+            <>
+              <View style={styles.iconCircle}>
+                <Text style={styles.productIcon}>🥫</Text>
               </View>
-            </View>
-            <View style={styles.detailsGrid}>
-              <View>
-                <Text style={styles.detailLabel}>Stock Mínimo</Text>
-                <Text style={styles.detailValue}>5kg</Text>
+              <View style={styles.infoContent}>
+                <View style={styles.nameRow}>
+                  <Text style={styles.productName}>{ingrediente?.nombre_ing || 'Ingrediente'}</Text>
+                  <View style={styles.skuBadge}>
+                    <Text style={styles.skuText}>ID-{ingrediente?.id_ingrediente}</Text>
+                  </View>
+                </View>
+                <View style={styles.detailsGrid}>
+                  <View>
+                    <Text style={styles.detailLabel}>Stock Mínimo</Text>
+                    <Text style={styles.detailValue}>{ingrediente?.stock_minimo || 0}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.detailLabel}>Unidad</Text>
+                    <Text style={styles.detailValue}>{ingrediente?.unidad_medida}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.detailLabel}>Categoría</Text>
+                    <Text style={styles.detailValue}>{ingrediente?.categoria || 'General'}</Text>
+                  </View>
+                </View>
               </View>
-              <View>
-                <Text style={styles.detailLabel}>Unidad</Text>
-                <Text style={styles.detailValue}>kg</Text>
+              <View style={styles.infoActions}>
+                <Button
+                  title="Ajustar Stock"
+                  variant="primary"
+                  onPress={() => handleAjuste()}
+                  style={styles.actionBtn}
+                />
+                <Button
+                  title="Historial"
+                  variant="outline"
+                  onPress={() =>
+                    navigation.navigate("HistorialProducto", {
+                      productName: ingrediente?.nombre_ing,
+                    })
+                  }
+                  style={styles.actionBtn}
+                />
               </View>
-              <View>
-                <Text style={styles.detailLabel}>Total Actual</Text>
-                <Text style={styles.detailValue}>42.5kg</Text>
-              </View>
-              <View>
-                <Text style={styles.detailLabel}>Ubicación</Text>
-                <Text style={styles.detailValue}>Pasillo A-2</Text>
-              </View>
-            </View>
-          </View>
-          <View style={styles.infoActions}>
-            <Button
-              title="Ajustar Stock"
-              variant="primary"
-              onPress={() => handleAjuste()}
-              style={styles.actionBtn}
-            />
-            <Button
-              title="Historial"
-              variant="outline"
-              onPress={() =>
-                navigation.navigate("HistorialProducto", {
-                  productName: "Azúcar Blanca",
-                })
-              }
-              style={styles.actionBtn}
-            />
-          </View>
+            </>
+          )}
         </View>
 
         <View style={styles.lotsSection}>
@@ -139,50 +120,66 @@ export const DetalleProductoScreen = ({ navigation }) => {
               <Text style={styles.lotTh}>Vencimiento</Text>
               <Text style={[styles.lotTh, { textAlign: "right" }]}>Estado</Text>
             </View>
-            {LOTS.map((lot, i) => (
-              <TouchableOpacity
-                key={i}
-                style={[
-                  styles.lotRow,
-                  i < LOTS.length - 1 && styles.lotRowBorder,
-                ]}
-                onPress={() => handleAjuste(lot)}
-              >
-                <Text
-                  style={[styles.lotTd, { flex: 1.5, ...typography.labelBold }]}
-                >
-                  {lot.id}
-                </Text>
-                <Text
-                  style={[
-                    styles.lotTd,
-                    { ...typography.titleSm, color: colors.primary },
-                  ]}
-                >
-                  {lot.qty}
-                </Text>
-                <Text style={styles.lotTd}>{lot.ingress}</Text>
-                <Text
-                  style={[
-                    styles.lotTd,
-                    lot.expired && { color: colors.error, fontWeight: "600" },
-                  ]}
-                >
-                  {lot.expired ? "⚠️ " : ""}
-                  {lot.expiry}
-                </Text>
-                <View style={[styles.lotTd, { alignItems: "flex-end" }]}>
-                  <Text
+            {loadingLotes && (
+              <Text style={{ textAlign: "center", padding: 20 }}>
+                Cargando lotes...
+              </Text>
+            )}
+
+            {!loadingLotes &&
+              lotes &&
+              lotes.map((lot, i) => {
+                const isExpired = new Date(lot.fecha_venc) < new Date();
+                return (
+                  <TouchableOpacity
+                    key={lot.id_lote || i}
                     style={[
-                      styles.lotStatus,
-                      lot.expired ? styles.statusExpired : styles.statusActive,
+                      styles.lotRow,
+                      i < lotes.length - 1 && styles.lotRowBorder,
                     ]}
+                    onPress={() => handleAjuste(lot)}
                   >
-                    {lot.status}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+                    <Text
+                      style={[
+                        styles.lotTd,
+                        { flex: 1.5, ...typography.labelBold },
+                      ]}
+                    >
+                      L-{lot.id_lote}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.lotTd,
+                        { ...typography.titleSm, color: colors.primary },
+                      ]}
+                    >
+                      {lot.cantidad_actual}
+                    </Text>
+                    <Text style={styles.lotTd}>{lot.fecha_ingreso}</Text>
+                    <Text
+                      style={[
+                        styles.lotTd,
+                        isExpired && { color: colors.error, fontWeight: "600" },
+                      ]}
+                    >
+                      {isExpired ? "⚠️ " : ""}
+                      {lot.fecha_venc}
+                    </Text>
+                    <View style={[styles.lotTd, { alignItems: "flex-end" }]}>
+                      <Text
+                        style={[
+                          styles.lotStatus,
+                          isExpired
+                            ? styles.statusExpired
+                            : styles.statusActive,
+                        ]}
+                      >
+                        {isExpired ? "Vencido" : "Vigente"}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
           </View>
         </View>
 

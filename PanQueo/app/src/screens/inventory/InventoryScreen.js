@@ -17,52 +17,21 @@ import {
   shadows,
 } from "../../lib/theme";
 import { RegistrarLoteModal } from "./RegistrarLoteModal";
-
-const MOCK_ITEMS = [
-  {
-    id_ingrediente: 1,
-    nombre_ing: "Harina de Trigo",
-    unidad_medida: "kg",
-    stock_minimo: 50,
-  },
-  {
-    id_ingrediente: 2,
-    nombre_ing: "Azúcar Refinada",
-    unidad_medida: "kg",
-    stock_minimo: 0,
-  },
-  {
-    id_ingrediente: 3,
-    nombre_ing: "Mantequilla",
-    unidad_medida: "lb",
-    stock_minimo: 10,
-  },
-  {
-    id_ingrediente: 4,
-    nombre_ing: "Levadura Seca",
-    unidad_medida: "g",
-    stock_minimo: 0,
-  },
-];
-
-const MOCK_ALERTAS = {
-  totalAlertas: 2,
-  stockBajo: [
-    { id_ingrediente: 1, nombre_ing: "Harina de Trigo", stock_minimo: 50 },
-    { id_ingrediente: 3, nombre_ing: "Mantequilla", stock_minimo: 10 },
-  ],
-};
+import {
+  useInventario,
+  useAlertasVencimiento,
+} from "../../lib/hooks/useInventario";
 
 export const InventoryScreen = ({ navigation }) => {
   const [search, setSearch] = useState("");
   const [showLoteModal, setShowLoteModal] = useState(false);
   const [selectedIngrediente, setSelectedIngrediente] = useState("");
 
-  const ingredientes = MOCK_ITEMS;
-  const alertas = MOCK_ALERTAS;
+  const { data: ingredientes, loading } = useInventario();
+  const { data: alertas } = useAlertasVencimiento();
 
-  const stockBajoCount = alertas?.stockBajo?.length || 0;
-  const criticalItem = alertas?.stockBajo?.[0];
+  const stockBajoCount = alertas?.length || 0;
+  const criticalItem = alertas && alertas.length > 0 ? alertas[0] : null;
 
   const filtered = ingredientes.filter((i) =>
     i.nombre_ing.toLowerCase().includes(search.toLowerCase()),
@@ -119,13 +88,13 @@ export const InventoryScreen = ({ navigation }) => {
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Total Insumos</Text>
             <Text style={[styles.summaryValue, { color: colors.primary }]}>
-              {ingredientes.length}
+              {ingredientes?.length || 0}
             </Text>
           </View>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Alertas</Text>
             <Text style={[styles.summaryValue, { color: colors.error }]}>
-              {alertas?.totalAlertas || 0}
+              {stockBajoCount}
             </Text>
           </View>
         </View>
@@ -133,6 +102,12 @@ export const InventoryScreen = ({ navigation }) => {
         <View style={styles.listHeader}>
           <Text style={styles.listTitle}>Lista de Insumos</Text>
         </View>
+
+        {loading && (
+          <Text style={{ textAlign: "center", padding: 20 }}>
+            Cargando inventario...
+          </Text>
+        )}
 
         <TouchableOpacity
           style={styles.alertasLink}
@@ -152,64 +127,68 @@ export const InventoryScreen = ({ navigation }) => {
           <Text style={styles.comprasArrow}>→</Text>
         </TouchableOpacity>
 
-        {filtered.map((ing) => {
-          const status = getStockStatus(ing);
-          return (
-            <TouchableOpacity
-              key={ing.id_ingrediente}
-              style={[
-                styles.itemCard,
-                status.label === "Bajo" && styles.itemCardCritical,
-              ]}
-              activeOpacity={0.7}
-              onPress={() =>
-                navigation.navigate("DetalleProducto", {
-                  ingredienteId: ing.id_ingrediente,
-                })
-              }
-            >
-              {status.label === "Bajo" && <View style={styles.criticalBar} />}
-              <View style={styles.itemTop}>
-                <View style={styles.itemInfo}>
-                  <View style={styles.itemIcon}>
-                    <Text style={styles.itemIconText}>🥫</Text>
+        {!loading &&
+          filtered.map((ing) => {
+            const status = getStockStatus(ing);
+            return (
+              <TouchableOpacity
+                key={ing.id_ingrediente}
+                style={[
+                  styles.itemCard,
+                  status.label === "Bajo" && styles.itemCardCritical,
+                ]}
+                activeOpacity={0.7}
+                onPress={() =>
+                  navigation.navigate("DetalleProducto", {
+                    ingredienteId: ing.id_ingrediente,
+                  })
+                }
+              >
+                {status.label === "Bajo" && <View style={styles.criticalBar} />}
+                <View style={styles.itemTop}>
+                  <View style={styles.itemInfo}>
+                    <View style={styles.itemIcon}>
+                      <Text style={styles.itemIconText}>🥫</Text>
+                    </View>
+                    <View>
+                      <Text style={styles.itemName}>{ing.nombre_ing}</Text>
+                      <Text style={styles.itemUnit}>
+                        Unidad: {ing.unidad_medida}
+                      </Text>
+                    </View>
                   </View>
-                  <View>
-                    <Text style={styles.itemName}>{ing.nombre_ing}</Text>
-                    <Text style={styles.itemUnit}>
-                      Unidad: {ing.unidad_medida}
-                    </Text>
-                  </View>
+                  <Badge label={status.label} variant={status.variant} />
                 </View>
-                <Badge label={status.label} variant={status.variant} />
-              </View>
-              <View style={styles.itemActions}>
-                <TouchableOpacity
-                  style={styles.actionBtn}
-                  onPress={() => {
-                    setSelectedIngrediente(ing.id_ingrediente);
-                    setShowLoteModal(true);
-                  }}
-                >
-                  <Text style={styles.actionBtnText}>+ Lote</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.actionBtnPrimary]}
-                  onPress={() => {
-                    setSelectedIngrediente(ing.id_ingrediente);
-                    setShowLoteModal(true);
-                  }}
-                >
-                  <Text
-                    style={[styles.actionBtnText, styles.actionBtnTextPrimary]}
+                <View style={styles.itemActions}>
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => {
+                      setSelectedIngrediente(ing.id_ingrediente);
+                      setShowLoteModal(true);
+                    }}
                   >
-                    Restock
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+                    <Text style={styles.actionBtnText}>+ Lote</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.actionBtnPrimary]}
+                    onPress={() => {
+                      setSelectedIngrediente(ing.id_ingrediente);
+                      setShowLoteModal(true);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.actionBtnText,
+                        styles.actionBtnTextPrimary,
+                      ]}
+                    >
+                      Restock
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
 
         <TouchableOpacity
           style={styles.fab}

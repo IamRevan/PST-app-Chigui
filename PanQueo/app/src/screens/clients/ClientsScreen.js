@@ -17,47 +17,14 @@ import {
   shadows,
 } from "../../lib/theme";
 import { RegistrarClienteModal } from "./RegistrarClienteModal";
-
-const CLIENTS = [
-  {
-    id_cliente: 1,
-    nombre: "María",
-    apellido: "González",
-    telefono: "809-555-0101",
-    cedula: "001-0000001-1",
-    puntos_fidelidad: 150,
-  },
-  {
-    id_cliente: 2,
-    nombre: "Carlos",
-    apellido: "Méndez",
-    telefono: "809-555-0102",
-    cedula: "001-0000002-2",
-    puntos_fidelidad: 85,
-  },
-  {
-    id_cliente: 3,
-    nombre: "Ana",
-    apellido: "Reyes",
-    telefono: "809-555-0103",
-    cedula: "001-0000003-3",
-    puntos_fidelidad: 230,
-  },
-  {
-    id_cliente: 4,
-    nombre: "Pedro",
-    apellido: "Castillo",
-    telefono: "809-555-0104",
-    cedula: "001-0000004-4",
-    puntos_fidelidad: 42,
-  },
-];
+import { useClientes } from "../../lib/hooks/useClientes";
 
 export const ClientsScreen = ({ navigation }) => {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const { data: clients, loading, refetch } = useClientes();
 
-  const filtered = CLIENTS.filter((c) => {
+  const filtered = clients.filter((c) => {
     const q = search.toLowerCase();
     return (
       c.nombre.toLowerCase().includes(q) ||
@@ -95,37 +62,40 @@ export const ClientsScreen = ({ navigation }) => {
           style={styles.addBtn}
         />
 
-        {filtered.map((c) => (
-          <TouchableOpacity
-            key={c.id_cliente}
-            style={styles.clientCard}
-            activeOpacity={0.7}
-            onPress={() =>
-              navigation.navigate("HistorialCliente", {
-                clienteId: c.id_cliente,
-              })
-            }
-          >
-            <View style={styles.clientLeft}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{getInitial(c.nombre)}</Text>
-              </View>
-              <View style={styles.clientInfo}>
-                <Text style={styles.clientName}>
-                  {c.nombre} {c.apellido}
-                </Text>
-                <Text style={styles.clientPhone}>📞 {c.telefono}</Text>
-                <Text style={styles.clientMeta}>
-                  CI: {c.cedula} · {c.puntos_fidelidad || 0} pts
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.arrow}>→</Text>
-          </TouchableOpacity>
-        ))}
+        {loading && <Text style={styles.emptyText}>Cargando clientes...</Text>}
 
-        {filtered.length === 0 && (
-          <Text style={styles.emptyText}>No hay clientes registrados</Text>
+        {!loading &&
+          filtered.map((c) => (
+            <TouchableOpacity
+              key={c.id_cliente}
+              style={styles.clientCard}
+              activeOpacity={0.7}
+              onPress={() =>
+                navigation.navigate("HistorialCliente", {
+                  clienteId: c.id_cliente,
+                })
+              }
+            >
+              <View style={styles.clientLeft}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{getInitial(c.nombre)}</Text>
+                </View>
+                <View style={styles.clientInfo}>
+                  <Text style={styles.clientName}>
+                    {c.nombre} {c.apellido}
+                  </Text>
+                  <Text style={styles.clientPhone}>📞 {c.telefono}</Text>
+                  <Text style={styles.clientMeta}>
+                    CI: {c.cedula} · {c.puntos_fidelidad || 0} pts
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.arrow}>→</Text>
+            </TouchableOpacity>
+          ))}
+
+        {!loading && filtered.length === 0 && (
+          <Text style={styles.emptyText}>No se encontraron clientes</Text>
         )}
       </ScrollView>
       <RegistrarClienteModal

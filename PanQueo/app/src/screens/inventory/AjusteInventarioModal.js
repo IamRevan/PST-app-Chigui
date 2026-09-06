@@ -3,6 +3,8 @@ import { View, Text, StyleSheet } from "react-native";
 import { Button, Input, ErrorMessage } from "../../components/ui";
 import { SheetModal } from "../../components/ui/Modal";
 import { colors, typography, spacing } from "../../lib/theme";
+import apiClient from "../../lib/api/client";
+import { ENDPOINTS } from "../../lib/api/endpoints";
 
 export const AjusteInventarioModal = ({
   visible,
@@ -15,20 +17,29 @@ export const AjusteInventarioModal = ({
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const handleSubmit = () => {
-    if (!nuevaCant) {
-      setError("Ingresa la nueva cantidad");
+  const handleSubmit = async () => {
+    if (!nuevaCant || !initialLote) {
+      setError("Ingresa la nueva cantidad y asegura seleccionar un lote");
       return;
     }
     setSaving(true);
     setError(null);
-    setTimeout(() => {
+    try {
+      const payload = {
+        id_lote: initialLote.id_lote || initialLote.id,
+        nueva_cantidad: nuevaCant,
+        motivo: motivo || "Ajuste manual",
+      };
+      await apiClient.post(ENDPOINTS.AJUSTE_INVENTARIO, payload);
       onSuccess?.();
-      setSaving(false);
       setNuevaCant("");
       setMotivo("");
       onClose();
-    }, 800);
+    } catch (err) {
+      setError(err.message || "Error al guardar el ajuste");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

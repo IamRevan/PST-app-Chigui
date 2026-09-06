@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { Button, Input, Card } from "../../components/ui";
 import { SheetModal } from "../../components/ui/Modal";
 import { colors, typography, spacing } from "../../lib/theme";
+import apiClient from "../../lib/api/client";
+import { ENDPOINTS } from "../../lib/api/endpoints";
 
 export const ResumenPedidoModal = ({
   visible,
@@ -20,12 +22,32 @@ export const ResumenPedidoModal = ({
   );
   const [saving, setSaving] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!clienteId) {
+      Alert.alert("Error", "Se requiere el ID del cliente");
+      return;
+    }
     setSaving(true);
-    setTimeout(() => {
+    try {
+      const payload = {
+        id_cliente: clienteId,
+        fecha_entrega: fechaEntrega,
+        es_delivery: delivery,
+        direccion_delivery: delivery ? direccion : null,
+        observaciones: `Pedido de ${selected.length} recetas`,
+        detalles: selected.map((p) => ({
+          id_receta: p.id_receta,
+          cantidad: p.cantidad,
+          precio_unitario: p.precio_sugerido || 0,
+        })),
+      };
+      await apiClient.post(ENDPOINTS.PEDIDOS, payload);
       onSuccess?.();
+    } catch (err) {
+      Alert.alert("Error", err.message || "Error al guardar el pedido");
+    } finally {
       setSaving(false);
-    }, 800);
+    }
   };
 
   return (
@@ -47,10 +69,10 @@ export const ResumenPedidoModal = ({
         </View>
 
         <Input
-          label="ID del Cliente (opcional si es rápido)"
+          label="ID del Cliente"
           value={clienteId}
           onChangeText={setClienteId}
-          placeholder="ID numérico del cliente"
+          placeholder="Requerido: ID numérico del cliente"
           keyboardType="numeric"
         />
         <Input
