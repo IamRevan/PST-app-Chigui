@@ -102,7 +102,7 @@ export const ClientsScreen = ({ navigation }) => {
         visible={showModal}
         onClose={() => setShowModal(false)}
         onSuccess={(client) => {
-          // Handle mock success
+          refetch();
         }}
       />
     </ScreenWrapper>

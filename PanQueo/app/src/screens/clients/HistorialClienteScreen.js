@@ -28,16 +28,17 @@ export const HistorialClienteScreen = ({ navigation, route }) => {
     useClienteHistorial(clienteId);
 
   const getInitial = (name) => (name || "?").charAt(0).toUpperCase();
-  const totalGastado = pedidos
+  const totalGastado = Array.isArray(pedidos)
     ? pedidos.reduce((sum, p) => sum + parseFloat(p.costo_total || 0), 0)
     : 0;
 
-  if (!clienteId)
+  if (!clienteId) {
     return (
       <ScreenWrapper>
         <Text style={styles.emptyText}>Selecciona un cliente</Text>
       </ScreenWrapper>
     );
+  }
 
   return (
     <ScreenWrapper>

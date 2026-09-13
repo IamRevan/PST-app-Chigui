@@ -43,7 +43,7 @@ export const NuevaRecetaScreen = ({ navigation }) => {
   };
 
   const removeIngredient = (id) => {
-    setIngredients(ingredients.filter((i) => i.id !== id));
+    setIngredients(ingredients.filter((i) => i.id_ingrediente !== id));
   };
 
   const handleSave = async () => {
