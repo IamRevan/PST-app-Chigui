@@ -23,43 +23,66 @@ class FIFOService {
         transaction,
       });
 
-      for (const ri of recetaIngredientes) {
-        let cantidadRequerida = parseFloat(ri.cantidad_requerida);
-        const idIngrediente = ri.id_ingrediente;
+      const ingredientIds = recetaIngredientes.map((ri) => ri.id_ingrediente);
 
-        // Obtener lotes ordenados por fecha_venc ASC (FIFO)
-        const lotes = await LoteIngrediente.findAll({
+      if (ingredientIds.length > 0) {
+        // Obtener todos los lotes necesarios en una sola consulta ordenados por fecha_venc ASC (FIFO)
+        const todosLosLotes = await LoteIngrediente.findAll({
           where: {
-            id_ingrediente: idIngrediente,
+            id_ingrediente: { [Op.in]: ingredientIds },
             cantidad_actual: { [Op.gt]: 0 },
           },
           order: [['fecha_venc', 'ASC']],
           transaction,
         });
 
-        // Calcular stock total disponible
-        const stockTotal = lotes.reduce((sum, l) => sum + parseFloat(l.cantidad_actual), 0);
-
-        if (stockTotal < cantidadRequerida) {
-          throw new Error(
-            `Stock insuficiente para ${ri.Ingrediente?.nombre_ing || 'ingrediente'}. ` +
-            `Requerido: ${cantidadRequerida}, Disponible: ${stockTotal}`
-          );
+        // Agrupar lotes por id_ingrediente
+        const lotesMap = new Map();
+        for (const lote of todosLosLotes) {
+          if (!lotesMap.has(lote.id_ingrediente)) {
+            lotesMap.set(lote.id_ingrediente, []);
+          }
+          lotesMap.get(lote.id_ingrediente).push(lote);
         }
 
-        // Consumir de lotes en orden FIFO
-        for (const lote of lotes) {
-          if (cantidadRequerida <= 0) break;
+        // 1. Validar primero que todos los ingredientes tengan stock suficiente
+        for (const ri of recetaIngredientes) {
+          const cantidadRequerida = parseFloat(ri.cantidad_requerida);
+          const lotes = lotesMap.get(ri.id_ingrediente) || [];
+          const stockTotal = lotes.reduce((sum, l) => sum + parseFloat(l.cantidad_actual), 0);
 
-          const disponible = parseFloat(lote.cantidad_actual);
-          if (disponible >= cantidadRequerida) {
-            lote.cantidad_actual = (disponible - cantidadRequerida).toFixed(2);
-            cantidadRequerida = 0;
-          } else {
-            lote.cantidad_actual = 0;
-            cantidadRequerida -= disponible;
+          if (stockTotal < cantidadRequerida) {
+            throw new Error(
+              `Stock insuficiente para ${ri.Ingrediente?.nombre_ing || 'ingrediente'}. ` +
+              `Requerido: ${cantidadRequerida}, Disponible: ${stockTotal}`
+            );
           }
-          await lote.save({ transaction });
+        }
+
+        // 2. Descontar en memoria y recolectar lotes modificados
+        const lotesModificados = [];
+        for (const ri of recetaIngredientes) {
+          let cantidadRequerida = parseFloat(ri.cantidad_requerida);
+          const lotes = lotesMap.get(ri.id_ingrediente) || [];
+
+          for (const lote of lotes) {
+            if (cantidadRequerida <= 0) break;
+
+            const disponible = parseFloat(lote.cantidad_actual);
+            if (disponible >= cantidadRequerida) {
+              lote.cantidad_actual = (disponible - cantidadRequerida).toFixed(2);
+              cantidadRequerida = 0;
+            } else {
+              lote.cantidad_actual = 0;
+              cantidadRequerida -= disponible;
+            }
+            lotesModificados.push(lote);
+          }
+        }
+
+        // 3. Guardar en paralelo solo los lotes modificados
+        if (lotesModificados.length > 0) {
+          await Promise.all(lotesModificados.map((lote) => lote.save({ transaction })));
         }
       }
 
@@ -81,25 +104,42 @@ class FIFOService {
       include: [{ model: Ingrediente }],
     });
 
-    const resultados = [];
+    if (recetaIngredientes.length === 0) {
+      return { suficiente: true, detalles: [] };
+    }
 
-    for (const ri of recetaIngredientes) {
+    const ingredientIds = recetaIngredientes.map((ri) => ri.id_ingrediente);
+
+    // Consulta agregada única para sumar stock disponible por ingrediente
+    const stockTotales = await LoteIngrediente.findAll({
+      attributes: [
+        'id_ingrediente',
+        [sequelize.fn('SUM', sequelize.col('cantidad_actual')), 'total_stock'],
+      ],
+      where: {
+        id_ingrediente: { [Op.in]: ingredientIds },
+        cantidad_actual: { [Op.gt]: 0 },
+      },
+      group: ['id_ingrediente'],
+      raw: true,
+    });
+
+    const stockMap = new Map();
+    for (const item of stockTotales) {
+      stockMap.set(item.id_ingrediente, parseFloat(item.total_stock || 0));
+    }
+
+    const resultados = recetaIngredientes.map((ri) => {
       const cantidadRequerida = parseFloat(ri.cantidad_requerida);
+      const stockDisponible = stockMap.get(ri.id_ingrediente) || 0;
 
-      const stockTotal = await LoteIngrediente.sum('cantidad_actual', {
-        where: {
-          id_ingrediente: ri.id_ingrediente,
-          cantidad_actual: { [Op.gt]: 0 },
-        },
-      });
-
-      resultados.push({
+      return {
         ingrediente: ri.Ingrediente?.nombre_ing || `ID ${ri.id_ingrediente}`,
         requerido: cantidadRequerida,
-        disponible: parseFloat(stockTotal || 0),
-        suficiente: parseFloat(stockTotal || 0) >= cantidadRequerida,
-      });
-    }
+        disponible: stockDisponible,
+        suficiente: stockDisponible >= cantidadRequerida,
+      };
+    });
 
     return {
       suficiente: resultados.every((r) => r.suficiente),
