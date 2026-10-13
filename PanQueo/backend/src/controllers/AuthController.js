@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { Usuario } = require('../models');
 const config = require('../config/config');
+const { isValidPassword } = require('../middleware/validatePassword');
 
 exports.login = async (req, res) => {
   try {
@@ -47,6 +48,13 @@ exports.login = async (req, res) => {
 exports.register = async (req, res) => {
   try {
     const { nombre, apellido, email, telefono, password } = req.body;
+
+    if (!isValidPassword(password)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'La contraseña debe tener entre 8 y 72 caracteres, e incluir al menos una mayúscula, una minúscula, un número y un carácter especial.',
+      });
+    }
 
     const existe = await Usuario.findOne({ where: { email } });
     if (existe) {
