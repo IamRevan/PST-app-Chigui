@@ -1517,6 +1517,16 @@
   });
 
   // ========== AUTH ==========
+  const API_BASE = localStorage.getItem('API_BASE') || 'http://localhost:3000/api';
+
+  function showError(msg) {
+    const err = document.getElementById('error-message');
+    if (err) {
+      err.textContent = msg;
+      err.classList.remove('hidden');
+    }
+  }
+
   function togglePassword() {
     const pwd = document.getElementById('login-password');
     const eye = document.querySelector('.input-eye');
@@ -1538,32 +1548,111 @@
     document.getElementById('register-form').classList.add('hidden');
     document.getElementById('reset-form').classList.remove('hidden');
   }
-  function handleLogin() {
+  async function handleLogin() {
     const email = document.getElementById('login-email').value.trim();
-    const pass = document.getElementById('login-password').value.trim();
+    const password = document.getElementById('login-password').value.trim();
     const err = document.getElementById('error-message');
-    if (!email || !pass) {
-      err.classList.remove('hidden');
-      err.textContent = 'Por favor, completa todos los campos.';
+    if (err) err.classList.add('hidden');
+
+    if (!email || !password) {
+      showError('Por favor, completa todos los campos.');
       return;
     }
-    err.classList.add('hidden');
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('main-app').classList.remove('hidden');
-    renderAll();
+
+    const loginBtn = document.querySelector('#login-form .btn-primary') || document.querySelector('#login-form button');
+    const originalBtnText = loginBtn ? loginBtn.innerHTML : '';
+    if (loginBtn) {
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Iniciando sesión...';
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && (data.status === 'success' || response.status === 200 || response.status === 201)) {
+        const token = data?.data?.token || data?.token;
+        if (token) {
+          localStorage.setItem('token', token);
+        }
+        const user = data?.data?.usuario || data?.data?.user || data?.usuario || data?.user;
+        if (user) {
+          localStorage.setItem('user', JSON.stringify(user));
+        }
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('main-app').classList.remove('hidden');
+        renderAll();
+      } else {
+        const errorMsg = data?.message || data?.error || 'Error al iniciar sesión. Verifica tus credenciales o la conexión con el servidor.';
+        showError(errorMsg);
+      }
+    } catch (error) {
+      showError('Error al iniciar sesión. Verifica tus credenciales o la conexión con el servidor.');
+    } finally {
+      if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = originalBtnText;
+      }
+    }
   }
-  function handleRegister() {
-    const nombre = document.getElementById('reg-nombre').value.trim();
-    const apellido = document.getElementById('reg-apellido').value.trim();
-    const email = document.getElementById('reg-email').value.trim();
-    const telefono = document.getElementById('reg-telefono').value.trim();
-    const pass = document.getElementById('reg-password').value.trim();
-    if (!nombre || !apellido || !email || !telefono || !pass) {
-      alert('Todos los campos son obligatorios');
+
+  async function handleRegister() {
+    const nombre = document.getElementById('reg-nombre')?.value.trim();
+    const apellido = document.getElementById('reg-apellido')?.value.trim();
+    const email = document.getElementById('reg-email')?.value.trim();
+    const telefono = document.getElementById('reg-telefono')?.value.trim();
+    const password = document.getElementById('reg-password')?.value;
+
+    if (!nombre || !apellido || !email || !telefono || !password) {
+      showError('Todos los campos son obligatorios');
       return;
     }
-    alert('Registro exitoso (mock). Ahora inicia sesión.');
-    showLogin();
+
+    const regBtn = document.querySelector('#register-form .btn-primary') || document.querySelector('#register-form button');
+    const originalBtnText = regBtn ? regBtn.innerHTML : '';
+    if (regBtn) {
+      regBtn.disabled = true;
+      regBtn.textContent = 'Registrando...';
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ nombre, apellido, email, telefono, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && (data.status === 'success' || response.status === 200 || response.status === 201)) {
+        const token = data?.data?.token || data?.token;
+        if (token) {
+          localStorage.setItem('token', token);
+        }
+        document.getElementById('login-email').value = email;
+        showLogin();
+        showError('Registro exitoso. Inicia sesión.');
+      } else {
+        const errorMsg = data?.message || data?.error || 'Error al registrar usuario. Inténtalo de nuevo.';
+        showError(errorMsg);
+      }
+    } catch (error) {
+      showError('Error al registrar usuario. Verifica la conexión con el servidor.');
+    } finally {
+      if (regBtn) {
+        regBtn.disabled = false;
+        regBtn.innerHTML = originalBtnText;
+      }
+    }
   }
   function handleReset() {
     const email = document.getElementById('reset-email').value.trim();

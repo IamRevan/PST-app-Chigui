@@ -1,7 +1,7 @@
 let isLoggedIn = false;
 let activeOrderFilter = 'Todos';
 
-const API_BASE = 'http://192.168.1.100:3000/api';
+const API_BASE = localStorage.getItem('API_BASE') || 'http://localhost:3000/api';
 
 const mockOrders = [
   { id: '#1045', client: 'Juan Pérez', total: '$25.50', status: 'Pendiente', date: '18/06/2024 - 10:00', delivery: true, items: 'Pastel de Tres Leches x1, Cupcakes x6' },
@@ -102,24 +102,107 @@ function showError(msg) {
   el.classList.remove('hidden');
 }
 
-// Auth handlers (MVP demo: instant, sin backend)
-function handleLogin() {
+// Auth handlers with backend API connection
+async function handleLogin() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
-  if (!email || !password) { showError('Todos los campos son requeridos'); return; }
-  localStorage.setItem('token', 'demo_token');
-  enterApp();
-}
-
-function handleRegister() {
-  const ids = ['reg-nombre','reg-apellido','reg-email','reg-telefono','reg-password'];
-  if (ids.some(id => !document.getElementById(id).value.trim())) {
+  if (!email || !password) {
     showError('Todos los campos son requeridos');
     return;
   }
-  document.getElementById('login-email').value = document.getElementById('reg-email').value;
-  showLogin();
-  showError('Registro exitoso. Inicia sesión.');
+
+  const loginBtn = document.querySelector('#login-form .btn-primary') || document.querySelector('#login-form button');
+  const originalBtnText = loginBtn ? loginBtn.innerHTML : '';
+  if (loginBtn) {
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Iniciando sesión...';
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && (data.status === 'success' || response.status === 200 || response.status === 201)) {
+      const token = data?.data?.token || data?.token;
+      if (token) {
+        localStorage.setItem('token', token);
+      }
+      const user = data?.data?.usuario || data?.data?.user || data?.usuario || data?.user;
+      if (user) {
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+      enterApp();
+    } else {
+      const errorMsg = data?.message || data?.error || 'Error al iniciar sesión. Verifica tus credenciales o la conexión con el servidor.';
+      showError(errorMsg);
+    }
+  } catch (error) {
+    showError('Error al iniciar sesión. Verifica tus credenciales o la conexión con el servidor.');
+  } finally {
+    if (loginBtn) {
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = originalBtnText;
+    }
+  }
+}
+
+async function handleRegister() {
+  const nombre = document.getElementById('reg-nombre')?.value.trim();
+  const apellido = document.getElementById('reg-apellido')?.value.trim();
+  const email = document.getElementById('reg-email')?.value.trim();
+  const telefono = document.getElementById('reg-telefono')?.value.trim();
+  const password = document.getElementById('reg-password')?.value;
+
+  if (!nombre || !apellido || !email || !telefono || !password) {
+    showError('Todos los campos son requeridos');
+    return;
+  }
+
+  const regBtn = document.querySelector('#register-form .btn-primary') || document.querySelector('#register-form button');
+  const originalBtnText = regBtn ? regBtn.innerHTML : '';
+  if (regBtn) {
+    regBtn.disabled = true;
+    regBtn.textContent = 'Registrando...';
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ nombre, apellido, email, telefono, password }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && (data.status === 'success' || response.status === 200 || response.status === 201)) {
+      const token = data?.data?.token || data?.token;
+      if (token) {
+        localStorage.setItem('token', token);
+      }
+      document.getElementById('login-email').value = email;
+      showLogin();
+      showError('Registro exitoso. Inicia sesión.');
+    } else {
+      const errorMsg = data?.message || data?.error || 'Error al registrar usuario. Inténtalo de nuevo.';
+      showError(errorMsg);
+    }
+  } catch (error) {
+    showError('Error al registrar usuario. Verifica la conexión con el servidor.');
+  } finally {
+    if (regBtn) {
+      regBtn.disabled = false;
+      regBtn.innerHTML = originalBtnText;
+    }
+  }
 }
 
 function handleReset() {
