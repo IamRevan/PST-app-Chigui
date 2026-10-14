@@ -81,25 +81,44 @@ class FIFOService {
       include: [{ model: Ingrediente }],
     });
 
-    const resultados = [];
+    if (recetaIngredientes.length === 0) {
+      return {
+        suficiente: true,
+        detalles: [],
+      };
+    }
 
-    for (const ri of recetaIngredientes) {
-      const cantidadRequerida = parseFloat(ri.cantidad_requerida);
+    const idIngredientes = recetaIngredientes.map((ri) => ri.id_ingrediente);
 
-      const stockTotal = await LoteIngrediente.sum('cantidad_actual', {
-        where: {
-          id_ingrediente: ri.id_ingrediente,
-          cantidad_actual: { [Op.gt]: 0 },
-        },
-      });
+    const stockTotales = await LoteIngrediente.findAll({
+      attributes: [
+        'id_ingrediente',
+        [sequelize.fn('SUM', sequelize.col('cantidad_actual')), 'total_stock'],
+      ],
+      where: {
+        id_ingrediente: { [Op.in]: idIngredientes },
+        cantidad_actual: { [Op.gt]: 0 },
+      },
+      group: ['id_ingrediente'],
+      raw: true,
+    });
 
-      resultados.push({
+    const stockMap = new Map();
+    for (const st of stockTotales) {
+      stockMap.set(st.id_ingrediente, Number(st.total_stock || 0));
+    }
+
+    const resultados = recetaIngredientes.map((ri) => {
+      const cantidadRequerida = Number(ri.cantidad_requerida);
+      const disponible = stockMap.get(ri.id_ingrediente) || 0;
+
+      return {
         ingrediente: ri.Ingrediente?.nombre_ing || `ID ${ri.id_ingrediente}`,
         requerido: cantidadRequerida,
-        disponible: parseFloat(stockTotal || 0),
-        suficiente: parseFloat(stockTotal || 0) >= cantidadRequerida,
-      });
-    }
+        disponible,
+        suficiente: disponible >= cantidadRequerida,
+      };
+    });
 
     return {
       suficiente: resultados.every((r) => r.suficiente),
