@@ -25,10 +25,27 @@ export const useData = (endpoint, cacheKey, options = {}) => {
 
       try {
         const response = await apiClient.get(endpoint);
-        const responseData =
+        let responseData =
           response.data?.data !== undefined
             ? response.data.data
             : response.data;
+
+        if (responseData && !Array.isArray(responseData)) {
+          if (Array.isArray(responseData.pedidos)) {
+            responseData = responseData.pedidos;
+          } else if (Array.isArray(responseData.clientes)) {
+            responseData = responseData.clientes;
+          } else if (Array.isArray(responseData.ingredientes)) {
+            responseData = responseData.ingredientes;
+          } else if (Array.isArray(responseData.recetas)) {
+            responseData = responseData.recetas;
+          } else if (Array.isArray(responseData.listas)) {
+            responseData = responseData.listas;
+          } else if (Array.isArray(responseData.rows)) {
+            responseData = responseData.rows;
+          }
+        }
+
         setData(responseData);
         await setItem(cacheKey, responseData);
       } catch (err) {

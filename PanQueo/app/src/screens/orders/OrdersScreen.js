@@ -70,7 +70,8 @@ const STATUS_MAP = {
 
 export const OrdersScreen = ({ navigation }) => {
   const [activeFilter, setActiveFilter] = useState("Todos");
-  const { data: orders, loading, refetch } = usePedidos();
+  const { data: rawOrders, loading, refetch } = usePedidos();
+  const orders = Array.isArray(rawOrders) ? rawOrders : (rawOrders?.pedidos || []);
 
   const filtered = orders.filter((p) => {
     if (activeFilter === "Todos") return true;

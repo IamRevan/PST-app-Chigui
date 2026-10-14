@@ -22,7 +22,8 @@ import { useClientes } from "../../lib/hooks/useClientes";
 export const ClientsScreen = ({ navigation }) => {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const { data: clients, loading, refetch } = useClientes();
+  const { data: rawClients, loading, refetch } = useClientes();
+  const clients = Array.isArray(rawClients) ? rawClients : (rawClients?.clientes || []);
 
   const filtered = clients.filter((c) => {
     const q = search.toLowerCase();

@@ -27,7 +27,8 @@ export const InventoryScreen = ({ navigation }) => {
   const [showLoteModal, setShowLoteModal] = useState(false);
   const [selectedIngrediente, setSelectedIngrediente] = useState("");
 
-  const { data: ingredientes, loading } = useInventario();
+  const { data: rawIngredientes, loading } = useInventario();
+  const ingredientes = Array.isArray(rawIngredientes) ? rawIngredientes : (rawIngredientes?.ingredientes || []);
   const { data: alertas } = useAlertasVencimiento();
 
   const stockBajoCount = alertas?.length || 0;

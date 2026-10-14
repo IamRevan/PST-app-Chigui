@@ -19,7 +19,8 @@ import { ResumenPedidoModal } from "./ResumenPedidoModal";
 import { useRecetas } from "../../lib/hooks/useRecetas";
 
 export const NuevoPedidoScreen = ({ navigation, route }) => {
-  const { data: recetas, loading } = useRecetas();
+  const { data: rawRecetas, loading } = useRecetas();
+  const recetas = Array.isArray(rawRecetas) ? rawRecetas : (rawRecetas?.recetas || []);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState([]);
   const [error, setError] = useState(null);

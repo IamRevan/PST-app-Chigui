@@ -23,7 +23,9 @@ export const LoginScreen = ({ navigation }) => {
     setError(null);
     try {
       const response = await apiClient.post('/api/auth/login', values);
-      await login(response.data.token, response.data.user);
+      const token = response.data?.data?.token || response.data?.token;
+      const user = response.data?.data?.user || response.data?.user;
+      await login(token, user);
     } catch (err) {
       setError(err.message || 'Error al iniciar sesión');
     } finally {

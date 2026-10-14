@@ -20,8 +20,11 @@ import { useAlertasVencimiento } from "../../lib/hooks/useInventario";
 
 export const DashboardScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const { data: pedidos, loading: loadingPedidos } = usePedidos();
-  const { data: alertas } = useAlertasVencimiento();
+  const { data: rawPedidos, loading: loadingPedidos } = usePedidos();
+  const { data: rawAlertas } = useAlertasVencimiento();
+
+  const pedidos = Array.isArray(rawPedidos) ? rawPedidos : (rawPedidos?.pedidos || []);
+  const alertas = Array.isArray(rawAlertas) ? rawAlertas : [];
 
   const pedidosEnCocina = pedidos.filter(
     (p) => p.estado_entrega === "En Cocina",
