@@ -3,15 +3,65 @@ const { Ingrediente, LoteIngrediente, Pedido, Receta, HistorialTasaCambio } = re
 
 class AsistenteService {
   async predecirCompra() {
+    const { RecetaIngrediente, Pedido, sequelize } = require('../models');
+
+    // 1. Fetch all ingredients
     const ingredientes = await Ingrediente.findAll();
+    if (!ingredientes || ingredientes.length === 0) {
+      return [];
+    }
+
+    // 2. Fetch total count of qualifying orders once for average calculation
+    const recetasUsadas = await Pedido.count({
+      where: {
+        estado_entrega: { [Op.in]: ['En Cocina', 'Listo', 'Entregado'] },
+      },
+    });
+
+    // 3. Batch aggregate total stock per ingredient
+    const stockGrouped = await LoteIngrediente.findAll({
+      attributes: [
+        'id_ingrediente',
+        [sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('cantidad_actual')), 0), 'stockActual'],
+      ],
+      group: ['id_ingrediente'],
+      raw: true,
+    });
+
+    const stockMap = new Map();
+    for (const item of stockGrouped) {
+      stockMap.set(Number(item.id_ingrediente), Number(item.stockActual || item.get?.('stockActual') || 0));
+    }
+
+    // 4. Batch aggregate total consumed quantity per ingredient from qualifying orders
+    const consumoGrouped = await RecetaIngrediente.findAll({
+      attributes: [
+        'id_ingrediente',
+        [sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('cantidad_requerida')), 0), 'totalConsumido'],
+      ],
+      include: [{
+        model: Pedido,
+        attributes: [],
+        where: {
+          estado_entrega: { [Op.in]: ['En Cocina', 'Listo', 'Entregado'] },
+        },
+      }],
+      group: ['RecetaIngrediente.id_ingrediente'],
+      raw: true,
+    });
+
+    const consumoMap = new Map();
+    for (const item of consumoGrouped) {
+      consumoMap.set(Number(item.id_ingrediente), Number(item.totalConsumido || item.get?.('totalConsumido') || 0));
+    }
+
+    // 5. Build predictions in memory
     const predicciones = [];
 
     for (const ing of ingredientes) {
-      const stockActual = await LoteIngrediente.sum('cantidad_actual', {
-        where: { id_ingrediente: ing.id_ingrediente },
-      }) || 0;
-
-      const consumoPromedio = await this.calcularConsumoPromedioDiario(ing.id_ingrediente);
+      const stockActual = stockMap.get(ing.id_ingrediente) || 0;
+      const totalConsumido = consumoMap.get(ing.id_ingrediente) || 0;
+      const consumoPromedio = recetasUsadas > 0 ? totalConsumido / recetasUsadas : 0;
       const stockMinimo = parseFloat(ing.stock_minimo);
       const sugerido = Math.max(0, (consumoPromedio * 7) - stockActual);
 
