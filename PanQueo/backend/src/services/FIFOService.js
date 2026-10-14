@@ -1,4 +1,4 @@
-const { Op } = require('sequelize');
+const { Op, fn, col } = require('sequelize');
 const { LoteIngrediente, Ingrediente, RecetaIngrediente, Pedido } = require('../models');
 const sequelize = require('../config/database');
 
@@ -81,25 +81,44 @@ class FIFOService {
       include: [{ model: Ingrediente }],
     });
 
-    const resultados = [];
+    if (!recetaIngredientes || recetaIngredientes.length === 0) {
+      return {
+        suficiente: true,
+        detalles: [],
+      };
+    }
 
-    for (const ri of recetaIngredientes) {
+    const ingredientIds = recetaIngredientes.map((ri) => ri.id_ingrediente);
+
+    const lotesSum = await LoteIngrediente.findAll({
+      attributes: [
+        'id_ingrediente',
+        [fn('SUM', col('cantidad_actual')), 'total_stock'],
+      ],
+      where: {
+        id_ingrediente: { [Op.in]: ingredientIds },
+        cantidad_actual: { [Op.gt]: 0 },
+      },
+      group: ['id_ingrediente'],
+      raw: true,
+    });
+
+    const stockMap = new Map();
+    for (const item of lotesSum) {
+      stockMap.set(item.id_ingrediente, parseFloat(item.total_stock || 0));
+    }
+
+    const resultados = recetaIngredientes.map((ri) => {
       const cantidadRequerida = parseFloat(ri.cantidad_requerida);
+      const disponible = stockMap.get(ri.id_ingrediente) || 0;
 
-      const stockTotal = await LoteIngrediente.sum('cantidad_actual', {
-        where: {
-          id_ingrediente: ri.id_ingrediente,
-          cantidad_actual: { [Op.gt]: 0 },
-        },
-      });
-
-      resultados.push({
+      return {
         ingrediente: ri.Ingrediente?.nombre_ing || `ID ${ri.id_ingrediente}`,
         requerido: cantidadRequerida,
-        disponible: parseFloat(stockTotal || 0),
-        suficiente: parseFloat(stockTotal || 0) >= cantidadRequerida,
-      });
-    }
+        disponible,
+        suficiente: disponible >= cantidadRequerida,
+      };
+    });
 
     return {
       suficiente: resultados.every((r) => r.suficiente),
