@@ -7,7 +7,6 @@
     "test": "jest",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "node --test tests/**/*.test.js",
     "db:create": "npx sequelize-cli db:create",
     "db:drop": "npx sequelize-cli db:drop",
     "migrate": "npx sequelize-cli db:migrate",

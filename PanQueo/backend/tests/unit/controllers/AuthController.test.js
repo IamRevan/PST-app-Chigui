@@ -1,3 +1,4 @@
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret';
 const jwt = require('jsonwebtoken');
 const { Usuario } = require('../../../src/models');
 const AuthController = require('../../../src/controllers/AuthController');

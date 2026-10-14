@@ -1,7 +1,7 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-const dialect = process.env.DB_DIALECT || (process.env.NODE_ENV === 'test' ? 'sqlite' : 'postgres');
+const dialect = process.env.DB_DIALECT || 'postgres';
 
 const sequelize = dialect === 'sqlite'
   ? new Sequelize({

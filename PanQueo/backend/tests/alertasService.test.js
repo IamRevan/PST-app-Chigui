@@ -1,13 +1,11 @@
 process.env.DB_DIALECT = 'sqlite';
 process.env.NODE_ENV = 'test';
 
-const { test, before, after } = require('node:test');
-const assert = require('node:assert/strict');
 const { sequelize, Ingrediente, LoteIngrediente } = require('../src/models');
 const AlertasService = require('../src/services/AlertasService');
 
-test('AlertasService - getStockBajo', async (t) => {
-  before(async () => {
+describe('AlertasService - getStockBajo', () => {
+  beforeAll(async () => {
     await sequelize.sync({ force: true });
 
     // Seed test ingredients:
@@ -28,40 +26,40 @@ test('AlertasService - getStockBajo', async (t) => {
     await LoteIngrediente.create({ id_ingrediente: 4, cantidad_actual: 0, cantidad_inicial: 5, fecha_ingreso: '2025-01-01', fecha_venc: '2025-12-31' });
   });
 
-  after(async () => {
+  afterAll(async () => {
     await sequelize.close();
   });
 
-  await t.test('returns correct stock bajo items with expected keys and types', async () => {
+  test('returns correct stock bajo items with expected keys and types', async () => {
     const stockBajo = await AlertasService.getStockBajo();
 
-    assert.equal(stockBajo.length, 3);
+    expect(stockBajo.length).toBe(3);
 
     const ids = stockBajo.map((item) => item.id_ingrediente).sort((a, b) => a - b);
-    assert.deepEqual(ids, [1, 3, 4]);
+    expect(ids).toEqual([1, 3, 4]);
 
     for (const item of stockBajo) {
-      assert.equal(typeof item.id_ingrediente, 'number');
-      assert.equal(typeof item.nombre, 'string');
-      assert.equal(typeof item.stockActual, 'number');
-      assert.equal(typeof item.stockMinimo, 'number');
-      assert.equal(typeof item.unidad, 'string');
+      expect(typeof item.id_ingrediente).toBe('number');
+      expect(typeof item.nombre).toBe('string');
+      expect(typeof item.stockActual).toBe('number');
+      expect(typeof item.stockMinimo).toBe('number');
+      expect(typeof item.unidad).toBe('string');
     }
 
     const harina = stockBajo.find((item) => item.id_ingrediente === 1);
-    assert.equal(harina.nombre, 'Harina');
-    assert.equal(harina.stockActual, 15);
-    assert.equal(harina.stockMinimo, 20);
-    assert.equal(harina.unidad, 'Kg');
+    expect(harina.nombre).toBe('Harina');
+    expect(harina.stockActual).toBe(15);
+    expect(harina.stockMinimo).toBe(20);
+    expect(harina.unidad).toBe('Kg');
 
     const cacao = stockBajo.find((item) => item.id_ingrediente === 3);
-    assert.equal(cacao.nombre, 'Cacao');
-    assert.equal(cacao.stockActual, 0);
-    assert.equal(cacao.stockMinimo, 5);
+    expect(cacao.nombre).toBe('Cacao');
+    expect(cacao.stockActual).toBe(0);
+    expect(cacao.stockMinimo).toBe(5);
 
     const vainilla = stockBajo.find((item) => item.id_ingrediente === 4);
-    assert.equal(vainilla.nombre, 'Vainilla');
-    assert.equal(vainilla.stockActual, 0);
-    assert.equal(vainilla.stockMinimo, 2);
+    expect(vainilla.nombre).toBe('Vainilla');
+    expect(vainilla.stockActual).toBe(0);
+    expect(vainilla.stockMinimo).toBe(2);
   });
 });
