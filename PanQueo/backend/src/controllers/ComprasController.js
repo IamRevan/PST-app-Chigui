@@ -92,17 +92,22 @@ exports.completarLista = async (req, res) => {
     await lista.save({ transaction });
 
     // Crear lotes basados en items comprados
+    const lotesToCreate = [];
     for (const detalle of lista.DetalleListaCompra) {
       if (parseFloat(detalle.cantidad_comprada) > 0) {
-        await LoteIngrediente.create({
+        lotesToCreate.push({
           id_ingrediente: detalle.id_ingrediente,
           cantidad_actual: detalle.cantidad_comprada,
           cantidad_inicial: detalle.cantidad_comprada,
           fecha_ingreso: new Date(),
           fecha_venc: new Date(new Date().setMonth(new Date().getMonth() + 6)),
           precio_compra_unitario: detalle.precio_estimado_unitario,
-        }, { transaction });
+        });
       }
+    }
+
+    if (lotesToCreate.length > 0) {
+      await LoteIngrediente.bulkCreate(lotesToCreate, { transaction, validate: true });
     }
 
     await transaction.commit();
