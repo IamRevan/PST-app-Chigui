@@ -207,27 +207,37 @@ function showError(msg) {
   }
 }
 
+// Auth handlers with backend API connection
 async function handleLogin() {
   const emailInput = document.getElementById('login-email');
   const passInput = document.getElementById('login-password');
   const email = emailInput ? emailInput.value.trim() : '';
-  const password = passInput ? passInput.value.trim() : '';
+  const password = passInput ? passInput.value : '';
 
   if (!email || !password) {
-    showError('Por favor, ingresa tu correo y contraseña.');
+    showError('Todos los campos son requeridos');
     return;
+  }
+
+  const loginBtn = document.querySelector('#login-form .btn-primary') || document.querySelector('#login-form button');
+  const originalBtnText = loginBtn ? loginBtn.innerHTML : '';
+  if (loginBtn) {
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Iniciando sesión...';
   }
 
   try {
     const res = await apiFetch('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password }),
     });
 
-    if (res && res.data && res.data.token) {
-      localStorage.setItem('token', res.data.token);
-      if (res.data.usuario) {
-        localStorage.setItem('user', JSON.stringify(res.data.usuario));
+    const token = res?.data?.token || res?.token;
+    if (token) {
+      localStorage.setItem('token', token);
+      const user = res?.data?.user || res?.data?.usuario || res?.user || res?.usuario;
+      if (user) {
+        localStorage.setItem('user', JSON.stringify(user));
       }
       isLoggedIn = true;
       document.getElementById('auth-screen').classList.add('hidden');
@@ -237,40 +247,57 @@ async function handleLogin() {
       showError('Respuesta de autenticación no válida.');
     }
   } catch (err) {
-    showError(err.message || 'Error al iniciar sesión. Revisa tus credenciales.');
+    showError(err.message || 'Error al iniciar sesión. Verifica tus credenciales o la conexión con el servidor.');
+  } finally {
+    if (loginBtn) {
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = originalBtnText;
+    }
   }
 }
 
 async function handleRegister() {
-  const nombre = document.getElementById('reg-nombre').value.trim();
-  const apellido = document.getElementById('reg-apellido').value.trim();
-  const email = document.getElementById('reg-email').value.trim();
-  const telefono = document.getElementById('reg-telefono').value.trim();
-  const password = document.getElementById('reg-password').value.trim();
+  const nombre = document.getElementById('reg-nombre')?.value.trim();
+  const apellido = document.getElementById('reg-apellido')?.value.trim();
+  const email = document.getElementById('reg-email')?.value.trim();
+  const telefono = document.getElementById('reg-telefono')?.value.trim();
+  const password = document.getElementById('reg-password')?.value;
 
-  if (!nombre || !apellido || !email || !password) {
-    alert('Todos los campos obligatorios deben estar completos.');
+  if (!nombre || !apellido || !email || !telefono || !password) {
+    showError('Todos los campos son requeridos');
     return;
   }
 
+  const regBtn = document.querySelector('#register-form .btn-primary') || document.querySelector('#register-form button');
+  const originalBtnText = regBtn ? regBtn.innerHTML : '';
+  if (regBtn) {
+    regBtn.disabled = true;
+    regBtn.textContent = 'Registrando...';
+  }
+
   try {
-    await apiFetch('/auth/registro', {
+    const res = await apiFetch('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({
-        nombre: `${nombre} ${apellido}`.trim(),
-        email,
-        password,
-        rol: 'Repostero'
-      })
+      body: JSON.stringify({ nombre, apellido, email, telefono, password }),
     });
 
-    alert('Registro exitoso. Ahora puedes iniciar sesión.');
-    showLogin();
-    if (document.getElementById('login-email')) {
-      document.getElementById('login-email').value = email;
+    const token = res?.data?.token || res?.token;
+    if (token) {
+      localStorage.setItem('token', token);
     }
+    const emailLoginInput = document.getElementById('login-email');
+    if (emailLoginInput) {
+      emailLoginInput.value = email;
+    }
+    showLogin();
+    showError('Registro exitoso. Inicia sesión.');
   } catch (err) {
-    alert(err.message || 'Error al registrar usuario.');
+    showError(err.message || 'Error al registrar usuario. Verifica la conexión con el servidor.');
+  } finally {
+    if (regBtn) {
+      regBtn.disabled = false;
+      regBtn.innerHTML = originalBtnText;
+    }
   }
 }
 
