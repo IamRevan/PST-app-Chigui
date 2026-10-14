@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { LoteIngrediente, Ingrediente } = require('../models');
+const { sequelize, LoteIngrediente, Ingrediente } = require('../models');
 
 class AlertasService {
   async getAlertasVencimiento() {
@@ -35,21 +35,49 @@ class AlertasService {
   }
 
   async getStockBajo() {
-    const ingredientes = await Ingrediente.findAll();
+    const ingredientes = await Ingrediente.findAll({
+      attributes: [
+        'id_ingrediente',
+        'nombre_ing',
+        'stock_minimo',
+        'unidad_medida',
+        [
+          sequelize.fn(
+            'COALESCE',
+            sequelize.fn('SUM', sequelize.col('LoteIngredientes.cantidad_actual')),
+            0
+          ),
+          'stock_actual',
+        ],
+      ],
+      include: [
+        {
+          model: LoteIngrediente,
+          attributes: [],
+          required: false,
+        },
+      ],
+      group: [
+        'Ingrediente.id_ingrediente',
+        'Ingrediente.nombre_ing',
+        'Ingrediente.stock_minimo',
+        'Ingrediente.unidad_medida',
+      ],
+      raw: true,
+    });
 
     const stockBajo = [];
 
     for (const ing of ingredientes) {
-      const stockActual = await LoteIngrediente.sum('cantidad_actual', {
-        where: { id_ingrediente: ing.id_ingrediente },
-      }) || 0;
+      const stockActual = parseFloat(ing.stock_actual) || 0;
+      const stockMinimo = parseFloat(ing.stock_minimo) || 0;
 
-      if (parseFloat(stockActual) <= parseFloat(ing.stock_minimo)) {
+      if (stockActual <= stockMinimo) {
         stockBajo.push({
           id_ingrediente: ing.id_ingrediente,
           nombre: ing.nombre_ing,
-          stockActual: parseFloat(stockActual),
-          stockMinimo: parseFloat(ing.stock_minimo),
+          stockActual,
+          stockMinimo,
           unidad: ing.unidad_medida,
         });
       }
