@@ -89,15 +89,28 @@ class AsistenteService {
     let costoTotal = 0;
     let monedaUsada = 'USD';
 
-    for (const ri of recetaIngs) {
-      const ultimoLote = await LoteIngrediente.findOne({
-        where: { id_ingrediente: ri.id_ingrediente },
+    if (recetaIngs.length > 0) {
+      const ingredientIds = recetaIngs.map((ri) => ri.id_ingrediente);
+      const lotes = await LoteIngrediente.findAll({
+        where: {
+          id_ingrediente: { [Op.in]: ingredientIds },
+        },
         order: [['fecha_ingreso', 'DESC']],
       });
 
-      if (ultimoLote && ultimoLote.precio_compra_unitario) {
-        costoTotal += parseFloat(ri.cantidad_requerida) * parseFloat(ultimoLote.precio_compra_unitario);
-        if (ultimoLote.moneda === 'Bs') monedaUsada = 'Bs';
+      const ultimosLotesMap = new Map();
+      for (const lote of lotes) {
+        if (!ultimosLotesMap.has(lote.id_ingrediente)) {
+          ultimosLotesMap.set(lote.id_ingrediente, lote);
+        }
+      }
+
+      for (const ri of recetaIngs) {
+        const ultimoLote = ultimosLotesMap.get(ri.id_ingrediente);
+        if (ultimoLote && ultimoLote.precio_compra_unitario) {
+          costoTotal += parseFloat(ri.cantidad_requerida) * parseFloat(ultimoLote.precio_compra_unitario);
+          if (ultimoLote.moneda === 'Bs') monedaUsada = 'Bs';
+        }
       }
     }
 
