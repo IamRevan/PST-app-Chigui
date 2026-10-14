@@ -1,491 +1,748 @@
+// API Base Configuration
+const API_BASE = localStorage.getItem('API_BASE') || (window.location.hostname ? `http://${window.location.hostname}:3000/api` : 'http://localhost:3000/api');
+
 let isLoggedIn = false;
-let activeOrderFilter = 'Todos';
+let activeOrderFilter = 'all';
+let activeInventoryFilter = 'all';
 
-const API_BASE = 'http://192.168.1.100:3000/api';
+// Centralized API Fetch Helper
+async function apiFetch(endpoint, options = {}) {
+  const token = localStorage.getItem('token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {})
+  };
 
-const mockOrders = [
-  { id: '#1045', client: 'Juan Pérez', total: '$25.50', status: 'Pendiente', date: '18/06/2024 - 10:00', delivery: true, items: 'Pastel de Tres Leches x1, Cupcakes x6' },
-  { id: '#1044', client: 'María García', total: 'Bs 850,00', status: 'En Cocina', date: '18/06/2024 - 09:30', delivery: false, items: 'Torta de Chocolate x1, Galletas x12' },
-  { id: '#1043', client: 'Eventos S.A.', total: '$120.00', status: 'Listo', date: '17/06/2024 - 16:00', delivery: false, items: 'Pastel Corporativo x1, Cupcakes x24' },
-];
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
-const mockClients = [
-  { name: 'María Pérez', initial: 'M', phone: '+58 412 123 4567', orders: 12, lastOrder: '15/06/2026', email: 'maria@ejemplo.com', address: 'Calle Sucre #45' },
-  { name: 'Juan Rodríguez', initial: 'J', phone: '+58 414 765 4321', orders: 5, lastOrder: '10/06/2026', email: 'juan@ejemplo.com', address: 'Av. Bolívar #123' },
-  { name: 'Ana Martínez', initial: 'A', phone: '+58 426 998 8776', orders: 28, lastOrder: '14/06/2026', email: 'ana@ejemplo.com', address: 'Urb. Las Flores' },
-  { name: 'Roberto Salas', initial: 'R', phone: '+58 412 555 0199', orders: 1, lastOrder: '01/06/2026', email: 'roberto@ejemplo.com', address: 'Calle Junín #67' },
-];
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers
+    });
 
-const mockInventory = [
-  { name: 'Leche Entera', unit: 'Litros', stock: 15, max: 20, status: 'En Stock', icon: '🥛' },
-  { name: 'Harina 0000', unit: 'Kilogramos', stock: 2, max: 50, status: 'Bajo', icon: '🌾' },
-  { name: 'Huevos de Campo', unit: 'Docenas', stock: 12, max: 24, status: 'En Stock', icon: '🥚' },
-];
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      isLoggedIn = false;
+      document.getElementById('main-app').classList.add('hidden');
+      document.getElementById('auth-screen').classList.remove('hidden');
+      showError('Sesión expirada. Por favor, inicia sesión de nuevo.');
+      throw new Error('No autorizado');
+    }
 
-const mockDashOrders = [
-  { id: '#1042', name: 'Pastel de Tres Leches', client: 'Cliente A', due: '14:00' },
-  { id: '#1043', name: 'Docena de Empanadas', client: 'Cliente B', due: '16:30' },
-  { id: '#1044', name: 'Torta de Chocolate', client: 'Evento Z', due: '18:00' },
-];
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
+    }
 
-const mockMovements = [
-  { type: 'Entrada', qty: '+50 kg', desc: 'Compra a Proveedor', date: '07 Oct 2023', color: '#2E7D32', bg: '#E8F5E9' },
-  { type: 'Salida', qty: '-2 kg', desc: 'Producción - Pan de Mantequilla', date: '07 Oct 2023', color: '#C62828', bg: '#FFEBEE' },
-  { type: 'Salida', qty: '-1.5 kg', desc: 'Producción - Croissant', date: '06 Oct 2023', color: '#C62828', bg: '#FFEBEE' },
-  { type: 'Ajuste', qty: '-0.5 kg', desc: 'Ajuste de inventario', date: '05 Oct 2023', color: '#1565C0', bg: '#E3F2FD' },
-];
-
-const mockNotifs = [
-  { title: 'Stock bajo', desc: 'Harina de Trigo está por debajo del mínimo (45 kg restantes)', time: 'Hace 2 horas', color: '#FF9800', bg: '#FFF8E1' },
-  { title: 'Lote próximo a vencer', desc: 'Lote #L-023 de Leche vence en 3 días', time: 'Hace 5 horas', color: '#ba1a1a', bg: '#FFEBEE' },
-  { title: 'Pedido #P-102 completado', desc: 'El pedido de María González está listo para entrega', time: 'Hace 1 día', color: '#4CAF50', bg: '#E8F5E9' },
-];
-
-// Splash
-setTimeout(() => {
-  showScreen('splash-screen', false);
-  showScreen('auth-screen', true);
-}, 1500);
-
-function showScreen(id, show) {
-  const el = document.getElementById(id);
-  if (show) el.classList.remove('hidden');
-  else el.classList.add('hidden');
-}
-
-function togglePassword() {
-  const input = document.getElementById('login-password');
-  const icon = document.querySelector('.toggle-password');
-  if (input.type === 'password') {
-    input.type = 'text';
-    if (icon) icon.textContent = '🙈';
-  } else {
-    input.type = 'password';
-    if (icon) icon.textContent = '👁️';
+    return data;
+  } catch (error) {
+    console.error(`API Error (${endpoint}):`, error);
+    throw error;
   }
 }
 
-// Modal system
-function openModal(title, html) {
-  document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-body').innerHTML = html;
-  document.getElementById('modal-overlay').classList.remove('hidden');
+// ========== INITIALIZATION & SPLASH ==========
+document.addEventListener('DOMContentLoaded', () => {
+  initSplash();
+  initEventListeners();
+  checkAuth();
+});
+
+function initSplash() {
+  const container = document.getElementById('confetti-container');
+  if (container) {
+    function createSprinkle() {
+      const sprinkle = document.createElement('div');
+      sprinkle.classList.add('sprinkle');
+      const colors = ['#ffc107', '#625f4d', '#ffffff', '#fabd00'];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const isOval = Math.random() > 0.5;
+      const width = Math.random() * 4 + 4;
+      const height = Math.random() * 8 + 6;
+      sprinkle.style.width = width + 'px';
+      sprinkle.style.height = height + 'px';
+      sprinkle.style.backgroundColor = color;
+      if (isOval) sprinkle.style.borderRadius = '999px';
+      sprinkle.style.left = Math.random() * 100 + 'vw';
+      const duration = Math.random() * 3 + 4;
+      const delay = Math.random() * 5;
+      sprinkle.style.animationDuration = duration + 's';
+      sprinkle.style.animationDelay = delay + 's';
+      container.appendChild(sprinkle);
+      setTimeout(() => { sprinkle.remove(); }, (duration + delay) * 1000);
+    }
+    for (let i = 0; i < 40; i++) createSprinkle();
+    setInterval(createSprinkle, 250);
+  }
+
+  const splash = document.getElementById('splash-screen');
+  if (splash) {
+    splash.addEventListener('click', () => {
+      splash.classList.add('hidden');
+      if (isLoggedIn) {
+        document.getElementById('main-app').classList.remove('hidden');
+      } else {
+        document.getElementById('auth-screen').classList.remove('hidden');
+      }
+    });
+
+    setTimeout(() => {
+      splash.classList.add('hidden');
+      if (isLoggedIn) {
+        document.getElementById('main-app').classList.remove('hidden');
+      } else {
+        document.getElementById('auth-screen').classList.remove('hidden');
+      }
+    }, 1500);
+  }
 }
 
-function closeModal() {
-  document.getElementById('modal-overlay').classList.add('hidden');
+function checkAuth() {
+  const token = localStorage.getItem('token');
+  if (token) {
+    isLoggedIn = true;
+  }
 }
 
-// Auth navigation
-function showRegister() {
-  hideAllAuthForms();
-  document.getElementById('register-form').classList.remove('hidden');
+function initEventListeners() {
+  // Enter key in Auth forms
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const auth = document.getElementById('auth-screen');
+      if (auth && !auth.classList.contains('hidden')) {
+        if (!document.getElementById('login-form').classList.contains('hidden')) handleLogin();
+        else if (!document.getElementById('register-form').classList.contains('hidden')) handleRegister();
+        else handleReset();
+      }
+    }
+  });
+
+  // Search input listeners
+  const invSearch = document.getElementById('inventory-search');
+  if (invSearch) invSearch.addEventListener('input', () => renderInventory());
+
+  const ordersSearch = document.getElementById('orders-search');
+  if (ordersSearch) ordersSearch.addEventListener('input', () => renderOrders());
+
+  const clientsSearch = document.getElementById('clients-search');
+  if (clientsSearch) clientsSearch.addEventListener('input', () => renderClients());
+
+  // Inventory filter pills
+  const invFilters = document.getElementById('inventory-filters');
+  if (invFilters) {
+    invFilters.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      invFilters.querySelectorAll('button').forEach(b => {
+        b.className = 'inactive-pill px-3 py-1 rounded-full font-label-bold text-label-bold whitespace-nowrap hover:bg-secondary-container/50 transition-all shadow-sm text-xs';
+      });
+      btn.className = 'active-pill px-3 py-1 rounded-full font-label-bold text-label-bold whitespace-nowrap transition-all shadow-sm text-xs';
+      activeInventoryFilter = btn.dataset.filter || 'all';
+      renderInventory();
+    });
+  }
+
+  // Orders filter pills
+  const ordFilters = document.getElementById('orders-filters');
+  if (ordFilters) {
+    ordFilters.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      ordFilters.querySelectorAll('button').forEach(b => {
+        b.className = 'px-3 py-1 rounded-full bg-surface-container-highest text-on-surface-variant font-label-bold text-label-bold whitespace-nowrap hover:bg-secondary-container/50 transition-colors text-xs';
+      });
+      btn.className = 'px-3 py-1 rounded-full bg-primary-container text-on-primary-container font-label-bold text-label-bold whitespace-nowrap text-xs';
+      activeOrderFilter = btn.dataset.filter || 'all';
+      renderOrders();
+    });
+  }
 }
+
+// ========== AUTHENTICATION HANDLERS ==========
+function togglePassword() {
+  const pwd = document.getElementById('login-password');
+  const eye = document.querySelector('.input-eye');
+  if (pwd) {
+    if (pwd.type === 'password') {
+      pwd.type = 'text';
+      if (eye) eye.textContent = 'visibility_off';
+    } else {
+      pwd.type = 'password';
+      if (eye) eye.textContent = 'visibility';
+    }
+  }
+}
+
 function showLogin() {
   hideAllAuthForms();
   document.getElementById('login-form').classList.remove('hidden');
 }
+
+function showRegister() {
+  hideAllAuthForms();
+  document.getElementById('register-form').classList.remove('hidden');
+}
+
 function showReset() {
   hideAllAuthForms();
   document.getElementById('reset-form').classList.remove('hidden');
 }
+
 function hideAllAuthForms() {
   document.getElementById('login-form').classList.add('hidden');
   document.getElementById('register-form').classList.add('hidden');
   document.getElementById('reset-form').classList.add('hidden');
-  document.getElementById('error-message').classList.add('hidden');
+  const err = document.getElementById('error-message');
+  if (err) err.classList.add('hidden');
 }
 
 function showError(msg) {
   const el = document.getElementById('error-message');
-  el.textContent = msg;
-  el.classList.remove('hidden');
+  if (el) {
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  }
 }
 
-// Auth handlers (MVP demo: instant, sin backend)
-function handleLogin() {
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  if (!email || !password) { showError('Todos los campos son requeridos'); return; }
-  localStorage.setItem('token', 'demo_token');
-  enterApp();
-}
+async function handleLogin() {
+  const emailInput = document.getElementById('login-email');
+  const passInput = document.getElementById('login-password');
+  const email = emailInput ? emailInput.value.trim() : '';
+  const password = passInput ? passInput.value.trim() : '';
 
-function handleRegister() {
-  const ids = ['reg-nombre','reg-apellido','reg-email','reg-telefono','reg-password'];
-  if (ids.some(id => !document.getElementById(id).value.trim())) {
-    showError('Todos los campos son requeridos');
+  if (!email || !password) {
+    showError('Por favor, ingresa tu correo y contraseña.');
     return;
   }
-  document.getElementById('login-email').value = document.getElementById('reg-email').value;
-  showLogin();
-  showError('Registro exitoso. Inicia sesión.');
+
+  try {
+    const res = await apiFetch('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
+
+    if (res && res.data && res.data.token) {
+      localStorage.setItem('token', res.data.token);
+      if (res.data.usuario) {
+        localStorage.setItem('user', JSON.stringify(res.data.usuario));
+      }
+      isLoggedIn = true;
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('main-app').classList.remove('hidden');
+      renderAll();
+    } else {
+      showError('Respuesta de autenticación no válida.');
+    }
+  } catch (err) {
+    showError(err.message || 'Error al iniciar sesión. Revisa tus credenciales.');
+  }
+}
+
+async function handleRegister() {
+  const nombre = document.getElementById('reg-nombre').value.trim();
+  const apellido = document.getElementById('reg-apellido').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const telefono = document.getElementById('reg-telefono').value.trim();
+  const password = document.getElementById('reg-password').value.trim();
+
+  if (!nombre || !apellido || !email || !password) {
+    alert('Todos los campos obligatorios deben estar completos.');
+    return;
+  }
+
+  try {
+    await apiFetch('/auth/registro', {
+      method: 'POST',
+      body: JSON.stringify({
+        nombre: `${nombre} ${apellido}`.trim(),
+        email,
+        password,
+        rol: 'Repostero'
+      })
+    });
+
+    alert('Registro exitoso. Ahora puedes iniciar sesión.');
+    showLogin();
+    if (document.getElementById('login-email')) {
+      document.getElementById('login-email').value = email;
+    }
+  } catch (err) {
+    alert(err.message || 'Error al registrar usuario.');
+  }
 }
 
 function handleReset() {
+  const email = document.getElementById('reset-email').value.trim();
+  if (!email) { alert('Ingresa tu correo'); return; }
+  alert('Si el correo existe, se ha enviado un enlace de restablecimiento a ' + email);
   showLogin();
 }
 
-function enterApp() {
-  isLoggedIn = true;
-  ['splash-screen','auth-screen'].forEach(id => document.getElementById(id).classList.add('hidden'));
-  document.getElementById('main-screen').classList.remove('hidden');
-  renderDashboardOrders();
+function handleLogout() {
+  if (confirm('¿Deseas cerrar sesión?')) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    isLoggedIn = false;
+    document.getElementById('main-app').classList.add('hidden');
+    document.getElementById('auth-screen').classList.remove('hidden');
+    showLogin();
+  }
+}
+
+// ========== VIEW NAVIGATION & TABS ==========
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  const target = document.getElementById('tab-' + tabId);
+  if (target) target.classList.add('active');
+
+  document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.dataset.tab === tabId) btn.classList.add('active');
+  });
+
+  document.querySelectorAll('.full-screen-view.active').forEach(v => v.classList.remove('active'));
+  renderTab(tabId);
+}
+
+function openView(viewId) {
+  document.querySelectorAll('.full-screen-view').forEach(v => v.classList.remove('active'));
+  const view = document.getElementById(viewId);
+  if (view) view.classList.add('active');
+}
+
+function closeView(viewId) {
+  const view = document.getElementById(viewId);
+  if (view) view.classList.remove('active');
+}
+
+// Views triggers
+function openRegisterLot() { openView('view-register-lot'); }
+function openRegisterClient() { openView('view-register-client'); }
+function openClientHistory() { openView('view-client-history'); }
+function openProductDetail() { openView('view-product-detail'); }
+function openAdjustStock() { openView('view-adjust-stock'); }
+function openAdjustSuccess() { openView('view-adjust-success'); }
+function openSelectClient() { openView('view-select-client'); }
+function openNewOrder() { openView('view-new-order'); }
+function openOrderSuccess() { openView('view-order-success'); }
+function openOrderDetail() { openView('view-order-detail'); }
+function openStockError() { openView('view-stock-error'); }
+function openSettings() { openView('view-settings'); }
+function openEditProfile() { openView('view-edit-profile'); }
+
+function openSecurity() { openModal('Seguridad', 'Gestión de contraseña y autenticación de dos factores.'); }
+function openHelp() { openModal('Ayuda & Soporte', 'Contacto con soporte técnico: soporte@panqueo.com'); }
+function openNotifs() { openModal('Notificaciones', 'No tienes notificaciones pendientes.'); }
+
+// Modal Helpers
+function openModal(title, body) {
+  const t = document.getElementById('modal-title');
+  const b = document.getElementById('modal-body-text');
+  if (t) t.textContent = title;
+  if (b) b.textContent = body;
+  const overlay = document.getElementById('modal-overlay');
+  if (overlay) overlay.classList.remove('hidden');
+}
+
+function closeModal() {
+  const overlay = document.getElementById('modal-overlay');
+  if (overlay) overlay.classList.add('hidden');
+}
+
+function toggleCurrency(type) {
+  document.querySelectorAll('.curr-btn').forEach(b => b.classList.remove('active'));
+  const target = document.querySelector(`.curr-btn.${type}`);
+  if (target) target.classList.add('active');
+}
+
+function renderTab(tabId) {
+  if (tabId === 'dashboard') renderDashboard();
+  else if (tabId === 'inventory') renderInventory();
+  else if (tabId === 'orders') renderOrders();
+  else if (tabId === 'clients') renderClients();
+  else if (tabId === 'profile') renderProfile();
+}
+
+function renderAll() {
+  renderDashboard();
   renderInventory();
   renderOrders();
   renderClients();
-  renderOrderFilters();
+  renderProfile();
 }
 
-function handleLogout() {
-  isLoggedIn = false;
-  localStorage.removeItem('token');
-  document.getElementById('main-screen').classList.add('hidden');
-  document.getElementById('auth-screen').classList.remove('hidden');
+// ========== RENDER DATA FROM BACKEND APIs ==========
+
+// Helper for UI loading / empty / error state templates
+function getLoadingHTML() {
+  return `<div class="p-6 text-center"><div class="loader-ring"></div><p class="mt-2 text-sm text-secondary">Cargando datos...</p></div>`;
 }
 
-// Tab switching
-function switchTab(tabName) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
-  document.getElementById(`tab-${tabName}`).classList.add('active');
+function getEmptyHTML(message = 'No se encontraron registros.') {
+  return `<div class="p-6 text-center text-on-surface-variant font-body-sm bg-surface-container-lowest rounded-xl card-shadow">${message}</div>`;
 }
 
-// Currency toggle
-function toggleCurrency(currency) {
-  document.querySelectorAll('.currency-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector(`.currency-btn.${currency}`).classList.add('active');
-}
-
-// Status helpers
-function statusStyle(s) {
-  const m = { 'Pendiente':'pendiente','En Cocina':'enCocina','Listo':'listo','Entregado':'entregado' };
-  return m[s] || 'default';
-}
-function statusBorder(s) {
-  const m = { 'Pendiente':'#FF9800','En Cocina':'#2196F3','Listo':'#4CAF50','Entregado':'#9E9E9E' };
-  return m[s] || '#e5e2e1';
-}
-
-// Dashboard orders
-function renderDashboardOrders() {
-  const c = document.getElementById('dashboard-orders');
-  c.innerHTML = mockDashOrders.map(o => `
-    <div class="dash-order">
-      <div class="dash-order-left">
-        <div class="dash-order-id-row">
-          <span class="dash-order-num">${o.id}</span>
-          <span class="dash-order-dot"></span>
-          <span class="dash-order-due">Due: ${o.due}</span>
-        </div>
-        <div class="dash-order-name">${o.name}</div>
-        <div class="dash-order-client">${o.client}</div>
-      </div>
-      <button class="dash-order-btn" onclick="switchTab('orders')">Ver →</button>
+function getErrorHTML(message, retryFn) {
+  return `
+    <div class="p-6 text-center bg-error-container/30 rounded-xl border border-error/20 card-shadow">
+      <span class="material-symbols-outlined text-error text-3xl mb-1">wifi_off</span>
+      <p class="text-error font-semibold text-sm mb-3">${message}</p>
+      <button class="px-4 py-2 bg-primary-container text-on-primary-container font-button-text text-xs rounded-xl shadow-sm hover:brightness-95 active:scale-95 transition-all" onclick="${retryFn}">
+        Reintentar conexión
+      </button>
     </div>
-  `).join('');
+  `;
 }
 
-// Inventory
-function renderInventory() {
-  const c = document.getElementById('inventory-list');
-  c.innerHTML = mockInventory.map(item => {
-    const pct = Math.round((item.stock / item.max) * 100);
-    const isCritical = item.status === 'Bajo';
-    return `
-      <div class="inv-item${isCritical ? ' critical' : ''}">
-        <div class="inv-top">
-          <div class="inv-top-left">
-            <div class="inv-icon">${item.icon}</div>
-            <div>
-              <div class="inv-name">${item.name}</div>
-              <div class="inv-unit">Unidad: ${item.unit}</div>
+// --- DASHBOARD ---
+async function renderDashboard() {
+  const container = document.getElementById('dashboard-orders');
+  if (!container) return;
+
+  container.innerHTML = getLoadingHTML();
+
+  try {
+    const res = await apiFetch('/pedidos?limit=10');
+    const pedidos = res.data && res.data.pedidos ? res.data.pedidos : [];
+
+    // Filter active orders for dashboard
+    const activeOrders = pedidos.filter(p => p.estado_entrega === 'Pendiente' || p.estado_entrega === 'En Cocina');
+
+    if (activeOrders.length === 0) {
+      container.innerHTML = getEmptyHTML('No hay producción activa en este momento.');
+      return;
+    }
+
+    container.innerHTML = activeOrders.map(o => {
+      const clienteNombre = o.Cliente ? `${o.Cliente.nombre} ${o.Cliente.apellido || ''}`.trim() : 'Cliente general';
+      const statusClass = o.estado_entrega === 'En Cocina' ? 'production' : 'pending';
+      const totalFmt = o.costo_total ? `Bs ${parseFloat(o.costo_total).toFixed(2)}` : '$0.00';
+      return `
+        <div class="order-item">
+          <div>
+            <div class="order-id">#${o.id_pedido || o.id}</div>
+            <div class="order-detail">${clienteNombre}</div>
+            <div style="font-size:11px;color:#827660;">Total: ${totalFmt}</div>
+          </div>
+          <span class="order-status ${statusClass}">${o.estado_entrega}</span>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    container.innerHTML = getErrorHTML('Error al cargar datos del dashboard.', 'renderDashboard()');
+  }
+}
+
+// --- INVENTORY ---
+async function renderInventory() {
+  const container = document.getElementById('inventory-list');
+  if (!container) return;
+
+  container.innerHTML = getLoadingHTML();
+
+  const searchVal = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.trim() : '';
+
+  try {
+    let url = `/inventario?page=1&limit=50`;
+    if (searchVal) url += `&search=${encodeURIComponent(searchVal)}`;
+
+    const res = await apiFetch(url);
+    let items = res.data && res.data.inventario ? res.data.inventario : [];
+
+    // Apply front filter pills
+    if (activeInventoryFilter === 'low') {
+      items = items.filter(item => parseFloat(item.stock_actual) <= parseFloat(item.stock_minimo));
+    } else if (activeInventoryFilter === 'out') {
+      items = items.filter(item => parseFloat(item.stock_actual) <= 0);
+    }
+
+    if (items.length === 0) {
+      container.innerHTML = getEmptyHTML('No hay productos en el inventario.');
+      return;
+    }
+
+    container.innerHTML = items.map(item => {
+      const stock = parseFloat(item.stock_actual || 0);
+      const minStock = parseFloat(item.stock_minimo || 0);
+      const isCritical = stock <= minStock;
+
+      return `
+        <div class="bg-surface-container-lowest p-3 rounded-xl card-shadow flex flex-col gap-2 relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-1.5 h-full ${isCritical ? 'bg-error' : 'bg-tertiary'}"></div>
+          <div class="flex items-start justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-10 h-10 rounded-lg bg-primary-container/20 flex items-center justify-center">
+                <span class="material-symbols-outlined text-primary text-2xl">bakery_dining</span>
+              </div>
+              <div>
+                <h3 class="font-title-sm text-sm text-on-surface">${item.nombre_ingrediente}</h3>
+                <p class="font-body-sm text-xs text-outline">Unidad: ${item.unidad_medida}</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="${isCritical ? 'text-error' : 'text-tertiary'} font-label-bold text-xs flex items-center justify-end gap-1">
+                <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL'1;">${isCritical ? 'warning' : 'check_circle'}</span>
+                ${isCritical ? 'Stock Bajo' : 'Óptimo'}
+              </span>
+              <p class="font-display-lg text-lg ${isCritical ? 'text-error' : 'text-tertiary'}">${stock} ${item.unidad_medida}</p>
             </div>
           </div>
-          <span class="badge ${isCritical ? 'critical' : 'success'}">${item.status}</span>
+          <div class="flex items-center justify-between mt-1 pt-2 border-t border-surface-variant">
+            <div class="flex items-center gap-1 text-on-surface-variant">
+              <span class="material-symbols-outlined text-sm">inventory_2</span>
+              <span class="font-body-sm text-xs">Mínimo: ${minStock} ${item.unidad_medida}</span>
+            </div>
+            <div class="flex gap-1">
+              <button class="p-1.5 rounded-lg bg-surface-container-high text-on-surface-variant hover:bg-primary-container hover:text-on-primary-container transition-all active:scale-90" onclick="showProductDetails('${item.id_ingrediente}')">
+                <span class="material-symbols-outlined text-sm">visibility</span>
+              </button>
+            </div>
+          </div>
         </div>
-        <div class="inv-stock">
-          <span>Nivel de inventario</span>
-          <span${isCritical ? ' style="color:#ba1a1a;"' : ''}>${item.stock} / ${item.max} ${item.unit.charAt(0)}</span>
-        </div>
-        <div class="inv-bar">
-          <div class="inv-bar-fill" style="width:${pct}%;background:${isCritical ? '#ba1a1a' : '#006e1c'};"></div>
-        </div>
-        <div class="inv-actions">
-          <button class="inv-btn-secondary" onclick="showHistory('${item.name}')">Ver Historial</button>
-          <button class="${isCritical ? 'inv-btn-restock-critical' : 'inv-btn-primary'}" onclick="showRestockForm('${item.name}')">Restock</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function showHistory(productName) {
-  const movs = mockMovements.map(m => `
-    <div class="modal-mov-item">
-      <div>
-        <span class="modal-mov-type" style="background:${m.bg};color:${m.color}">${m.type}</span>
-        <div class="modal-mov-desc">${m.desc}</div>
-        <div class="modal-mov-date">${m.date}</div>
-      </div>
-      <span class="modal-mov-qty" style="color:${m.color}">${m.qty}</span>
-    </div>
-  `).join('');
-  openModal('Historial — ' + productName, `
-    <div class="modal-field" style="margin-bottom:12px;">
-      <div class="modal-detail-row"><span class="modal-detail-label">Stock actual</span><span class="modal-detail-value">42.5 kg</span></div>
-      <div class="modal-detail-row"><span class="modal-detail-label">Stock mínimo</span><span class="modal-detail-value">5 kg</span></div>
-    </div>
-    ${movs}
-  `);
-}
-
-function showRestockForm(productName) {
-  openModal('Restock — ' + productName, `
-    <form class="modal-form" onsubmit="submitRestock(event, '${productName}')">
-      <div class="modal-field">
-        <label>N° de Lote</label>
-        <input type="text" id="restock-lote" placeholder="Ej: LT-10500" required />
-      </div>
-      <div class="modal-field">
-        <label>Cantidad</label>
-        <input type="text" id="restock-qty" placeholder="Ej: 25 kg" required />
-      </div>
-      <div class="modal-field">
-        <label>Fecha de ingreso</label>
-        <input type="date" id="restock-ingress" required />
-      </div>
-      <div class="modal-field">
-        <label>Fecha de vencimiento</label>
-        <input type="date" id="restock-expiry" required />
-      </div>
-      <div class="modal-field">
-        <label>Proveedor</label>
-        <input type="text" id="restock-provider" placeholder="Nombre del proveedor" />
-      </div>
-      <button type="submit" class="btn btn-primary">Registrar Lote</button>
-    </form>
-  `);
-}
-
-function submitRestock(e, productName) {
-  e.preventDefault();
-  closeModal();
-  openModal('✅ Lote Registrado', `
-    <p style="text-align:center;margin-bottom:16px;font-size:15px;color:#4f4632;">
-      Se ha registrado el lote de <strong>${productName}</strong> exitosamente.
-    </p>
-    <button class="btn btn-primary" onclick="closeModal()">Listo</button>
-  `);
-}
-
-// Notifications
-function openNotifs() {
-  const notifs = mockNotifs.map(n => `
-    <div class="modal-notif-item" style="background:${n.bg}">
-      <div class="modal-notif-icon" style="background:${n.color}20;color:${n.color};font-size:14px;">•</div>
-      <div class="modal-notif-text">
-        <div class="modal-notif-title">${n.title}</div>
-        <div class="modal-notif-desc">${n.desc}</div>
-        <div class="modal-notif-time">${n.time}</div>
-      </div>
-    </div>
-  `).join('');
-  openModal('Notificaciones', notifs || '<p style="text-align:center;color:#4f4632;">No hay notificaciones</p>');
-}
-
-// Orders
-function renderOrderFilters() {
-  const filters = ['Todos', 'Pendientes', 'En Cocina', 'Listos', 'Entregados'];
-  const c = document.getElementById('order-filters');
-  c.innerHTML = filters.map(f =>
-    `<button class="filter-pill${f === activeOrderFilter ? ' active' : ''}" onclick="setFilter('${f}')">${f}</button>`
-  ).join('');
-}
-
-function setFilter(f) {
-  activeOrderFilter = f;
-  renderOrderFilters();
-  renderOrders();
-}
-
-function renderOrders() {
-  const c = document.getElementById('orders-list');
-  let filtered = mockOrders;
-  if (activeOrderFilter !== 'Todos') {
-    if (activeOrderFilter === 'Pendientes') filtered = mockOrders.filter(o => o.status === 'Pendiente');
-    else if (activeOrderFilter === 'En Cocina') filtered = mockOrders.filter(o => o.status === 'En Cocina');
-    else if (activeOrderFilter === 'Listos') filtered = mockOrders.filter(o => o.status === 'Listo');
-    else if (activeOrderFilter === 'Entregados') filtered = mockOrders.filter(o => o.status === 'Entregado');
+      `;
+    }).join('');
+  } catch (err) {
+    container.innerHTML = getErrorHTML('Error al cargar inventario desde el servidor.', 'renderInventory()');
   }
-  c.innerHTML = filtered.map(o => `
-    <div class="order-item" style="border-left-color:${statusBorder(o.status)};">
-      <div class="order-top">
-        <div class="order-top-left">
-          <span class="order-id">${o.id}</span>
-          <span class="badge ${statusStyle(o.status)}"><span class="dot" style="background:${statusBorder(o.status)}"></span> ${o.status}</span>
-          ${o.delivery ? '<span>🚚</span>' : ''}
-        </div>
-        <span class="order-total">${o.total}</span>
-      </div>
-      <div class="order-details">
-        <div class="order-detail"><strong>Cliente:</strong> <span>${o.client}</span></div>
-        <div class="order-detail"><strong>Fecha:</strong> <span>${o.date}</span></div>
-      </div>
-      <div class="order-view" onclick="showOrderDetail('${o.id}')"><span>Ver Detalle</span><span>→</span></div>
-    </div>
-  `).join('');
 }
 
-function showOrderDetail(orderId) {
-  const o = mockOrders.find(x => x.id === orderId);
-  if (!o) return;
-  openModal('Detalle de ' + orderId, `
-    <div class="modal-field">
-      <div class="modal-detail-row"><span class="modal-detail-label">Cliente</span><span class="modal-detail-value">${o.client}</span></div>
-      <div class="modal-detail-row"><span class="modal-detail-label">Estado</span><span class="badge ${statusStyle(o.status)}"><span class="dot" style="background:${statusBorder(o.status)}"></span> ${o.status}</span></div>
-      <div class="modal-detail-row"><span class="modal-detail-label">Total</span><span class="modal-detail-value">${o.total}</span></div>
-      <div class="modal-detail-row"><span class="modal-detail-label">Fecha</span><span class="modal-detail-value">${o.date}</span></div>
-      <div class="modal-detail-row"><span class="modal-detail-label">Productos</span><span class="modal-detail-value" style="font-size:13px;">${o.items}</span></div>
-      <div class="modal-detail-row"><span class="modal-detail-label">Entrega</span><span class="modal-detail-value">${o.delivery ? '🚚 A domicilio' : '📍 Recoge en local'}</span></div>
-    </div>
-    <button class="btn btn-primary" style="margin-top:12px;" onclick="closeModal()">Cerrar</button>
-  `);
+function showProductDetails(id) {
+  openView('view-product-detail');
 }
 
-function addMockOrder() {
-  const num = Math.floor(Math.random() * 9000) + 1000;
-  mockOrders.unshift({
-    id: `#${num}`,
-    client: 'Nuevo Cliente',
-    total: `Bs ${(Math.random() * 500).toFixed(2)}`,
-    status: 'Pendiente',
-    date: new Date().toLocaleDateString('es-VE') + ' - ' + new Date().toLocaleTimeString('es-VE', {hour:'2-digit',minute:'2-digit'}),
-    delivery: Math.random() > 0.5,
-    items: 'Producto personalizado x1'
-  });
-  renderOrders();
-}
+// --- ORDERS ---
+async function renderOrders() {
+  const container = document.getElementById('orders-list');
+  if (!container) return;
 
-// Clients
-function renderClients() {
-  const c = document.getElementById('clients-list');
-  c.innerHTML = mockClients.map(cl => `
-    <div class="client-item" onclick="showClientProfile('${cl.name}')">
-      <div class="client-left">
-        <div class="client-avatar">${cl.initial}</div>
-        <div>
-          <div class="client-name">${cl.name}</div>
-          <div class="client-phone">📞 ${cl.phone}</div>
-          <div class="client-meta">${cl.orders} pedidos · Último: ${cl.lastOrder}</div>
-        </div>
-      </div>
-      <span class="client-arrow">→</span>
-    </div>
-  `).join('');
-}
+  container.innerHTML = getLoadingHTML();
 
-function showClientProfile(clientName) {
-  const cl = mockClients.find(x => x.name === clientName);
-  if (!cl) return;
-  openModal('Perfil de ' + cl.name, `
-    <div class="modal-client-card">
-      <div class="modal-client-avatar">${cl.initial}</div>
-      <div class="modal-client-info">
-        <div class="modal-client-name">${cl.name}</div>
-        <div class="modal-client-meta">📞 ${cl.phone}</div>
-      </div>
-    </div>
-    <div class="modal-field">
-      <div class="modal-detail-row"><span class="modal-detail-label">Email</span><span class="modal-detail-value">${cl.email}</span></div>
-      <div class="modal-detail-row"><span class="modal-detail-label">Dirección</span><span class="modal-detail-value">${cl.address}</span></div>
-      <div class="modal-detail-row"><span class="modal-detail-label">Total pedidos</span><span class="modal-detail-value">${cl.orders}</span></div>
-      <div class="modal-detail-row"><span class="modal-detail-label">Último pedido</span><span class="modal-detail-value">${cl.lastOrder}</span></div>
-    </div>
-    <button class="btn btn-primary" style="margin-top:12px;" onclick="closeModal()">Cerrar</button>
-  `);
-}
-
-// Nuevo Cliente form
-function openNewClientForm() {
-  openModal('Nuevo Cliente', `
-    <form class="modal-form" onsubmit="submitNewClient(event)">
-      <div class="modal-field">
-        <label>Nombre completo</label>
-        <input type="text" id="newcli-name" placeholder="Ej: Carlos Mendoza" required />
-      </div>
-      <div class="modal-field">
-        <label>Teléfono</label>
-        <input type="tel" id="newcli-phone" placeholder="+58 412 123 4567" />
-      </div>
-      <div class="modal-field">
-        <label>Email</label>
-        <input type="email" id="newcli-email" placeholder="correo@ejemplo.com" />
-      </div>
-      <div class="modal-field">
-        <label>Dirección</label>
-        <input type="text" id="newcli-address" placeholder="Dirección" />
-      </div>
-      <button type="submit" class="btn btn-primary">Registrar Cliente</button>
-    </form>
-  `);
-}
-
-function submitNewClient(e) {
-  e.preventDefault();
-  const name = document.getElementById('newcli-name').value.trim();
-  mockClients.unshift({ name, initial: name.charAt(0).toUpperCase(), phone: document.getElementById('newcli-phone').value || '—', orders: 0, lastOrder: '—', email: document.getElementById('newcli-email').value || '—', address: document.getElementById('newcli-address').value || '—' });
-  renderClients();
-  closeModal();
-  openModal('✅ Cliente Registrado', `
-    <p style="text-align:center;margin-bottom:16px;font-size:15px;color:#4f4632;">
-      <strong>${name}</strong> se ha agregado como cliente exitosamente.
-    </p>
-    <button class="btn btn-primary" onclick="closeModal()">Listo</button>
-  `);
-}
-
-// Editar Perfil
-function openEditProfile() {
-  openModal('Editar Perfil', `
-    <form class="modal-form" onsubmit="submitEditProfile(event)">
-      <div class="modal-field">
-        <label>Nombre</label>
-        <input type="text" id="edit-name" value="Capibara Sprinkle" />
-      </div>
-      <div class="modal-field">
-        <label>Email</label>
-        <input type="email" id="edit-email" value="hello@panqueo.com" />
-      </div>
-      <div class="modal-field">
-        <label>Teléfono</label>
-        <input type="tel" id="edit-phone" value="+34 600 000 000" />
-      </div>
-      <button type="submit" class="btn btn-primary">Guardar Cambios</button>
-    </form>
-  `);
-}
-
-function submitEditProfile(e) {
-  e.preventDefault();
-  closeModal();
-  openModal('✅ Perfil Actualizado', `
-    <p style="text-align:center;margin-bottom:16px;font-size:15px;color:#4f4632;">
-      Tus datos se han actualizado correctamente.
-    </p>
-    <button class="btn btn-primary" onclick="closeModal()">Listo</button>
-  `);
-}
-
-// Enter key
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    const auth = document.getElementById('auth-screen');
-    if (!auth.classList.contains('hidden')) {
-      if (!document.getElementById('login-form').classList.contains('hidden')) handleLogin();
-      else if (!document.getElementById('register-form').classList.contains('hidden')) handleRegister();
-      else handleReset();
+  try {
+    let url = '/pedidos?limit=50';
+    if (activeOrderFilter !== 'all') {
+      const filterMap = {
+        'pending': 'Pendiente',
+        'production': 'En Cocina',
+        'done': 'Listo',
+        'delivered': 'Entregado'
+      };
+      if (filterMap[activeOrderFilter]) {
+        url += `&estado_entrega=${encodeURIComponent(filterMap[activeOrderFilter])}`;
+      }
     }
+
+    const res = await apiFetch(url);
+    let orders = res.data && res.data.pedidos ? res.data.pedidos : [];
+
+    const searchVal = document.getElementById('orders-search') ? document.getElementById('orders-search').value.trim().toLowerCase() : '';
+    if (searchVal) {
+      orders = orders.filter(o => {
+        const clientName = o.Cliente ? `${o.Cliente.nombre} ${o.Cliente.apellido || ''}`.toLowerCase() : '';
+        const orderId = String(o.id_pedido || o.id);
+        return orderId.includes(searchVal) || clientName.includes(searchVal);
+      });
+    }
+
+    if (orders.length === 0) {
+      container.innerHTML = getEmptyHTML('No hay órdenes registradas.');
+      return;
+    }
+
+    const statusMap = {
+      'Pendiente': { label: 'Pendiente', class: 'bg-[#FFF8E1] text-[#FF9800]', border: 'border-orange-400' },
+      'En Cocina': { label: 'En Cocina', class: 'bg-blue-50 text-blue-600', border: 'border-blue-400' },
+      'Listo': { label: 'Listo', class: 'bg-tertiary-container/20 text-tertiary', border: 'border-tertiary-container' },
+      'Entregado': { label: 'Entregado', class: 'bg-gray-100 text-gray-600', border: 'border-gray-400' }
+    };
+
+    container.innerHTML = orders.map(o => {
+      const clientName = o.Cliente ? `${o.Cliente.nombre} ${o.Cliente.apellido || ''}`.trim() : 'Sin cliente';
+      const statusConfig = statusMap[o.estado_entrega] || { label: o.estado_entrega, class: 'bg-gray-100 text-gray-600', border: 'border-gray-300' };
+      const fecha = o.fecha_pedido ? new Date(o.fecha_pedido).toLocaleDateString('es-VE') : '—';
+      const total = o.costo_total ? `Bs ${parseFloat(o.costo_total).toFixed(2)}` : '$0.00';
+
+      return `
+        <div class="bg-surface-container-lowest p-3 rounded-xl card-shadow border-l-3 ${statusConfig.border}">
+          <div class="flex justify-between items-start mb-2">
+            <div class="flex items-center gap-1.5">
+              <span class="font-label-bold text-sm text-on-surface">#${o.id_pedido || o.id}</span>
+              <span class="${statusConfig.class} px-2 py-0.5 rounded-lg text-xs font-label-bold flex items-center gap-1">
+                ${statusConfig.label}
+              </span>
+            </div>
+            <span class="text-primary font-title-sm text-sm">${total}</span>
+          </div>
+          <div class="grid grid-cols-2 gap-y-0.5 text-xs text-on-surface-variant mb-2">
+            <span class="font-label-bold">Cliente:</span><span>${clientName}</span>
+            <span class="font-label-bold">Fecha:</span><span>${fecha}</span>
+            <span class="font-label-bold">Pago:</span><span>${o.estado_pago || 'Pendiente'}</span>
+          </div>
+          <button class="w-full flex items-center justify-between text-primary font-button-text py-1.5 border-t border-surface-variant mt-1.5 group text-sm" onclick="showOrderDetailBackend('${o.id_pedido || o.id}')">
+            Ver Detalle <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform text-sm">arrow_forward</span>
+          </button>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    container.innerHTML = getErrorHTML('Error al obtener órdenes desde el backend.', 'renderOrders()');
   }
-});
+}
+
+async function showOrderDetailBackend(orderId) {
+  try {
+    const res = await apiFetch(`/pedidos/${orderId}`);
+    if (res && res.data) {
+      const o = res.data;
+      const clientName = o.Cliente ? `${o.Cliente.nombre} ${o.Cliente.apellido || ''}`.trim() : 'Sin datos';
+      openModal(`Detalle del Pedido #${o.id_pedido}`, `
+        Costo Total: Bs ${parseFloat(o.costo_total).toFixed(2)}\n
+        Cliente: ${clientName}\n
+        Estado Entrega: ${o.estado_entrega}\n
+        Estado Pago: ${o.estado_pago}\n
+        Fecha: ${o.fecha_pedido ? new Date(o.fecha_pedido).toLocaleString('es-VE') : '—'}
+      `);
+    }
+  } catch (err) {
+    alert('Error al consultar el detalle de la orden.');
+  }
+}
+
+// --- CLIENTS ---
+async function renderClients() {
+  const container = document.getElementById('clients-list');
+  if (!container) return;
+
+  container.innerHTML = getLoadingHTML();
+
+  const searchVal = document.getElementById('clients-search') ? document.getElementById('clients-search').value.trim() : '';
+
+  try {
+    let url = '/clientes?limit=50';
+    if (searchVal) url += `&search=${encodeURIComponent(searchVal)}`;
+
+    const res = await apiFetch(url);
+    const clients = res.data && res.data.clientes ? res.data.clientes : [];
+
+    if (clients.length === 0) {
+      container.innerHTML = getEmptyHTML('No se encontraron clientes.');
+      return;
+    }
+
+    container.innerHTML = clients.map(c => {
+      const name = `${c.nombre} ${c.apellido || ''}`.trim();
+      const initial = name ? name.charAt(0).toUpperCase() : 'C';
+      const phone = c.telefono || 'Sin teléfono';
+      const cedula = c.cedula ? `C.I. ${c.cedula}` : '';
+
+      return `
+        <div class="bg-surface-container-lowest p-3 rounded-xl card-shadow flex items-center justify-between group active:scale-[0.99] transition-transform">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-[#FFC107] flex items-center justify-center text-on-primary-container font-bold text-sm">${initial}</div>
+            <div>
+              <h3 class="font-title-sm text-sm font-semibold text-on-surface">${name}</h3>
+              <p class="text-xs text-[#757575] flex items-center gap-1"><span class="material-symbols-outlined text-sm">call</span> ${phone}</p>
+              <p class="text-[11px] font-medium text-primary bg-[#FFF8E1] px-2 py-0.5 rounded-full inline-block">${cedula}</p>
+            </div>
+          </div>
+          <button class="w-8 h-8 rounded-full flex items-center justify-center text-[#FFC107] hover:bg-secondary-container transition-colors" onclick="showClientHistoryBackend('${c.id_cliente}')">
+            <span class="material-symbols-outlined text-sm">arrow_forward_ios</span>
+          </button>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    container.innerHTML = getErrorHTML('Error al cargar la lista de clientes.', 'renderClients()');
+  }
+}
+
+async function showClientHistoryBackend(clientId) {
+  try {
+    const res = await apiFetch(`/clientes/${clientId}/historial`);
+    const pedidos = res.data || [];
+    openModal(`Historial de Cliente`, `El cliente tiene ${pedidos.length} pedido(s) registrado(s).`);
+  } catch (err) {
+    alert('Error al consultar historial del cliente.');
+  }
+}
+
+// --- PROFILE ---
+function renderProfile() {
+  const userJson = localStorage.getItem('user');
+  if (userJson) {
+    try {
+      const user = JSON.parse(userJson);
+      const profileName = document.querySelector('.profile-name');
+      const profileRole = document.querySelector('.profile-role');
+      if (profileName) profileName.textContent = user.nombre || 'Capibara Sprinkle';
+      if (profileRole) profileRole.textContent = user.rol || 'Administrador';
+    } catch (e) {}
+  }
+}
+
+// Form Submission Actions
+async function submitNewClient(e) {
+  if (e) e.preventDefault();
+  const nombre = document.getElementById('newcli-name') ? document.getElementById('newcli-name').value.trim() : '';
+  const phone = document.getElementById('newcli-phone') ? document.getElementById('newcli-phone').value.trim() : '';
+
+  if (!nombre) {
+    alert('El nombre del cliente es obligatorio.');
+    return;
+  }
+
+  try {
+    await apiFetch('/clientes', {
+      method: 'POST',
+      body: JSON.stringify({
+        nombre,
+        telefono: phone || '—',
+        cedula: `CLI-${Date.now().toString().slice(-6)}`
+      })
+    });
+    closeModal();
+    renderClients();
+    alert('Cliente registrado exitosamente en el servidor.');
+  } catch (err) {
+    alert(err.message || 'Error al guardar cliente.');
+  }
+}
+
+function adjustQty(delta) {
+  const input = document.getElementById('lot-qty');
+  if (input) {
+    let val = parseInt(input.value) || 0;
+    val += delta;
+    if (val < 1) val = 1;
+    input.value = val;
+  }
+}
+
+function selectAdjustType(type) {
+  ['entrada','salida','merma'].forEach(t => {
+    const el = document.getElementById(`btn-${t}`);
+    if (el) {
+      if (t === type) { el.classList.add('tab-active'); el.classList.remove('text-secondary'); }
+      else { el.classList.remove('tab-active'); el.classList.add('text-secondary'); }
+    }
+  });
+}
+
+function validateAdjustAmount(val) {
+  const warning = document.getElementById('adjust-warning');
+  if (warning) {
+    if (parseFloat(val) > 30) warning.classList.remove('hidden');
+    else warning.classList.add('hidden');
+  }
+}
+
+function setTheme(mode) {
+  const html = document.documentElement;
+  if (mode === 'dark') {
+    html.classList.add('dark');
+  } else {
+    html.classList.remove('dark');
+  }
+}
