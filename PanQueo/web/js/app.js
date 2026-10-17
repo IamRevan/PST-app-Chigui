@@ -328,7 +328,7 @@ function handleLogout() {
 // ========== VIEW NAVIGATION & TABS ==========
 function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  const target = document.getElementById('tab-' + tabId);
+  const target = document.getElementById('tab-' + tabId) || document.getElementById('tab-dashboard');
   if (target) target.classList.add('active');
 
   document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => {
