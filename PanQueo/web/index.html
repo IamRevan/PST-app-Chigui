@@ -811,6 +811,7 @@
     .hidden { display: none !important; }
     .text-muted { color: #4f4632; }
   </style>
+  <link rel="stylesheet" href="css/shell.css" />
 </head>
 <body>
 
@@ -890,6 +891,35 @@
 
   <!-- ===== MAIN APP ===== -->
   <div id="main-app" class="screen hidden">
+    <!-- SIDEBAR DE ESCRITORIO (8 módulos) — visible ≥1024px -->
+    <aside class="pq-sidebar" id="pq-sidebar">
+      <div>
+        <div class="pq-brand">
+          <img class="pq-brand-logo" src="PANQUEO ICONO.png" alt="PanQueo">
+          <div>
+            <div class="pq-brand-title">PanQueo</div>
+            <div class="pq-brand-subtitle">Inversiones Dulsal Johanel C.A.</div>
+          </div>
+        </div>
+        <ul class="pq-nav-list">
+          <li><button class="pq-nav-item" data-tab="dashboard" onclick="switchTab('dashboard')"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">space_dashboard</span> Dashboard</span></button></li>
+          <li><button class="pq-nav-item" data-tab="inventory" onclick="switchTab('inventory')"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">inventory_2</span> Inventario y Lotes</span><span class="pq-nav-badge hidden" id="pq-nav-alert-badge">0</span></button></li>
+          <li><button class="pq-nav-item" data-tab="compras" onclick="openAuthedModule('compras')"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">shopping_cart</span> Listas de Compra</span></button></li>
+          <li><button class="pq-nav-item" data-tab="recetas" onclick="openAuthedModule('recetas')"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">bakery_dining</span> Recetas y Producción</span></button></li>
+          <li><button class="pq-nav-item" data-tab="orders" onclick="switchTab('orders')"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">receipt_long</span> Pedidos</span></button></li>
+          <li><button class="pq-nav-item" data-tab="clients" onclick="switchTab('clients')"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">group</span> Clientes</span></button></li>
+          <li><button class="pq-nav-item" data-tab="notificaciones" onclick="openAlertsSheet()"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">notifications</span> Notificaciones</span><span class="pq-nav-badge hidden" id="pq-nav-alert-badge-2">0</span></button></li>
+          <li><button class="pq-nav-item" data-tab="profile" onclick="switchTab('profile')"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">person</span> Perfil y Tasa BCV</span></button></li>
+        </ul>
+      </div>
+      <div class="pq-sidebar-footer">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span><span class="pq-status-dot" id="pq-api-dot"></span><strong id="pq-api-text" style="color:var(--pq-on-surface);">Conectando...</strong></span>
+        </div>
+        <div>Express + PostgreSQL · Sequelize</div>
+      </div>
+    </aside>
+
     <div class="top-bar">
       <div class="left">
         <!-- LOGO en la barra superior -->
@@ -897,11 +927,15 @@
         <span class="app-title">PanQueo</span>
       </div>
       <div class="right">
-        <div class="currency-toggle">
-          <span class="curr-btn bs active" onclick="event.stopPropagation();toggleCurrency('bs')">Bs</span>
-          <span class="curr-btn usd" onclick="event.stopPropagation();toggleCurrency('usd')">USD</span>
+        <div class="pq-rate-pill" onclick="cycleCurrencyMode()" title="Haz clic para alternar: Dual ($ + Bs.) / Solo USD / Solo Bs.">
+          <span>Tasa: <strong id="rate-label">—</strong></span>
+          <span class="pq-currency-tag" id="currency-mode-label">DUAL</span>
         </div>
-        <span class="notif-icon material-symbols-outlined" onclick="openNotifs()">notifications</span>
+        <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme(true)" title="Alternar modo claro / oscuro">
+          <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
+        </button>
+        <span class="notif-icon material-symbols-outlined" onclick="openTasaSheet()" title="Actualizar tasa BCV">currency_exchange</span>
+        <span class="notif-icon material-symbols-outlined" onclick="openAlertsSheet()">notifications</span>
         <!-- AVATAR en barra superior (SPARKLE.png) -->
         <div class="avatar" onclick="switchTab('profile')">
           <img src="SPARKLE.png" alt="Avatar">
@@ -915,12 +949,12 @@
         <h2 class="greeting">¡Hola, Capibara!</h2>
         <p class="greeting-sub">Resumen de tu cocina hoy</p>
         <div class="kpi-grid">
-          <div class="kpi-card kpi-yellow"><span class="kpi-icon material-symbols-outlined">package_2</span><div class="kpi-value">12</div><div class="kpi-label">Pedidos Hoy</div></div>
-          <div class="kpi-card kpi-red"><span class="kpi-icon material-symbols-outlined">warning</span><div class="kpi-value">3</div><div class="kpi-label">Stock Bajo</div></div>
-          <div class="kpi-card kpi-blue"><span class="kpi-icon material-symbols-outlined">payments</span><div class="kpi-value">$450</div><div class="kpi-label">Por Cobrar</div></div>
-          <div class="kpi-card kpi-green"><span class="kpi-icon material-symbols-outlined">trending_up</span><div class="kpi-value">+12%</div><div class="kpi-label">vs Ayer</div></div>
+          <div class="kpi-card kpi-yellow"><span class="kpi-icon material-symbols-outlined">package_2</span><div class="kpi-value" id="kpi-pedidos">…</div><div class="kpi-label">Pedidos Registrados</div></div>
+          <div class="kpi-card kpi-red"><span class="kpi-icon material-symbols-outlined">warning</span><div class="kpi-value" id="kpi-stock">…</div><div class="kpi-label">Stock Bajo</div></div>
+          <div class="kpi-card kpi-blue"><span class="kpi-icon material-symbols-outlined">payments</span><div class="kpi-value" id="kpi-porcobrar">…</div><div class="kpi-label">Por Cobrar</div></div>
+          <div class="kpi-card kpi-green"><span class="kpi-icon material-symbols-outlined">event_available</span><div class="kpi-value" id="kpi-entrega">…</div><div class="kpi-label">Entrega Hoy</div></div>
         </div>
-        <div class="section-header"><h3>Producción Activa</h3><span class="badge warning">3 en cocina</span></div>
+        <div class="section-header"><h3>Producción Activa</h3><span class="badge warning" id="kpi-cocina-badge">…</span></div>
         <div id="dashboard-orders"></div>
       </section>
 
@@ -1482,6 +1516,41 @@
     </div>
   </div>
 </div>
+
+  <!-- ============================================================ -->
+  <!-- ====== SHEETS (bottom-sheet móvil / modal escritorio) ====== -->
+  <!-- ============================================================ -->
+  <div class="pq-sheet-overlay" id="pq-sheet-overlay" onclick="closeSheets()"></div>
+
+  <div class="pq-sheet" id="sheet-tasa" role="dialog">
+    <div class="pq-sheet-handle" style="position:relative;"><button class="pq-sheet-close" onclick="closeSheets()"><span class="material-symbols-outlined">close</span></button></div>
+    <h3>Tasa de Cambio BCV</h3>
+    <p class="pq-sheet-sub">Monto en Bs. por 1 USD. Se usa para la bimoneda y los reportes (Regla 4).</p>
+    <div id="pq-tasa-current" style="font-size:28px;font-family:Poppins;font-weight:700;color:#785900;margin-bottom:12px;"></div>
+    <div class="input-group"><div class="input-line">
+      <span class="input-icon material-symbols-outlined">currency_exchange</span>
+      <input type="number" step="0.01" min="0.01" id="pq-tasa-input" placeholder="Ej: 42.50" />
+    </div></div>
+    <button class="btn btn-primary" style="width:100%;height:44px;" onclick="saveTasa()">
+      Actualizar Tasa <span class="material-symbols-outlined" style="font-size:18px;">arrow_forward</span>
+    </button>
+  </div>
+
+  <div class="pq-sheet" id="sheet-notifs" role="dialog">
+    <div class="pq-sheet-handle" style="position:relative;"><button class="pq-sheet-close" onclick="closeSheets()"><span class="material-symbols-outlined">close</span></button></div>
+    <h3>Notificaciones</h3>
+    <p class="pq-sheet-sub">Alertas de vencimiento (FEFO) y stock bajo. Fuente: inventario en tiempo real.</p>
+    <div id="pq-notifs-body"></div>
+  </div>
+
+  <div class="pq-sheet" id="sheet-recetas" role="dialog">
+    <div class="pq-sheet-handle" style="position:relative;"><button class="pq-sheet-close" onclick="closeSheets()"><span class="material-symbols-outlined">close</span></button></div>
+    <h3 id="pq-module-title">Módulo</h3>
+    <p class="pq-sheet-sub" id="pq-module-sub"></p>
+    <div id="pq-module-body"></div>
+  </div>
+
+  <div id="pq-toast-container"></div>
 
 <script src="js/app.js"></script>
 </body>

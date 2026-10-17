@@ -49,6 +49,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initSplash();
   initEventListeners();
   checkAuth();
+  initTheme();
+  checkApiStatus();
+  if (isLoggedIn) {
+    onSessionReady();
+  }
 });
 
 function initSplash() {
@@ -242,6 +247,7 @@ async function handleLogin() {
       isLoggedIn = true;
       document.getElementById('auth-screen').classList.add('hidden');
       document.getElementById('main-app').classList.remove('hidden');
+      onSessionReady();
       renderAll();
     } else {
       showError('Respuesta de autenticación no válida.');
@@ -330,6 +336,11 @@ function switchTab(tabId) {
     if (btn.dataset.tab === tabId) btn.classList.add('active');
   });
 
+  // Sincronizar el item activo del sidebar de escritorio
+  document.querySelectorAll('.pq-sidebar .pq-nav-item[data-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabId);
+  });
+
   document.querySelectorAll('.full-screen-view.active').forEach(v => v.classList.remove('active'));
   renderTab(tabId);
 }
@@ -362,7 +373,7 @@ function openEditProfile() { openView('view-edit-profile'); }
 
 function openSecurity() { openModal('Seguridad', 'Gestión de contraseña y autenticación de dos factores.'); }
 function openHelp() { openModal('Ayuda & Soporte', 'Contacto con soporte técnico: soporte@panqueo.com'); }
-function openNotifs() { openModal('Notificaciones', 'No tienes notificaciones pendientes.'); }
+function openNotifs() { openAlertsSheet(); }
 
 // Modal Helpers
 function openModal(title, body) {
@@ -379,10 +390,333 @@ function closeModal() {
   if (overlay) overlay.classList.add('hidden');
 }
 
-function toggleCurrency(type) {
-  document.querySelectorAll('.curr-btn').forEach(b => b.classList.remove('active'));
-  const target = document.querySelector(`.curr-btn.${type}`);
-  if (target) target.classList.add('active');
+// ============================================================
+// ===== FUNDACIONES UNIFICADAS (Fase 3) =====
+// Toasts · Dark Mode · Bimoneda DUAL/USD/Bs (tasa BCV real) ·
+// Sheets · Alertas FEFO · Estado de API
+// ============================================================
+
+// ---------- TOASTS ----------
+function showToast(message, type = 'info', icon = null) {
+  const container = document.getElementById('pq-toast-container');
+  if (!container) { return; }
+  const iconName = icon || (type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'info');
+  const toast = document.createElement('div');
+  toast.className = `pq-toast ${type}`;
+  toast.innerHTML = `<span class="material-symbols-outlined">${iconName}</span><span>${message}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.transition = 'opacity 0.25s, transform 0.25s';
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(8px)';
+    setTimeout(() => toast.remove(), 260);
+  }, 3200);
+}
+
+// ---------- DARK MODE ----------
+function applyTheme(mode) {
+  const html = document.documentElement;
+  html.classList.toggle('dark', mode === 'dark');
+  html.classList.toggle('light', mode !== 'dark');
+  const icon = document.getElementById('theme-icon');
+  if (icon) icon.textContent = mode === 'dark' ? 'light_mode' : 'dark_mode';
+}
+
+function initTheme() {
+  applyTheme(localStorage.getItem('PQ_THEME') || 'light');
+}
+
+function toggleTheme(persist) {
+  const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+  applyTheme(next);
+  if (persist) {
+    localStorage.setItem('PQ_THEME', next);
+    showToast(`Tema cambiado a modo ${next === 'dark' ? 'oscuro' : 'claro'}`, 'info', next === 'dark' ? 'dark_mode' : 'light_mode');
+  }
+}
+
+// ---------- BIMONEDA (tasa BCV real) ----------
+const PQ_CURRENCY = {
+  order: ['dual', 'usd', 'bs'],
+  modeLabels: { dual: 'DUAL $ / Bs.', usd: 'SOLO USD', bs: 'SOLO Bs.' },
+  mode: localStorage.getItem('PQ_CUR_MODE') || 'dual',
+  rate: parseFloat(localStorage.getItem('PQ_RATE')) || null,
+  rateFetched: false,
+};
+
+function loadTasa() {
+  if (!isLoggedIn) return Promise.resolve(null);
+  return apiFetch('/finanzas/tasas/actual')
+    .then(res => {
+      const valor = res?.data?.valor_bs_por_usd;
+      if (valor) {
+        PQ_CURRENCY.rate = parseFloat(valor);
+        localStorage.setItem('PQ_RATE', String(PQ_CURRENCY.rate));
+      }
+      PQ_CURRENCY.rateFetched = true;
+      renderRatePill();
+      return PQ_CURRENCY.rate;
+    })
+    .catch(() => null);
+}
+
+function renderRatePill() {
+  const rateEl = document.getElementById('rate-label');
+  const modeEl = document.getElementById('currency-mode-label');
+  if (rateEl) rateEl.textContent = PQ_CURRENCY.rate ? `${PQ_CURRENCY.rate} Bs/$` : 'Sin tasa';
+  if (modeEl) modeEl.textContent = PQ_CURRENCY.modeLabels[PQ_CURRENCY.mode];
+}
+
+function cycleCurrencyMode() {
+  const i = PQ_CURRENCY.order.indexOf(PQ_CURRENCY.mode);
+  PQ_CURRENCY.mode = PQ_CURRENCY.order[(i + 1) % PQ_CURRENCY.order.length];
+  localStorage.setItem('PQ_CUR_MODE', PQ_CURRENCY.mode);
+  renderRatePill();
+  renderAll();
+  showToast(`Vista de montos: ${PQ_CURRENCY.modeLabels[PQ_CURRENCY.mode]}`, 'info', 'payments');
+}
+
+function fmtBs(usd) {
+  return `${(parseFloat(usd || 0) * (PQ_CURRENCY.rate || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.`;
+}
+
+/** Formatea un monto USD según el modo bimoneda activo. */
+function fmtMoney(usd) {
+  const usdNum = parseFloat(usd || 0);
+  if (PQ_CURRENCY.mode === 'bs') {
+    return PQ_CURRENCY.rate ? fmtBs(usdNum) : `$ ${usdNum.toFixed(2)} (sin tasa)`;
+  }
+  return `$ ${usdNum.toFixed(2)}`;
+}
+
+/** Versión con línea secundaria Bs. para KPIs y tarjetas (modo dual). */
+function fmtMoneyHTML(usd) {
+  const usdNum = parseFloat(usd || 0);
+  if (PQ_CURRENCY.mode === 'usd') {
+    return `<span>$ ${usdNum.toFixed(2)}</span>`;
+  }
+  if (!PQ_CURRENCY.rate) {
+    return `<span>$ ${usdNum.toFixed(2)}</span>`;
+  }
+  if (PQ_CURRENCY.mode === 'bs') {
+    return `<span>${fmtBs(usdNum)}</span>`;
+  }
+  return `<span class="pq-money-dual"><span>$ ${usdNum.toFixed(2)}</span><span class="pq-money-bs">${fmtBs(usdNum)}</span></span>`;
+}
+
+// ---------- SHEETS (bottom-sheet móvil / modal desktop) ----------
+function openSheet(sheetId) {
+  closeSheets();
+  const overlay = document.getElementById('pq-sheet-overlay');
+  const sheet = document.getElementById(sheetId);
+  if (overlay) overlay.classList.add('open');
+  if (sheet) sheet.classList.add('open');
+}
+
+function closeSheets() {
+  document.querySelectorAll('.pq-sheet.open').forEach(s => s.classList.remove('open'));
+  const overlay = document.getElementById('pq-sheet-overlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+// ---------- TASA BCV (sheet) ----------
+function openTasaSheet() {
+  const current = document.getElementById('pq-tasa-current');
+  if (current) current.textContent = PQ_CURRENCY.rate ? `${PQ_CURRENCY.rate} Bs. / 1 USD` : 'Sin tasa registrada';
+  const input = document.getElementById('pq-tasa-input');
+  if (input) input.value = PQ_CURRENCY.rate || '';
+  openSheet('sheet-tasa');
+}
+
+async function saveTasa() {
+  const input = document.getElementById('pq-tasa-input');
+  const valor = parseFloat(input ? input.value : '');
+  if (!valor || valor <= 0) {
+    showToast('Ingresa una tasa válida (mayor a 0)', 'error');
+    return;
+  }
+  try {
+    await apiFetch('/finanzas/tasas', {
+      method: 'POST',
+      body: JSON.stringify({ valor_bs_por_usd: valor, fuente_referencia: 'Manual' }),
+    });
+    PQ_CURRENCY.rate = valor;
+    localStorage.setItem('PQ_RATE', String(valor));
+    closeSheets();
+    renderRatePill();
+    renderAll();
+    showToast(`Tasa actualizada: ${valor} Bs/$ (Regla 4 aplicada a la bimoneda)`, 'success');
+  } catch (err) {
+    showToast(err.message || 'No se pudo registrar la tasa', 'error');
+  }
+}
+
+// ---------- NOTIFICACIONES (alertas FEFO reales) ----------
+async function openAlertsSheet() {
+  if (!isLoggedIn) return;
+  updateAlertBadges(0); // optimista: se reactualiza tras la consulta
+  const body = document.getElementById('pq-notifs-body');
+  if (body) body.innerHTML = getLoadingHTML();
+  openSheet('sheet-notifs');
+  try {
+    const res = await apiFetch('/inventario/alertas');
+    const data = res?.data || {};
+    const venc = Array.isArray(data.proximosAVencer) ? data.proximosAVencer : [];
+    const bajo = Array.isArray(data.stockBajo) ? data.stockBajo : [];
+    if (body) {
+      body.innerHTML = (venc.length + bajo.length) === 0
+        ? getEmptyHTML('Sin alertas activas. Cocina bajo control 🐹')
+        : `
+        ${bajo.length ? `<h4 style="font-size:12px;color:var(--pq-on-surface-muted);text-transform:uppercase;margin:8px 0;">Stock bajo (${bajo.length})</h4>
+        ${bajo.map(a => `
+          <div style="display:flex;justify-content:space-between;gap:8px;padding:9px 12px;border-radius:12px;background:var(--pq-error-container);color:#93000a;margin-bottom:6px;font-size:13px;">
+            <span style="font-weight:600;">${a.nombre || a.ingrediente || 'Ingrediente'}</span>
+            <span style="font-weight:700;">${parseFloat(a.stockActual ?? a.cantidad ?? 0)} ${a.unidad || ''}</span>
+          </div>`).join('')}` : ''}
+        ${venc.length ? `<h4 style="font-size:12px;color:var(--pq-on-surface-muted);text-transform:uppercase;margin:12px 0 8px;">Lotes por vencer ≤ 7 días (${venc.length})</h4>
+        ${venc.map(a => `
+          <div style="display:flex;justify-content:space-between;gap:8px;padding:9px 12px;border-radius:12px;background:var(--pq-surface-1);margin-bottom:6px;font-size:13px;">
+            <div>
+              <div style="font-weight:600;">${a.ingrediente || 'Lote'}</div>
+              <div style="font-size:11px;color:var(--pq-on-surface-muted);">${a.cantidad} ${a.unidad || ''} · vence ${a.fechaVencimiento}</div>
+            </div>
+            <span style="font-weight:700;color:#b26a00;white-space:nowrap;">${a.diasRestantes === 0 ? 'HOY' : `${a.diasRestantes}d`}</span>
+          </div>`).join('')}` : ''}
+      `;
+    }
+    updateAlertBadges(venc.length + bajo.length);
+  } catch (err) {
+    if (body) body.innerHTML = getErrorHTML('No se pudieron cargar las alertas.', 'openAlertsSheet()');
+  }
+}
+
+function updateAlertBadges(total) {
+  ['pq-nav-alert-badge', 'pq-nav-alert-badge-2'].forEach(id => {
+    const badge = document.getElementById(id);
+    if (!badge) return;
+    if (total > 0) {
+      badge.textContent = total;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  });
+}
+
+// ---------- MÓDULOS SIDEBAR (compras / recetas) ----------
+async function openAuthedModule(name) {
+  if (!isLoggedIn) return;
+  const title = document.getElementById('pq-module-title');
+  const sub = document.getElementById('pq-module-sub');
+  const body = document.getElementById('pq-module-body');
+  body.innerHTML = getLoadingHTML();
+  openSheet('sheet-recetas');
+
+  try {
+    if (name === 'recetas') {
+      if (title) title.textContent = 'Recetas y Producción';
+      if (sub) sub.textContent = 'Catálogo de recetas con sus requerimientos de ingredientes.';
+      const res = await apiFetch('/recetas?limit=50');
+      const recetas = Array.isArray(res?.data) ? res.data : (res?.data?.recetas || res?.data?.items || []);
+      if (recetas.length === 0) {
+        body.innerHTML = getEmptyHTML('No hay recetas registradas todavía.');
+        return;
+      }
+      body.innerHTML = recetas.map(r => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--pq-surface-1);margin-bottom:6px;">
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,193,7,.2);display:flex;align-items:center;justify-content:center;">
+            <span class="material-symbols-outlined" style="color:#785900;">bakery_dining</span>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:13px;">${r.nombre_receta}</div>
+            <div style="font-size:11px;color:var(--pq-on-surface-muted);">${r.Descripcion || r.descripcion || ''}</div>
+          </div>
+          <button class="material-symbols-outlined" style="border:0;background:none;color:#785900;cursor:pointer;" onclick="openRecetaDetalle(${r.id_receta})" title="Ver detalle / costo">visibility</button>
+        </div>
+      `).join('');
+    } else if (name === 'compras') {
+      if (title) title.textContent = 'Listas de Compra';
+      if (sub) sub.textContent = 'Sugeridas por la predicción de compras; se convierten en lotes al completarse (RF-02).';
+      const res = await apiFetch('/compras/listas?limit=20');
+      const listas = Array.isArray(res?.data) ? res.data : (res?.data?.listas || res?.data?.items || []);
+      if (listas.length === 0) {
+        body.innerHTML = getEmptyHTML('No hay listas de compra registradas.');
+        return;
+      }
+      body.innerHTML = listas.map(l => {
+        const estado = l.estado_lista || 'Borrador';
+        const color = estado === 'Completada' ? '#2e7d32' : '#b26a00';
+        const bg = estado === 'Completada' ? 'rgba(76,175,80,.12)' : 'rgba(255,193,7,.15)';
+        return `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:var(--pq-surface-1);margin-bottom:6px;">
+          <div style="min-width:0;">
+            <div style="font-weight:600;font-size:13px;">Lista #${l.id_lista} · ${l.createdAt ? new Date(l.createdAt).toLocaleDateString('es-VE') : ''}</div>
+            <div style="font-size:11px;color:var(--pq-on-surface-muted);">${(l.DetalleListaCompras || []).length} ítem(s)</div>
+          </div>
+          <span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:999px;color:${color};background:${bg};">${estado}</span>
+        </div>`;
+      }).join('');
+    }
+  } catch (err) {
+    body.innerHTML = getErrorHTML('No se pudo cargar el módulo.', `openAuthedModule('${name}')`);
+  }
+}
+
+async function openRecetaDetalle(id) {
+  const body = document.getElementById('pq-module-body');
+  body.innerHTML = getLoadingHTML();
+  try {
+    const res = await apiFetch(`/recetas/${id}`);
+    const r = res?.data || {};
+    const ingresos = Array.isArray(r.Ingredientes) ? r.Ingredientes : (Array.isArray(r.RecetaIngredientes) ? r.RecetaIngredientes : []);
+    const title = document.getElementById('pq-module-title');
+    if (title) title.textContent = r.nombre_receta || 'Receta';
+    body.innerHTML = `
+      <div style="font-size:13px;color:var(--pq-on-surface-muted);margin-bottom:10px;">${r.instrucciones ? 'Instrucciones: ' + r.instrucciones : 'Sin instrucciones registradas.'}</div>
+      <div style="font-weight:700;font-size:12px;text-transform:uppercase;color:var(--pq-on-surface-muted);margin-bottom:8px;">Ingredientes requeridos</div>
+      ${ingresos.length === 0 ? getEmptyHTML('Sin ingredientes asociados.') : ingresos.map(i => `
+        <div style="display:flex;justify-content:space-between;padding:8px 12px;border-radius:10px;background:var(--pq-surface-1);margin-bottom:5px;font-size:12px;">
+          <span style="font-weight:600;">${i.Ingrediente?.nombre_ing || i.nombre_ing || `ID ${i.id_ingrediente}`}</span>
+          <span>${parseFloat(i.cantidad_requerida)} ${i.Ingrediente?.unidad_medida || ''}</span>
+        </div>`).join('')}
+    `;
+  } catch (err) {
+    body.innerHTML = getErrorHTML('No se pudo cargar la receta.', `openRecetaDetalle(${id})`);
+  }
+}
+
+// ---------- ESTADO DE API (sidebar) ----------
+async function checkApiStatus() {
+  const dot = document.getElementById('pq-api-dot');
+  const text = document.getElementById('pq-api-text');
+  try {
+    const res = await fetch(`${API_BASE.replace(/\/api\/?$/, '')}/api/health`, { signal: AbortSignal.timeout(4000) });
+    if (res.ok) {
+      if (dot) dot.classList.remove('off');
+      if (text) text.textContent = 'API Conectada';
+    } else {
+      throw new Error('health no ok');
+    }
+  } catch (err) {
+    if (dot) dot.classList.add('off');
+    if (text) text.textContent = 'API sin conexión';
+  }
+}
+
+// ---------- LOGIN: refrescar datos de sesión ----------
+function onSessionReady() {
+  initTheme();
+  loadTasa();
+  checkAlertBadgesOnLoad();
+  // Con sesión persistida (recarga de página) el MVP no re-renderizaba nada
+  renderAll();
+}
+
+async function checkAlertBadgesOnLoad() {
+  try {
+    const res = await apiFetch('/inventario/alertas');
+    updateAlertBadges(res?.data?.totalAlertas || 0);
+  } catch (err) { /* silencio: las alertas se consultan al abrir el sheet */ }
 }
 
 function renderTab(tabId) {
@@ -432,11 +766,32 @@ async function renderDashboard() {
   container.innerHTML = getLoadingHTML();
 
   try {
-    const res = await apiFetch('/pedidos?limit=10');
-    const pedidos = res.data && res.data.pedidos ? res.data.pedidos : [];
+    const [pedRes, alertRes] = await Promise.all([
+      apiFetch('/pedidos?limit=100'),
+      apiFetch('/inventario/alertas').catch(() => null),
+    ]);
+    const pedidos = pedRes?.data?.pedidos || [];
 
-    // Filter active orders for dashboard
-    const activeOrders = pedidos.filter(p => p.estado_entrega === 'Pendiente' || p.estado_entrega === 'En Cocina');
+    // KPIs reales
+    const hoy = new Date().toISOString().slice(0, 10);
+    const porCobrar = pedidos
+      .filter(p => p.estado_pago !== 'Pagado')
+      .reduce((sum, p) => sum + (parseFloat(p.costo_total) - parseFloat(p.monto_abonado || 0)), 0);
+    const entregaHoy = pedidos
+      .filter(p => (p.fecha_entrega || '').slice(0, 10) === hoy).length;
+    const enCocina = pedidos.filter(p => p.estado_entrega === 'En Cocina').length;
+    const stockBajo = alertRes?.data?.stockBajo?.length ?? null;
+
+    const setKpi = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val; };
+    setKpi('kpi-pedidos', pedidos.length);
+    setKpi('kpi-stock', stockBajo === null ? '—' : stockBajo);
+    setKpi('kpi-porcobrar', fmtMoney(porCobrar));
+    setKpi('kpi-entrega', entregaHoy);
+    const badgeCocina = document.getElementById('kpi-cocina-badge');
+    if (badgeCocina) badgeCocina.textContent = `${enCocina} en cocina`;
+
+    // Producción activa: aún no entregada
+    const activeOrders = pedidos.filter(p => ['Por Preparar', 'En Cocina', 'Listo'].includes(p.estado_entrega));
 
     if (activeOrders.length === 0) {
       container.innerHTML = getEmptyHTML('No hay producción activa en este momento.');
@@ -445,14 +800,14 @@ async function renderDashboard() {
 
     container.innerHTML = activeOrders.map(o => {
       const clienteNombre = o.Cliente ? `${o.Cliente.nombre} ${o.Cliente.apellido || ''}`.trim() : 'Cliente general';
-      const statusClass = o.estado_entrega === 'En Cocina' ? 'production' : 'pending';
-      const totalFmt = o.costo_total ? `Bs ${parseFloat(o.costo_total).toFixed(2)}` : '$0.00';
+      const statusClass = o.estado_entrega === 'En Cocina' ? 'production' : o.estado_entrega === 'Listo' ? 'done' : 'pending';
+      const totalFmt = fmtMoneyHTML(o.costo_total);
       return `
-        <div class="order-item">
+        <div class="order-item" onclick="showOrderDetailBackend(${o.id_pedido || o.id})" style="cursor:pointer;">
           <div>
             <div class="order-id">#${o.id_pedido || o.id}</div>
             <div class="order-detail">${clienteNombre}</div>
-            <div style="font-size:11px;color:#827660;">Total: ${totalFmt}</div>
+            <div style="font-size:11px;color:#827660;">Total: <span style="display:inline-block;">${totalFmt}</span></div>
           </div>
           <span class="order-status ${statusClass}">${o.estado_entrega}</span>
         </div>
@@ -473,11 +828,11 @@ async function renderInventory() {
   const searchVal = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.trim() : '';
 
   try {
-    let url = `/inventario?page=1&limit=50`;
+    let url = `/inventario/ingredientes?limit=50`;
     if (searchVal) url += `&search=${encodeURIComponent(searchVal)}`;
 
     const res = await apiFetch(url);
-    let items = res.data && res.data.inventario ? res.data.inventario : [];
+    let items = Array.isArray(res.data) ? res.data : (res.data && res.data.ingredientes ? res.data.ingredientes : []);
 
     // Apply front filter pills
     if (activeInventoryFilter === 'low') {
@@ -505,7 +860,7 @@ async function renderInventory() {
                 <span class="material-symbols-outlined text-primary text-2xl">bakery_dining</span>
               </div>
               <div>
-                <h3 class="font-title-sm text-sm text-on-surface">${item.nombre_ingrediente}</h3>
+                <h3 class="font-title-sm text-sm text-on-surface">${item.nombre_ing || item.nombre_ingrediente}</h3>
                 <p class="font-body-sm text-xs text-outline">Unidad: ${item.unidad_medida}</p>
               </div>
             </div>
@@ -589,7 +944,7 @@ async function renderOrders() {
       const clientName = o.Cliente ? `${o.Cliente.nombre} ${o.Cliente.apellido || ''}`.trim() : 'Sin cliente';
       const statusConfig = statusMap[o.estado_entrega] || { label: o.estado_entrega, class: 'bg-gray-100 text-gray-600', border: 'border-gray-300' };
       const fecha = o.fecha_pedido ? new Date(o.fecha_pedido).toLocaleDateString('es-VE') : '—';
-      const total = o.costo_total ? `Bs ${parseFloat(o.costo_total).toFixed(2)}` : '$0.00';
+      const total = fmtMoneyHTML(o.costo_total);
 
       return `
         <div class="bg-surface-container-lowest p-3 rounded-xl card-shadow border-l-3 ${statusConfig.border}">
@@ -625,7 +980,7 @@ async function showOrderDetailBackend(orderId) {
       const o = res.data;
       const clientName = o.Cliente ? `${o.Cliente.nombre} ${o.Cliente.apellido || ''}`.trim() : 'Sin datos';
       openModal(`Detalle del Pedido #${o.id_pedido}`, `
-        Costo Total: Bs ${parseFloat(o.costo_total).toFixed(2)}\n
+        Costo Total: ${fmtMoney(o.costo_total)}\n
         Cliente: ${clientName}\n
         Estado Entrega: ${o.estado_entrega}\n
         Estado Pago: ${o.estado_pago}\n
