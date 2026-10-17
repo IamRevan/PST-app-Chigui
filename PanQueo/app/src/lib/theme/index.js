@@ -1,3 +1,28 @@
+// Familias de fuente cargadas en App.js via @expo-google-fonts.
+// En Android se debe referenciar la variante exacta (no 'Poppins' genérico)
+// para que fontWeight no caiga a la regular.
+import {
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from '@expo-google-fonts/poppins';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
+
+export const fonts = {
+  poppinsMedium: Poppins_500Medium,
+  poppinsSemiBold: Poppins_600SemiBold,
+  poppinsBold: Poppins_700Bold,
+  interRegular: Inter_400Regular,
+  interMedium: Inter_500Medium,
+  interSemiBold: Inter_600SemiBold,
+  interBold: Inter_700Bold,
+};
+
 export const colors = {
   primary: '#785900',
   onPrimary: '#ffffff',
@@ -78,77 +103,77 @@ export const colors = {
 
 export const typography = {
   displayLg: {
-    fontFamily: 'Poppins',
+    fontFamily: Poppins_700Bold,
     fontSize: 32,
     fontWeight: '700',
     lineHeight: 40,
     letterSpacing: -0.64,
   },
   displayLgMobile: {
-    fontFamily: 'Poppins',
+    fontFamily: Poppins_700Bold,
     fontSize: 28,
     fontWeight: '700',
     lineHeight: 36,
     letterSpacing: -0.56,
   },
   headlineMd: {
-    fontFamily: 'Poppins',
+    fontFamily: Poppins_600SemiBold,
     fontSize: 24,
     fontWeight: '600',
     lineHeight: 32,
   },
   titleSm: {
-    fontFamily: 'Poppins',
+    fontFamily: Poppins_600SemiBold,
     fontSize: 18,
     fontWeight: '600',
     lineHeight: 24,
   },
   bodyMd: {
-    fontFamily: 'Inter',
+    fontFamily: Inter_400Regular,
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 24,
   },
   bodySm: {
-    fontFamily: 'Inter',
+    fontFamily: Inter_400Regular,
     fontSize: 14,
     fontWeight: '400',
     lineHeight: 20,
   },
   labelBold: {
-    fontFamily: 'Inter',
+    fontFamily: Inter_600SemiBold,
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 20,
   },
   buttonText: {
-    fontFamily: 'Inter',
+    fontFamily: Inter_600SemiBold,
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 16,
     letterSpacing: 0.16,
   },
   valueDisplay: {
-    fontFamily: 'Be Vietnam Pro',
+    fontFamily: Poppins_700Bold,
     fontSize: 20,
     fontWeight: '700',
     lineHeight: 24,
   },
   productTitle: {
-    fontFamily: 'Be Vietnam Pro',
+    fontFamily: Poppins_600SemiBold,
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 24,
   },
   labelCaption: {
-    fontFamily: 'Inter',
+    fontFamily: Inter_500Medium,
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 16,
     letterSpacing: 0.24,
   },
   metadata: {
-    fontFamily: 'Inter',
+    fontFamily: Inter_400Regular,
     fontSize: 12,
     fontWeight: '400',
     lineHeight: 16,

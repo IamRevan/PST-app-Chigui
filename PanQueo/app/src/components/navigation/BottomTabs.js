@@ -1,52 +1,75 @@
 import { useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { SheetModal } from '../ui/Modal';
 import { colors, typography, borderRadius, spacing, shadows } from '../../lib/theme';
+import { useCurrency } from '../../lib/currency';
 
 const Tab = createBottomTabNavigator();
 
+// Iconografía oficial MVP: Material Icons (PanQueo/web usa Material Symbols)
+const TAB_ICONS = {
+  Dashboard: 'home',
+  Inventario: 'inventory',
+  Pedidos: 'shopping-cart',
+  Clientes: 'people',
+  Perfil: 'person',
+};
+
 const TabIcon = ({ label, focused }) => (
-  <Text style={[styles.tabEmoji, focused && styles.tabEmojiActive]}>
-    {label === 'Dashboard' ? '🏠' :
-     label === 'Inventario' ? '📦' :
-     label === 'Pedidos' ? '🛒' :
-     label === 'Clientes' ? '👥' :
-     label === 'Perfil' ? '👤' : '📄'}
-  </Text>
+  <MaterialIcons
+    name={TAB_ICONS[label] || 'description'}
+    size={22}
+    color={focused ? colors.onPrimaryContainer : colors.onSurfaceVariant}
+  />
 );
 
 const HeaderRight = () => {
   const navigation = useNavigation();
   const [showCurrency, setShowCurrency] = useState(false);
-  const [currency, setCurrency] = useState('Bs');
+  const { currency, setCurrency, tasa } = useCurrency();
 
   return (
     <>
       <View style={styles.headerRight}>
-        <TouchableOpacity style={styles.currencyToggle} onPress={() => setShowCurrency(true)}>
+        <TouchableOpacity
+          style={styles.currencyToggle}
+          onPress={() => setShowCurrency(true)}
+        >
           <Text style={[styles.currencyPill, currency === 'Bs' && styles.currencyActive]}>Bs</Text>
           <Text style={[styles.currencyPill, currency === 'USD' && styles.currencyActive]}>USD</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.getParent()?.navigate('Notificaciones')}>
-          <Text style={styles.notifIcon}>🔔</Text>
+          <MaterialIcons name="notifications" size={22} color={colors.onSurfaceVariant} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.avatar} onPress={() => navigation.navigate('Perfil')}>
-          <Text style={styles.avatarText}>🐹</Text>
+          <Image source={require('../../../assets/sparkle.png')} style={styles.avatarImage} />
         </TouchableOpacity>
       </View>
       <SheetModal visible={showCurrency} onClose={() => setShowCurrency(false)} title="Moneda">
+        <Text style={styles.rateCaption}>
+          {tasa ? `Tasa BCV vigente: ${tasa} Bs/USD` : 'Tasa BCV no disponible'}
+        </Text>
         {['Bs (Bolivianos)', 'USD (Dólares)'].map((opt) => {
           const val = opt.startsWith('Bs') ? 'Bs' : 'USD';
           return (
             <TouchableOpacity
               key={val}
               style={[styles.currencyOption, currency === val && styles.currencyOptionActive]}
-              onPress={() => { setCurrency(val); setShowCurrency(false); }}
+              onPress={() => {
+                setCurrency(val);
+                setShowCurrency(false);
+              }}
             >
+              <MaterialIcons
+                name={currency === val ? 'radio-button-checked' : 'radio-button-unchecked'}
+                size={18}
+                color={currency === val ? colors.onPrimaryContainer : colors.outline}
+              />
               <Text style={[styles.currencyOptionText, currency === val && styles.currencyOptionTextActive]}>
-                {currency === val ? '● ' : '○ '}{opt}
+                {opt}
               </Text>
             </TouchableOpacity>
           );
@@ -102,8 +125,6 @@ const styles = StyleSheet.create({
   },
   tabItem: { paddingHorizontal: 4, borderRadius: borderRadius.lg },
   tabLabel: { ...typography.metadata, fontSize: 10, fontWeight: '700' },
-  tabEmoji: { fontSize: 22, opacity: 0.5 },
-  tabEmojiActive: { opacity: 1 },
   header: {
     backgroundColor: colors.surface,
     elevation: 0,
@@ -127,6 +148,7 @@ const styles = StyleSheet.create({
     borderColor: colors.outlineVariant,
   },
   currencyPill: {
+    fontFamily: typography.metadata.fontFamily,
     fontSize: 10,
     fontWeight: '700',
     color: colors.outline,
@@ -138,19 +160,25 @@ const styles = StyleSheet.create({
     color: colors.onPrimaryContainer,
     backgroundColor: colors.primaryContainer,
   },
-  notifIcon: { fontSize: 20 },
   avatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
     borderWidth: 2,
     borderColor: colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'hidden',
     backgroundColor: colors.secondaryContainer,
   },
-  avatarText: { fontSize: 16 },
+  avatarImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  rateCaption: {
+    ...typography.labelCaption,
+    color: colors.onSurfaceVariant,
+    marginBottom: spacing.sm,
+  },
   currencyOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,

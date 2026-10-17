@@ -22,6 +22,7 @@ import {
   useReportesProduccion,
   useReportesMermas,
 } from "../../lib/hooks/useReportes";
+import { useCurrency } from "../../lib/currency";
 
 const RANGOS = [
   "Últimos 7 días",
@@ -42,6 +43,7 @@ export const ReportesScreen = ({ navigation }) => {
   const { data: balance, loading: loadingB } = useReportesBalance();
   const { data: produccion, loading: loadingP } = useReportesProduccion();
   const { data: mermas, loading: loadingM } = useReportesMermas();
+  const { format } = useCurrency();
 
   return (
     <ScreenWrapper>
@@ -101,7 +103,7 @@ export const ReportesScreen = ({ navigation }) => {
                 <Text>Cargando...</Text>
               ) : (
                 <Text style={styles.revenueValue}>
-                  ${parseFloat(balance.total_ingresos || 0).toFixed(2)}
+                  {format(balance.total_ingresos || 0)}
                 </Text>
               )}
             </View>
@@ -121,7 +123,7 @@ export const ReportesScreen = ({ navigation }) => {
                   <Text>...</Text>
                 ) : (
                   <Text style={[styles.miniValue, { color: colors.error }]}>
-                    ${parseFloat(balance.total_pendientes || 0).toFixed(2)}
+                    {format(balance.total_pendientes || 0)}
                   </Text>
                 )}
               </View>

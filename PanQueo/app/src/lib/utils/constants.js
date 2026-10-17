@@ -30,6 +30,7 @@ export const STORAGE_KEYS = {
   USER_DATA: "@panqueo/user_data",
   OFFLINE_QUEUE: "@panqueo/offline_queue",
   LAST_SYNC: "@panqueo/last_sync",
+  CURRENCY: "@panqueo/currency",
 };
 
 export const ALERTA_VENCIMIENTO_DIAS = 7;

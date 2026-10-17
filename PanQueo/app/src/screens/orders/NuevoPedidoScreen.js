@@ -17,9 +17,11 @@ import {
 } from "../../lib/theme";
 import { ResumenPedidoModal } from "./ResumenPedidoModal";
 import { useRecetas } from "../../lib/hooks/useRecetas";
+import { useCurrency } from "../../lib/currency";
 
 export const NuevoPedidoScreen = ({ navigation, route }) => {
   const { data: rawRecetas, loading } = useRecetas();
+  const { format } = useCurrency();
   const recetas = Array.isArray(rawRecetas) ? rawRecetas : (rawRecetas?.recetas || []);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState([]);
@@ -111,7 +113,7 @@ export const NuevoPedidoScreen = ({ navigation, route }) => {
                     {receta.rendimiento || ""}
                   </Text>
                   <Text style={styles.productPrice}>
-                    ${parseFloat(receta.precio_sugerido || 0).toFixed(2)}
+                    {format(receta.precio_sugerido || 0)}
                   </Text>
                 </View>
                 {isSelected && (

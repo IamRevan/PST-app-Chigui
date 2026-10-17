@@ -1,4 +1,6 @@
-import { View, TextInput, Text, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { colors, typography, spacing } from '../../lib/theme';
 
 export const Input = ({
@@ -14,6 +16,8 @@ export const Input = ({
   icon,
   style,
 }) => {
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <View style={[styles.container, style]}>
       {label && <Text style={styles.label}>{label}</Text>}
@@ -26,13 +30,23 @@ export const Input = ({
           onBlur={onBlur}
           placeholder={placeholder}
           placeholderTextColor={colors.onSurfaceVariant}
-          secureTextEntry={secureTextEntry}
+          secureTextEntry={secureTextEntry && !showPassword}
           keyboardType={keyboardType}
           multiline={multiline}
           autoCapitalize="none"
         />
         {secureTextEntry && (
-          <Text style={styles.eyeIcon}>visibility</Text>
+          <TouchableOpacity
+            onPress={() => setShowPassword((prev) => !prev)}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          >
+            <MaterialIcons
+              name={showPassword ? 'visibility-off' : 'visibility'}
+              size={20}
+              color={colors.secondary}
+            />
+          </TouchableOpacity>
         )}
       </View>
       {error && <Text style={styles.error}>{error}</Text>}
@@ -74,10 +88,6 @@ const styles = StyleSheet.create({
   multiline: {
     minHeight: 80,
     textAlignVertical: 'top',
-  },
-  eyeIcon: {
-    fontSize: 20,
-    color: colors.secondary,
   },
   error: {
     ...typography.bodySm,

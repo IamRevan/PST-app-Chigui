@@ -7,6 +7,7 @@ const Receta = require('./Receta');
 const RecetaIngrediente = require('./RecetaIngrediente');
 const ListaCompra = require('./ListaCompra');
 const DetalleListaCompra = require('./DetalleListaCompra');
+const DetallePedido = require('./DetallePedido');
 const HistorialTasaCambio = require('./HistorialTasaCambio');
 const Usuario = require('./Usuario');
 const Proveedor = require('./Proveedor');
@@ -31,6 +32,12 @@ Proveedor.hasMany(Ingrediente, { foreignKey: 'id_proveedor' });
 ListaCompra.hasMany(DetalleListaCompra, { foreignKey: 'id_lista', onDelete: 'CASCADE' });
 DetalleListaCompra.belongsTo(ListaCompra, { foreignKey: 'id_lista' });
 
+Pedido.hasMany(DetallePedido, { foreignKey: 'id_pedido', onDelete: 'CASCADE' });
+DetallePedido.belongsTo(Pedido, { foreignKey: 'id_pedido' });
+
+Receta.hasMany(DetallePedido, { foreignKey: 'id_receta', onDelete: 'RESTRICT' });
+DetallePedido.belongsTo(Receta, { foreignKey: 'id_receta' });
+
 Ingrediente.hasMany(DetalleListaCompra, { foreignKey: 'id_ingrediente', onDelete: 'RESTRICT' });
 DetalleListaCompra.belongsTo(Ingrediente, { foreignKey: 'id_ingrediente' });
 
@@ -45,6 +52,7 @@ module.exports = {
   RecetaIngrediente,
   ListaCompra,
   DetalleListaCompra,
+  DetallePedido,
   HistorialTasaCambio,
   Proveedor,
 };

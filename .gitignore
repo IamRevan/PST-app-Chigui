@@ -150,3 +150,8 @@ tmp_expo/
 
 # PanQueo - backend env
 PanQueo/backend/.env
+
+# PanQueo - local SQLite dev database (postgres is the target dialect)
+PanQueo/backend/database.sqlite
+*.sqlite
+*.sqlite-journal

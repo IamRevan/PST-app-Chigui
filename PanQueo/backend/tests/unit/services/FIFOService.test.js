@@ -1,5 +1,7 @@
 process.env.NODE_ENV = 'test';
 process.env.DB_DIALECT = 'sqlite';
+// DB en memoria: los tests NUNCA deben tocar el database.sqlite de desarrollo
+process.env.DB_STORAGE = ':memory:';
 
 const { sequelize, Pedido, Receta, Ingrediente, RecetaIngrediente, LoteIngrediente, Cliente } = require('../../../src/models');
 const fifoService = require('../../../src/services/FIFOService');

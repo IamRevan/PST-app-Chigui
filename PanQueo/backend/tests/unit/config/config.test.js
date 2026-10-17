@@ -1,3 +1,6 @@
+// Aísla las pruebas del .env del desarrollador: dotenv no debe inyectar valores reales
+jest.mock('dotenv', () => ({ config: jest.fn() }));
+
 describe('Config module', () => {
   const originalEnv = process.env;
 

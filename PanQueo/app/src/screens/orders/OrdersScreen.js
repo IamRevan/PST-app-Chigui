@@ -17,6 +17,7 @@ import {
   shadows,
 } from "../../lib/theme";
 import { usePedidos } from "../../lib/hooks/usePedidos";
+import { useCurrency } from "../../lib/currency";
 
 const FILTERS = ["Todos", "Pendientes", "En Cocina", "Listos", "Entregados"];
 
@@ -71,6 +72,7 @@ const STATUS_MAP = {
 export const OrdersScreen = ({ navigation }) => {
   const [activeFilter, setActiveFilter] = useState("Todos");
   const { data: rawOrders, loading, refetch } = usePedidos();
+  const { format } = useCurrency();
   const orders = Array.isArray(rawOrders) ? rawOrders : (rawOrders?.pedidos || []);
 
   const filtered = orders.filter((p) => {
@@ -151,7 +153,7 @@ export const OrdersScreen = ({ navigation }) => {
                     )}
                   </View>
                   <Text style={styles.orderTotal}>
-                    ${parseFloat(order.costo_total || 0).toFixed(2)}
+                    {format(order.costo_total || 0)}
                   </Text>
                 </View>
                 <View style={styles.orderDetails}>

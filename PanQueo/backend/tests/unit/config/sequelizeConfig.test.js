@@ -1,9 +1,15 @@
+// Aísla las pruebas del .env del desarrollador: dotenv no debe inyectar valores reales
+jest.mock('dotenv', () => ({ config: jest.fn() }));
+
 describe('Database Configuration Security', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...originalEnv };
+    // Evita filtrar el dialecto SQLite definido por otras suites del mismo worker
+    delete process.env.DB_DIALECT;
+    delete process.env.DB_STORAGE;
   });
 
   afterAll(() => {

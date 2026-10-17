@@ -17,11 +17,13 @@ import {
 import { useAuth } from "../../auth/AuthContext";
 import { usePedidos } from "../../lib/hooks/usePedidos";
 import { useAlertasVencimiento } from "../../lib/hooks/useInventario";
+import { useCurrency } from "../../lib/currency";
 
 export const DashboardScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { data: rawPedidos, loading: loadingPedidos } = usePedidos();
   const { data: rawAlertas } = useAlertasVencimiento();
+  const { format } = useCurrency();
 
   const pedidos = Array.isArray(rawPedidos) ? rawPedidos : (rawPedidos?.pedidos || []);
   const alertas = Array.isArray(rawAlertas) ? rawAlertas : [];
@@ -65,7 +67,7 @@ export const DashboardScreen = ({ navigation }) => {
     },
     {
       label: "Por Cobrar",
-      value: `$${porCobrar.toFixed(0)}`,
+      value: format(porCobrar),
       bg: colors.metricBg3,
       border: colors.metricBorder3,
       textColor: colors.metricText3,

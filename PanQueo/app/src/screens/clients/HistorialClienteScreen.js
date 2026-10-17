@@ -19,9 +19,11 @@ import {
   useClienteById,
   useClienteHistorial,
 } from "../../lib/hooks/useClientes";
+import { useCurrency } from "../../lib/currency";
 
 export const HistorialClienteScreen = ({ navigation, route }) => {
   const clienteId = route?.params?.clienteId;
+  const { format } = useCurrency();
 
   const { data: cliente, loading: loadingCliente } = useClienteById(clienteId);
   const { data: pedidos, loading: loadingPedidos } =
@@ -163,7 +165,7 @@ export const HistorialClienteScreen = ({ navigation, route }) => {
                 <Text style={[styles.td, styles.tdId]}>#{o.id_pedido}</Text>
                 <Text style={styles.td}>{o.fecha_pedido}</Text>
                 <Text style={[styles.td, styles.tdBold]}>
-                  ${parseFloat(o.costo_total || 0).toFixed(2)}
+                  {format(o.costo_total || 0)}
                 </Text>
                 <View style={[styles.td, styles.tdRight]}>
                   <Text
