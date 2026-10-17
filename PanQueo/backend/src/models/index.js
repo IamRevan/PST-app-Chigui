@@ -35,8 +35,8 @@ DetalleListaCompra.belongsTo(ListaCompra, { foreignKey: 'id_lista' });
 Pedido.hasMany(DetallePedido, { foreignKey: 'id_pedido', onDelete: 'CASCADE' });
 DetallePedido.belongsTo(Pedido, { foreignKey: 'id_pedido' });
 
-Receta.hasMany(DetallePedido, { foreignKey: 'id_receta', onDelete: 'RESTRICT' });
-DetallePedido.belongsTo(Receta, { foreignKey: 'id_receta' });
+Receta.hasMany(DetallePedido, { foreignKey: 'id_receta', onDelete: 'RESTRICT', as: 'Receta' });
+DetallePedido.belongsTo(Receta, { foreignKey: 'id_receta', as: 'Receta' });
 
 Ingrediente.hasMany(DetalleListaCompra, { foreignKey: 'id_ingrediente', onDelete: 'RESTRICT' });
 DetalleListaCompra.belongsTo(Ingrediente, { foreignKey: 'id_ingrediente' });

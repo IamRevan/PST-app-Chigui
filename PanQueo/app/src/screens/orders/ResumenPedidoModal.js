@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from "react-native";
 import { Button, Input, Card } from "../../components/ui";
 import { SheetModal } from "../../components/ui/Modal";
-import { colors, typography, spacing } from "../../lib/theme";
+import { colors, typography, spacing, borderRadius } from "../../lib/theme";
 import apiClient from "../../lib/api/client";
 import { ENDPOINTS } from "../../lib/api/endpoints";
+import { useCurrency } from "../../lib/currency";
+import { useClientes } from "../../lib/hooks/useClientes";
+import { MaterialIcons } from "@expo/vector-icons";
 
 export const ResumenPedidoModal = ({
   visible,
@@ -21,6 +24,33 @@ export const ResumenPedidoModal = ({
     new Date(Date.now() + 86400000).toISOString().split("T")[0],
   );
   const [saving, setSaving] = useState(false);
+  const { format } = useCurrency();
+  const { data: rawClientes } = useClientes();
+  const clientes = Array.isArray(rawClientes) ? rawClientes : (rawClientes?.clientes || []);
+
+  const [showClienteSelector, setShowClienteSelector] = useState(false);
+  const [clienteSearch, setClienteSearch] = useState("");
+
+  const clienteSeleccionado = clientes.find(
+    (c) => String(c.id_cliente) === String(clienteId),
+  );
+
+  const clientesFiltrados = clientes.filter((c) => {
+    if (!clienteSearch.trim()) return true;
+    const texto = clienteSearch.toLowerCase();
+    const nombre = `${c.nombre || ""} ${c.apellido || ""}`.toLowerCase();
+    return (
+      nombre.includes(texto) ||
+      String(c.cedula || "").toLowerCase().includes(texto) ||
+      String(c.telefono || "").includes(texto)
+    );
+  });
+
+  const seleccionarCliente = (c) => {
+    setClienteId(String(c.id_cliente));
+    setShowClienteSelector(false);
+    setClienteSearch("");
+  };
 
   const handleSubmit = async () => {
     if (!clienteId) {
@@ -59,22 +89,37 @@ export const ResumenPedidoModal = ({
               {p.nombre_receta} x{p.cantidad}
             </Text>
             <Text style={styles.resumenPrice}>
-              ${(parseFloat(p.precio_sugerido || 0) * p.cantidad).toFixed(2)}
+              {format(parseFloat(p.precio_sugerido) * p.cantidad)}
             </Text>
           </View>
         ))}
         <View style={styles.totalRow}>
           <Text style={styles.totalText}>Total</Text>
-          <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
+          <Text style={styles.totalValue}>{format(total)}</Text>
         </View>
 
-        <Input
-          label="ID del Cliente"
-          value={clienteId}
-          onChangeText={setClienteId}
-          placeholder="Requerido: ID numérico del cliente"
-          keyboardType="numeric"
-        />
+        {/* Selector de cliente con búsqueda (paridad con view-select-client del MVP) */}
+        <Text style={styles.fieldLabel}>Cliente</Text>
+        <TouchableOpacity
+          style={styles.clienteBtn}
+          onPress={() => setShowClienteSelector(true)}
+        >
+          <View style={styles.clienteBtnLeft}>
+            <MaterialIcons name="person" size={18} color={colors.onSurfaceVariant} />
+            <Text
+              style={[
+                styles.clienteBtnText,
+                !clienteSeleccionado && styles.clienteBtnPlaceholder,
+              ]}
+            >
+              {clienteSeleccionado
+                ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido || ""}`.trim()
+                : "Seleccionar cliente (requerido)"}
+            </Text>
+          </View>
+          <MaterialIcons name="expand-more" size={20} color={colors.onSurfaceVariant} />
+        </TouchableOpacity>
+
         <Input
           label="Fecha de entrega"
           value={fechaEntrega}
@@ -108,6 +153,47 @@ export const ResumenPedidoModal = ({
           style={styles.confirmBtn}
         />
       </View>
+
+      <SheetModal
+        visible={showClienteSelector}
+        onClose={() => setShowClienteSelector(false)}
+        title="Seleccionar Cliente"
+      >
+        <Input
+          value={clienteSearch}
+          onChangeText={setClienteSearch}
+          placeholder="Buscar por nombre, cédula o teléfono"
+        />
+        <ScrollView style={styles.clienteList}>
+          {clientesFiltrados.length === 0 && (
+            <Text style={styles.clienteEmpty}>
+              No hay clientes que coincidan con "{clienteSearch}"
+            </Text>
+          )}
+          {clientesFiltrados.map((c) => (
+            <TouchableOpacity
+              key={c.id_cliente}
+              style={[
+                styles.clienteItem,
+                String(c.id_cliente) === String(clienteId) && styles.clienteItemActive,
+              ]}
+              onPress={() => seleccionarCliente(c)}
+            >
+              <View style={styles.clienteItemLeft}>
+                <Text style={styles.clienteName}>
+                  {`${c.nombre} ${c.apellido || ""}`.trim()}
+                </Text>
+                <Text style={styles.clienteMeta}>
+                  {c.telefono ? `📱 ${c.telefono}` : `Cédula ${c.cedula || "—"}`}
+                </Text>
+              </View>
+              {String(c.id_cliente) === String(clienteId) && (
+                <MaterialIcons name="check-circle" size={20} color={colors.onPrimaryContainer} />
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </SheetModal>
     </SheetModal>
   );
 };
@@ -161,4 +247,49 @@ const styles = StyleSheet.create({
   },
   deliveryLabel: { ...typography.bodyMd, color: colors.onSurface },
   confirmBtn: { marginTop: spacing.md },
+  fieldLabel: {
+    ...typography.labelBold,
+    color: colors.onSurface,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  clienteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surfaceContainerLowest,
+  },
+  clienteBtnLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    flexShrink: 1,
+  },
+  clienteBtnText: { ...typography.bodyMd, color: colors.onSurface },
+  clienteBtnPlaceholder: { color: colors.onSurfaceVariant },
+  clienteList: { maxHeight: 300 },
+  clienteEmpty: {
+    ...typography.bodySm,
+    color: colors.onSurfaceVariant,
+    textAlign: "center",
+    padding: spacing.md,
+  },
+  clienteItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceVariant,
+  },
+  clienteItemActive: { backgroundColor: colors.primaryContainer },
+  clienteItemLeft: { flexShrink: 1, gap: 2 },
+  clienteName: { ...typography.bodyMd, fontWeight: "600", color: colors.onSurface },
+  clienteMeta: { ...typography.bodySm, color: colors.onSurfaceVariant },
 });

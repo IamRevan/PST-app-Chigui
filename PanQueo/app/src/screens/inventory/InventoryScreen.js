@@ -39,9 +39,12 @@ export const InventoryScreen = ({ navigation }) => {
   );
 
   const getStockStatus = (ing) => {
-    return parseFloat(ing.stock_minimo) > 0
-      ? { label: "Bajo", variant: "critical", color: colors.error }
-      : { label: "En Stock", variant: "success", color: colors.tertiary };
+    const stockActual = parseFloat(ing.stock_actual ?? 0);
+    const stockMinimo = parseFloat(ing.stock_minimo ?? 0);
+    if (stockActual <= stockMinimo) {
+      return { label: "Bajo", variant: "critical", color: colors.error };
+    }
+    return { label: "En Stock", variant: "success", color: colors.tertiary };
   };
 
   return (
@@ -160,6 +163,28 @@ export const InventoryScreen = ({ navigation }) => {
                   </View>
                   <Badge label={status.label} variant={status.variant} />
                 </View>
+                <View style={styles.stockRow}>
+                  <Text style={styles.stockLabel}>Stock actual</Text>
+                  <Text style={[styles.stockValue, { color: status.label === "Bajo" ? colors.error : colors.onSurface }]}>
+                    {parseFloat(ing.stock_actual ?? 0)} {ing.unidad_medida}
+                  </Text>
+                </View>
+                <View style={styles.barBg}>
+                  <View
+                    style={[
+                      styles.barFill,
+                      {
+                        backgroundColor: status.color,
+                        width: `${Math.min(
+                          100,
+                          parseFloat(ing.stock_minimo ?? 0) > 0
+                            ? (parseFloat(ing.stock_actual ?? 0) / (parseFloat(ing.stock_minimo) * 2)) * 100
+                            : 100,
+                        )}%`,
+                      },
+                    ]}
+                  />
+                </View>
                 <View style={styles.itemActions}>
                   <TouchableOpacity
                     style={styles.actionBtn}
@@ -194,8 +219,8 @@ export const InventoryScreen = ({ navigation }) => {
         <TouchableOpacity
           style={styles.fab}
           onPress={() => {
-            // Se asume el primer ingrediente por defecto si no hay ninguno seleccionado (para evitar crash en el modal)
-            setSelectedIngrediente(ingredientes?.[0]?.id_ingrediente || "");
+            // Sin ingrediente forzado: el modal muestra selector con búsqueda
+            setSelectedIngrediente("");
             setShowLoteModal(true);
           }}
         >
@@ -206,6 +231,7 @@ export const InventoryScreen = ({ navigation }) => {
         visible={showLoteModal}
         onClose={() => setShowLoteModal(false)}
         initialIngredienteId={selectedIngrediente}
+        ingredientes={ingredientes}
         onSuccess={() => navigation.navigate("LoteExitoso")}
       />
     </ScreenWrapper>

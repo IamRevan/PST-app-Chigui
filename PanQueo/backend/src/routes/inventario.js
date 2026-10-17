@@ -5,6 +5,7 @@ const { authenticate } = require('../middleware/auth');
 const router = Router();
 
 router.get('/ingredientes', authenticate, InventarioController.listarIngredientes);
+router.get('/ingredientes/:id', authenticate, InventarioController.obtenerIngrediente);
 router.post('/ingredientes', authenticate, InventarioController.crearIngrediente);
 router.put('/ingredientes/:id', authenticate, InventarioController.actualizarIngrediente);
 router.get('/lotes', authenticate, InventarioController.listarLotes);

@@ -10,7 +10,9 @@ exports.listarIngredientes = async (req, res) => {
 
     if (categoria) where.categoria = categoria;
     if (search) {
-      where.nombre_ing = { [Op.iLike]: `%${search}%` };
+      // Compatibilidad de dialecto: iLike es exclusivo de Postgres, como/like en SQLite
+      const opLike = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
+      where.nombre_ing = { [opLike]: `%${search}%` };
     }
 
     const ingredientes = await Ingrediente.findAll({
@@ -18,9 +20,50 @@ exports.listarIngredientes = async (req, res) => {
       order: [['nombre_ing', 'ASC']],
     });
 
-    res.json({ status: 'success', data: ingredientes });
+    // Stock real por ingrediente (suma de lotes) para el semáforo de inventario
+    const agregados = await LoteIngrediente.findAll({
+      attributes: [
+        'id_ingrediente',
+        [sequelize.fn('SUM', sequelize.col('cantidad_actual')), 'stock_actual'],
+      ],
+      group: ['id_ingrediente'],
+      raw: true,
+    });
+    const stockMap = new Map(
+      agregados.map((a) => [a.id_ingrediente, parseFloat(a.stock_actual) || 0]),
+    );
+
+    const data = ingredientes.map((i) => ({
+      ...i.get({ plain: true }),
+      stock_actual: stockMap.get(i.id_ingrediente) || 0,
+    }));
+
+    res.json({ status: 'success', data });
   } catch (error) {
     res.status(500).json({ status: 'error', message: 'Error al listar ingredientes' });
+  }
+};
+
+exports.obtenerIngrediente = async (req, res) => {
+  try {
+    const ingrediente = await Ingrediente.findByPk(req.params.id, {
+      include: [
+        { model: LoteIngrediente },
+      ],
+      order: [[LoteIngrediente, 'fecha_venc', 'ASC']],
+    });
+
+    if (!ingrediente) {
+      return res.status(404).json({ status: 'error', message: 'Ingrediente no encontrado' });
+    }
+
+    const data = ingrediente.get({ plain: true });
+    data.stock_actual = (data.LoteIngredientes || [])
+      .reduce((sum, l) => sum + parseFloat(l.cantidad_actual || 0), 0);
+
+    res.json({ status: 'success', data });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: 'Error al obtener ingrediente' });
   }
 };
 

@@ -21,7 +21,7 @@ import { useLotesByIngrediente } from "../../lib/hooks/useLotes";
 import { useIngredienteById } from "../../lib/hooks/useInventario";
 
 export const DetalleProductoScreen = ({ navigation, route }) => {
-  const ingredienteId = route?.params?.ingredienteId || 1;
+  const ingredienteId = route?.params?.ingredienteId;
   const [showAjusteModal, setShowAjusteModal] = useState(false);
   const [selectedLote, setSelectedLote] = useState(null);
 
@@ -94,7 +94,7 @@ export const DetalleProductoScreen = ({ navigation, route }) => {
                   variant="outline"
                   onPress={() =>
                     navigation.navigate("HistorialProducto", {
-                      productName: ingrediente?.nombre_ing,
+                      ingredienteId: ingrediente?.id_ingrediente,
                     })
                   }
                   style={styles.actionBtn}

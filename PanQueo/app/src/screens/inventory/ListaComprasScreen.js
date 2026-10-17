@@ -19,11 +19,13 @@ import {
 } from "../../lib/theme";
 import { useListasCompras } from "../../lib/hooks/useCompras";
 import { useInventario } from "../../lib/hooks/useInventario";
+import { useCurrency } from "../../lib/currency";
 import apiClient from "../../lib/api/client";
 import { ENDPOINTS } from "../../lib/api/endpoints";
 
 export const ListaComprasScreen = ({ navigation }) => {
   const { data: listas, loading, refetch } = useListasCompras("Borrador");
+  const { format } = useCurrency();
   const listaActiva = listas && listas.length > 0 ? listas[0] : null;
   // Detalle temporal en UI para interacción rápida antes de enviar al backend
   const [localItems, setLocalItems] = useState([]);
@@ -55,10 +57,14 @@ export const ListaComprasScreen = ({ navigation }) => {
   }, [loading, listaActiva, localItems.length]);
 
   const toggleItem = (id) => {
-    // Requisito: items comprados no son editables. Solo cambiamos de Pendiente a Comprado (simulando cantidad completa por ahora)
+    // Regla: items comprados no se retroceden; quien marca, registra cantidad_comprada completa
     setLocalItems((prev) =>
       prev.map((item) => {
-        if (item.id_detalle_lista === id && item.status !== "Comprado") {
+        if (item.id_detalle_lista === id) {
+          const esComprado = item.status === "Comprado";
+          if (esComprado) {
+            return { ...item, status: "Pendiente", cantidad_comprada: 0 };
+          }
           return {
             ...item,
             status: "Comprado",
@@ -95,32 +101,68 @@ export const ListaComprasScreen = ({ navigation }) => {
 
   const [completing, setCompleting] = useState(false);
 
+  /**
+   * Guarda el borrador (o el checkpoint de compra) en la DB.
+   * - Lista nueva: POST ListaCompra + detalles (transacción backend).
+   * - Lista existente: PATCH /listas/:id con detalles reemplazables
+   *   (usa cantidad_comprada para el puente RF-02 de la compra -> lotes).
+   * Devuelve la lista activa actualizada (o la creada).
+   */
+  const guardarEnBackend = async () => {
+    if (localItems.length === 0) {
+      throw new Error("Agrega al menos un ítem a la lista");
+    }
+    const detalles = localItems.map((i) => ({
+      id_ingrediente: i.id_ingrediente,
+      cantidad_sugerida: i.cantidad_sugerida,
+      cantidad_comprada: i.status === "Comprado"
+        ? (parseFloat(i.cantidad_comprada) || parseFloat(i.cantidad_sugerida))
+        : 0,
+      precio_estimado_unitario: i.precio_estimado_unitario,
+    }));
+
+    if (listaActiva) {
+      const res = await apiClient.patch(
+        ENDPOINTS.LISTA_COMPRA_BY_ID(listaActiva.id_lista),
+        { estado_lista: "Borrador", detalles },
+      );
+      // Refrescar localItems con lo persistido (ids reales de la BD)
+      const data = res.data?.data;
+      if (data?.DetalleListaCompras) {
+        setLocalItems(
+          data.DetalleListaCompras.map((d) => ({
+            ...d,
+            status: parseFloat(d.cantidad_comprada) > 0 ? "Comprado" : "Pendiente",
+          })),
+        );
+      }
+      return data;
+    }
+
+    const res = await apiClient.post(ENDPOINTS.LISTAS_COMPRAS, {
+      estado_lista: "Borrador",
+      detalles,
+    });
+    refetch();
+    const data = res.data?.data;
+    if (data?.DetalleListaCompras) {
+      setLocalItems(
+        data.DetalleListaCompras.map((d) => ({
+          ...d,
+          status: parseFloat(d.cantidad_comprada) > 0 ? "Comprado" : "Pendiente",
+        })),
+      );
+    }
+    return data;
+  };
+
   const handleGuardar = async () => {
-    if (localItems.length === 0) return;
     setSaving(true);
     try {
-      const payload = {
-        estado_lista: "Borrador",
-        detalles: localItems.map((i) => ({
-          id_ingrediente: i.id_ingrediente,
-          cantidad_sugerida: i.cantidad_sugerida,
-          precio_estimado_unitario: i.precio_estimado_unitario,
-        })),
-      };
-
-      if (listaActiva) {
-        // Mock update
-        Alert.alert(
-          "Guardado localmente",
-          "Se actualizaría la lista ID: " + listaActiva.id_lista,
-        );
-      } else {
-        await apiClient.post(ENDPOINTS.LISTAS_COMPRAS, payload);
-        Alert.alert("Éxito", "Lista de compras guardada como borrador");
-      }
-      refetch();
+      await guardarEnBackend();
+      Alert.alert("Éxito", "Lista de compras guardada como borrador");
     } catch (err) {
-      Alert.alert("Error", err.message);
+      Alert.alert("Error", err.message || "No se pudo guardar la lista");
     } finally {
       setSaving(false);
     }
@@ -135,7 +177,6 @@ export const ListaComprasScreen = ({ navigation }) => {
       return;
     }
 
-    // Necesitamos asegurarnos que al menos hay algo comprado
     const compradosCount = localItems.filter(
       (i) => i.status === "Comprado",
     ).length;
@@ -146,12 +187,11 @@ export const ListaComprasScreen = ({ navigation }) => {
 
     setCompleting(true);
     try {
-      // 1. Guardar estado actual de cantidades compradas en la DB (Simulación parcial en frontend, ideal en backend)
-      // Como el endpoint /listas/:id/completar lee las cantidades_compradas de la BD, deberiamos enviar un PATCH primero.
-      // Por simplicidad, llamaremos a completar directamente asumiendo que el backend maneja todo, o usamos una ruta mock
-
+      // 1. Persistir checkpoint de compra (cantidades compradas) vía PATCH
+      await guardarEnBackend();
+      // 2. Completar: backend genera LOTES_INGREDIENTES (RF-02) en transacción
       await apiClient.patch(
-        `${ENDPOINTS.LISTAS_COMPRAS}/${listaActiva.id_lista}/completar`,
+        ENDPOINTS.LISTA_COMPRA_BY_ID(listaActiva.id_lista) + "/completar",
       );
       Alert.alert(
         "Éxito",
@@ -204,7 +244,7 @@ export const ListaComprasScreen = ({ navigation }) => {
           <View style={styles.summaryDivider} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Total Est.</Text>
-            <Text style={styles.summaryValue}>${totalEst.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>{format(totalEst)}</Text>
           </View>
         </View>
 
@@ -246,7 +286,7 @@ export const ListaComprasScreen = ({ navigation }) => {
                   </Text>
                   <Text style={styles.itemMeta}>
                     {item.cantidad_sugerida} {item.Ingrediente?.unidad_medida} ·
-                    ${item.precio_estimado_unitario}
+                    {format(item.precio_estimado_unitario)}
                   </Text>
                 </View>
               </View>
@@ -313,10 +353,11 @@ export const ListaComprasScreen = ({ navigation }) => {
           placeholder="Ej: 25 kg"
         />
         <Input
-          label="Precio estimado"
+          label="Precio estimado unitario (USD)"
           value={newPrice}
           onChangeText={setNewPrice}
-          placeholder="Ej: Bs 450"
+          placeholder="Ej: $ 4.50"
+          keyboardType="decimal-pad"
         />
         <Button
           title="Agregar a la lista"
