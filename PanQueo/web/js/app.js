@@ -46,6 +46,7 @@ async function apiFetch(endpoint, options = {}) {
 
 // ========== INITIALIZATION & SPLASH ==========
 document.addEventListener('DOMContentLoaded', () => {
+  wrapFullScreenViews();
   initSplash();
   initEventListeners();
   checkAuth();
@@ -55,6 +56,19 @@ document.addEventListener('DOMContentLoaded', () => {
     onSessionReady();
   }
 });
+
+// Envuelve cada vista full-screen en un panel único: en móvil es un contenedor
+// transparente (display:contents) y en desktop (≥1024px) se convierte en la
+// tarjeta modal centrada con backdrop (Ver css/shell.css).
+function wrapFullScreenViews() {
+  document.querySelectorAll('.full-screen-view').forEach(v => {
+    if (v.querySelector(':scope > .fsv-panel')) return;
+    const panel = document.createElement('div');
+    panel.className = 'fsv-panel';
+    while (v.firstChild) panel.appendChild(v.firstChild);
+    v.appendChild(panel);
+  });
+}
 
 function initSplash() {
   const container = document.getElementById('confetti-container');
@@ -841,7 +855,7 @@ async function renderDashboard() {
           <div>
             <div class="order-id">#${o.id_pedido || o.id}</div>
             <div class="order-detail">${clienteNombre}</div>
-            <div style="font-size:11px;color:#827660;">Total: <span style="display:inline-block;">${totalFmt}</span></div>
+            <div style="font-size:11px;color:var(--pq-on-surface-muted);">Total: <span style="display:inline-block;">${totalFmt}</span></div>
           </div>
           <span class="order-status ${statusClass}">${o.estado_entrega}</span>
         </div>

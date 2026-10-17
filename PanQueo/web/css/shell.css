@@ -36,6 +36,7 @@ html.dark {
 
 /* ---------- MODO OSCURO: overrides de clases Tailwind del MVP ---------- */
 html.dark body { background: var(--pq-bg); color: var(--pq-on-surface); }
+html.dark #main-app { background: var(--pq-bg) !important; }
 html.dark .top-bar { background: var(--pq-surface) !important; border-bottom-color: rgba(255,255,255,0.08) !important; }
 html.dark .bottom-nav { background: var(--pq-surface) !important; border-top-color: rgba(255,255,255,0.08) !important; }
 html.dark .bg-surface-container-lowest { background-color: var(--pq-surface) !important; }
@@ -43,6 +44,7 @@ html.dark .bg-surface-container-low { background-color: var(--pq-surface-1) !imp
 html.dark .bg-surface-container { background-color: var(--pq-surface-2) !important; }
 html.dark .bg-surface-container-high { background-color: var(--pq-surface-3) !important; }
 html.dark .bg-surface-container-highest { background-color: var(--pq-surface-3) !important; }
+html.dark .bg-white { background-color: var(--pq-surface) !important; }
 html.dark .text-on-surface { color: var(--pq-on-surface) !important; }
 html.dark .text-on-surface-variant { color: var(--pq-on-surface-muted) !important; }
 html.dark .text-outline { color: var(--pq-outline) !important; }
@@ -59,12 +61,28 @@ html.dark .bg-blue-50 { background-color: rgba(33, 150, 243, 0.18) !important; }
 html.dark .border-surface-variant { border-color: rgba(255, 255, 255, 0.12) !important; }
 html.dark .card-shadow { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); }
 html.dark .kpi-card { background: var(--pq-surface); }
+html.dark .kpi-yellow .kpi-value { color: #ffd76f; }
+html.dark .kpi-red .kpi-value { color: #ff8a80; }
+html.dark .kpi-blue .kpi-value { color: #82b1ff; }
+html.dark .kpi-green .kpi-value { color: #7ce17b; }
+html.dark .kpi-label { color: var(--pq-on-surface-muted) !important; }
+html.dark .kpi-card.kpi-yellow, html.dark .kpi-card.kpi-red,
+html.dark .kpi-card.kpi-blue, html.dark .kpi-card.kpi-green { background: var(--pq-surface) !important; }
+html.dark .order-item { background: var(--pq-surface); }
+html.dark .order-item .order-id { color: #fabd00; }
+html.dark .order-item .order-detail { color: var(--pq-on-surface-muted); }
+html.dark .order-item .order-status { color: var(--pq-on-surface-muted); background: var(--pq-surface-3); }
 html.dark .auth-card, html.dark .profile-card, html.dark .stats-card,
 html.dark .quick-item .icon-box { background: var(--pq-surface); }
 html.dark .badge.warning { background: rgba(255, 193, 7, 0.18); color: #ffd76f; }
-html.dark .order-item { background: var(--pq-surface); }
 html.dark .input-line { background: var(--pq-surface-1); }
 html.dark .section-header h3 { color: var(--pq-on-surface); }
+html.dark .modal-overlay { background: rgba(0, 0, 0, 0.6); }
+html.dark .modal-box { background: var(--pq-surface) !important; color: var(--pq-on-surface); }
+html.dark .full-screen-view { background: var(--pq-bg) !important; }
+html.dark .full-screen-view .back-header { border-bottom-color: rgba(255,255,255,0.08); }
+html.dark .full-screen-view .back-header .back-btn { color: var(--pq-on-surface); }
+html.dark .full-screen-view .back-header .title { color: var(--pq-on-surface); }
 html.dark .alert-banner {
   background: rgba(255, 152, 0, 0.12);
   border-color: rgba(255, 193, 7, 0.35);
@@ -149,28 +167,53 @@ html.dark .pq-sidebar-footer { background: var(--pq-surface-2); }
   #main-app, #main-app > .main-content { max-width: 620px; }
 }
 
-/* En desktop, las vistas full-screen se centraron tipo modal de trabajo */
+/* Wrapper de vistas full-screen: transparente fuera de desktop */
+.fsv-panel { display: contents; }
+
+/* En desktop, las vistas full-screen se convierten en modal de trabajo:
+   backdrop oscuro + tarjeta centrada con la cabecera (back-header) dentro */
 @media (min-width: 1024px) {
   .full-screen-view {
     position: fixed;
     inset: 0;
-    display: none;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 48px 24px;
-    background: rgba(0, 0, 0, 0.45);
+    max-width: none;
+    margin: 0;
+    padding: 40px 24px 72px;
+    background: transparent;
     z-index: 70;
     overflow-y: auto;
+    display: none;
   }
-  .full-screen-view.active { display: flex; }
-  .full-screen-view > *:first-child {
+  .full-screen-view.active { display: flex; align-items: flex-start; justify-content: center; }
+  .full-screen-view.active::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 12, 8, 0.55);
+    z-index: -1;
+  }
+  .fsv-panel {
+    display: block;
+    width: min(680px, 100%);
+    flex-shrink: 0;
     background: var(--pq-surface);
+    color: var(--pq-on-surface);
     border-radius: 20px;
-    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
-    width: min(640px, 100%);
-    min-height: unset !important;
-    padding-bottom: 24px;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+    padding: 0 26px 26px;
   }
+  .fsv-panel .back-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: 0 -26px 16px;
+    padding: 14px 26px;
+    background: var(--pq-surface);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+    border-radius: 20px 20px 0 0;
+  }
+  /* La barra flotante del nuevo pedido queda anclada al viewport */
+  .fsv-panel .fixed.bottom-24 { bottom: 40px; }
 }
 
 /* ---------- PILA DE MONEDA (BIMONEDA) ---------- */
