@@ -668,12 +668,18 @@ async function openAuthedModule(name) {
         const color = estado === 'Completada' ? '#2e7d32' : '#b26a00';
         const bg = estado === 'Completada' ? 'rgba(76,175,80,.12)' : 'rgba(255,193,7,.15)';
         return `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:var(--pq-surface-1);margin-bottom:6px;">
-          <div style="min-width:0;">
-            <div style="font-weight:600;font-size:13px;">Lista #${l.id_lista} · ${l.createdAt ? new Date(l.createdAt).toLocaleDateString('es-VE') : ''}</div>
-            <div style="font-size:11px;color:var(--pq-on-surface-muted);">${(l.DetalleListaCompras || []).length} ítem(s)</div>
+        <div style="padding:10px 12px;border-radius:12px;background:var(--pq-surface-1);margin-bottom:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+            <div style="font-weight:600;font-size:13px;">Lista #${l.id_lista} · ${(l.DetalleListaCompras || []).length} ítem(s)</div>
+            <span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:999px;color:${color};background:${bg};">${estado}</span>
           </div>
-          <span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:999px;color:${color};background:${bg};">${estado}</span>
+          ${(l.DetalleListaCompras || []).map(d => `
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--pq-on-surface-muted);padding:2px 0;">
+              <span>${d.Ingrediente?.nombre_ing || `Ingrediente #${d.id_ingrediente}`}</span>
+              <span>sugerido ${parseFloat(d.cantidad_sugerida || 0)}${d.cantidad_comprada ? ` · comprado ${parseFloat(d.cantidad_comprada)}` : ''}</span>
+            </div>`).join('')}
+          ${estado !== 'Completada' ? `
+          <button onclick="completarLista(${l.id_lista})" style="margin-top:8px;padding:8px 12px;border:0;border-radius:10px;background:#785900;color:#fff;font-weight:600;font-size:12px;cursor:pointer;width:100%;">Completar lista (genera lotes)</button>` : ''}
         </div>`;
       }).join('');
     }
@@ -1222,21 +1228,309 @@ async function renderOrders() {
 }
 
 async function showOrderDetailBackend(orderId) {
+  const body = document.getElementById('order-detail-body');
+  if (!body) return;
+  body.innerHTML = getLoadingHTML();
+  openView('view-order-detail');
   try {
     const res = await apiFetch(`/pedidos/${orderId}`);
-    if (res && res.data) {
-      const o = res.data;
-      const clientName = o.Cliente ? `${o.Cliente.nombre} ${o.Cliente.apellido || ''}`.trim() : 'Sin datos';
-      openModal(`Detalle del Pedido #${o.id_pedido}`, `
-        Costo Total: ${fmtMoney(o.costo_total)}\n
-        Cliente: ${clientName}\n
-        Estado Entrega: ${o.estado_entrega}\n
-        Estado Pago: ${o.estado_pago}\n
-        Fecha: ${o.fecha_pedido ? new Date(o.fecha_pedido).toLocaleString('es-VE') : '—'}
-      `);
-    }
+    const o = res?.data || {};
+    const client = o.Cliente || {};
+    const clientName = `${client.nombre || ''} ${client.apellido || ''}`.trim() || 'Cliente general';
+    const detalles = o.DetallePedidos || o.detalle || [];
+    const lineas = detalles.map(d => {
+      const precio = d.precio_unitario != null ? parseFloat(d.precio_unitario) : 0;
+      const cant = parseFloat(d.cantidad || 0);
+      const sub = precio * cant;
+      return `<tr>
+        <td class="px-3 py-2"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">cake</span> ${d.Receta?.nombre_receta || `Receta #${d.id_receta}`}</div></td>
+        <td class="px-3 py-2 text-center">${cant}</td>
+        <td class="px-3 py-2 text-right font-semibold">${fmtMoneyHTML(sub)}</td>
+      </tr>`;
+    }).join('');
+    const estadoBadge = (txt, clase) => `<span class="${clase} px-2 py-0.5 rounded-full font-label-bold text-xs">${txt}</span>`;
+    const seguimiento = ['Por Preparar', 'En Cocina', 'Listo', 'Entregado'];
+    const idx = seguimiento.indexOf(o.estado_entrega);
+    const nextEstado = idx >= 0 && idx < seguimiento.length - 1 ? seguimiento[idx + 1] : null;
+    const esPagado = o.estado_pago === 'Pagado';
+
+    body.innerHTML = `
+      <div class="flex justify-between items-start gap-2">
+        <div>
+          <h2 class="font-headline-md text-lg">Pedido #${o.id_pedido}</h2>
+          <p class="font-body-sm text-xs text-on-surface-variant">Creado: ${o.createdAt ? new Date(o.createdAt).toLocaleDateString('es-VE') : '—'} · Entrega: ${o.fecha_entrega ? String(o.fecha_entrega).slice(0, 10) : '—'}</p>
+        </div>
+        ${estadoBadge(o.estado_entrega, 'bg-[#FFF8E1] text-[#785900]')}
+      </div>
+      <div class="bg-surface-container-lowest rounded-xl card-shadow p-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container"><span class="material-symbols-outlined text-sm">person</span></div>
+          <div><p class="font-label-bold text-xs text-on-surface-variant">Cliente</p><p class="font-body-md text-sm font-semibold">${clientName}</p><p class="font-body-sm text-xs text-on-surface-variant">${client.cedula || ''}</p></div></div>
+          <div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed"><span class="material-symbols-outlined text-sm">payments</span></div>
+          <div><p class="font-label-bold text-xs text-on-surface-variant">Estado de pago</p><p class="font-body-md text-sm font-semibold ${esPagado ? 'text-tertiary' : 'text-error'}">${o.estado_pago}</p><p class="font-body-sm text-xs text-on-surface-variant">Abonado: ${fmtMoney(o.monto_abonado)}</p></div></div>
+        </div>
+      </div>
+      <div class="bg-surface-container-lowest rounded-xl card-shadow overflow-hidden">
+        <div class="p-4 border-b border-surface-variant"><h3 class="font-title-sm text-sm">Recetas del Pedido</h3></div>
+        <div class="overflow-x-auto"><table class="w-full text-left border-collapse text-sm">
+          <thead class="bg-surface-container-low"><tr><th class="px-3 py-2 font-label-bold text-on-surface-variant">Receta</th><th class="px-3 py-2 font-label-bold text-on-surface-variant text-center">Cant.</th><th class="px-3 py-2 font-label-bold text-on-surface-variant text-right">Subtotal</th></tr></thead>
+          <tbody>${lineas}</tbody>
+        </table></div>
+        <div class="p-4 pt-2 border-t border-surface-variant flex justify-between items-center">
+          <span class="font-title-sm text-sm">Total</span>
+          <span class="font-display-lg text-lg text-[#FFC107] font-bold">${fmtMoney(o.costo_total)}</span>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        ${nextEstado ? `<button class="bg-primary-container text-on-primary-container h-[40px] px-4 rounded-xl font-button-text text-button-text flex items-center gap-1 text-sm active:scale-95 transition-all" onclick="patchPedido(${o.id_pedido}, { estado_entrega: '${nextEstado}' })"><span class="material-symbols-outlined text-sm">sync_alt</span> Pasar a ${nextEstado}</button>` : ''}
+        ${!esPagado ? `<button class="bg-tertiary text-on-tertiary h-[40px] px-4 rounded-xl font-button-text text-button-text flex items-center gap-1 text-sm active:scale-95 transition-all" onclick="patchPedido(${o.id_pedido}, { estado_pago: 'Pagado', monto_abonado: ${parseFloat(o.costo_total)} })"><span class="material-symbols-outlined text-sm">done_all</span> Marcar Pagado</button>` : ''}
+      </div>
+    `;
   } catch (err) {
-    alert('Error al consultar el detalle de la orden.');
+    body.innerHTML = getErrorHTML('Error al cargar el pedido.', `showOrderDetailBackend(${orderId})`);
+  }
+}
+
+async function patchPedido(id, cambios) {
+  try {
+    await apiFetch(`/pedidos/${id}/estado`, { method: 'PATCH', body: JSON.stringify(cambios) });
+    showToast('Pedido actualizado ✓', 'ok');
+    showOrderDetailBackend(id);
+    renderOrders();
+    renderDashboard();
+    checkAlertBadgesOnLoad();
+  } catch (err) {
+    showToast(err.message || 'Error al actualizar el pedido', 'error');
+  }
+}
+
+// ---------- NUEVO PEDIDO (multi-receta, validación de stock real) ----------
+let PQ_PEDIDO = { cliente: null, lineas: {} }; // lineas: id_receta → { nombre, cantidad, precio }
+
+async function openSelectClient() {
+  openView('view-select-client');
+  renderSelectClientList();
+}
+
+async function renderSelectClientList() {
+  const container = document.getElementById('client-select-list');
+  if (!container) return;
+  container.innerHTML = getLoadingHTML();
+  try {
+    const res = await apiFetch('/clientes?limit=100');
+    let clientes = Array.isArray(res?.data) ? res.data : (res?.data?.clientes || []);
+    const q = (document.getElementById('select-client-search')?.value || '').trim().toLowerCase();
+    if (q) {
+      clientes = clientes.filter(c =>
+        `${c.nombre || ''} ${c.apellido || ''}`.toLowerCase().includes(q) ||
+        (c.cedula || '').toLowerCase().includes(q) ||
+        (c.telefono || '').toLowerCase().includes(q));
+    }
+    if (clientes.length === 0) {
+      container.innerHTML = getEmptyHTML('No hay clientes que coincidan.');
+      return;
+    }
+    container.innerHTML = clientes.map(c => {
+      const nombre = `${c.nombre || ''} ${c.apellido || ''}`.trim();
+      const iniciales = (c.nombre || '?').slice(0, 1).toUpperCase() + (c.apellido || '').slice(0, 1).toUpperCase();
+      return `
+      <div class="flex items-center justify-between p-2 rounded-xl hover:bg-surface-container transition-colors cursor-pointer" onclick="selCliente(${c.id_cliente})">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center font-title-sm text-sm text-on-primary-container">${iniciales}</div>
+          <div><h3 class="font-label-bold text-sm text-on-surface">${nombre}</h3><p class="font-body-sm text-xs text-on-surface-variant">${c.cedula || '—'} • ${c.telefono || '—'}</p></div>
+        </div>
+        <span class="material-symbols-outlined text-xs text-outline-variant">chevron_right</span>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    container.innerHTML = getErrorHTML('No se pudieron cargar los clientes.', 'openSelectClient()');
+  }
+}
+
+function selCliente(id) {
+  apiFetch(`/clientes?limit=100`).then(res => {
+    const arr = Array.isArray(res?.data) ? res.data : (res?.data?.clientes || []);
+    const c = arr.find(x => x.id_cliente === id);
+    PQ_PEDIDO = { cliente: c || { id_cliente: id }, lineas: {} };
+    document.getElementById('new-order-client').textContent = `Cliente: ${c ? `${c.nombre} ${c.apellido || ''}`.trim() : '#' + id}`;
+    openView('view-new-order');
+    cargarRecetasPedido();
+  });
+}
+
+async function cargarRecetasPedido() {
+  const container = document.getElementById('new-order-recetas');
+  container.innerHTML = getLoadingHTML();
+  try {
+    const res = await apiFetch('/recetas?limit=50');
+    const recetas = Array.isArray(res?.data) ? res.data : [];
+    if (recetas.length === 0) {
+      container.innerHTML = getEmptyHTML('No hay recetas registradas. Crea una en "Recetas y Producción".');
+      return;
+    }
+    // precio sugerido real de cada receta (calculadora del asistente)
+    const precios = await Promise.all(recetas.map(r =>
+      apiFetch(`/recetas/${r.id_receta}/simular-costo`).then(pc => pc?.data?.precioSugerido?.USD ?? null).catch(() => null)
+    ));
+
+    // fecha de entrega por defecto: mañana
+    const manana = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const dateEl = document.getElementById('new-order-date');
+    if (dateEl && !dateEl.value) dateEl.value = manana;
+
+    PQ_PEDIDO.lineas = {};
+    container.innerHTML = recetas.map((r, i) => {
+      const precio = precios[i] ?? (r.precio_sugerido != null ? parseFloat(r.precio_sugerido) : null);
+      return `
+      <div class="product-card bg-surface-container-lowest rounded-xl p-3 card-shadow flex gap-3 items-center" data-receta="${r.id_receta}">
+        <div class="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container flex items-center justify-center"><span class="material-symbols-outlined text-4xl text-primary">cake</span></div>
+        <div class="flex-grow" style="min-width:0;">
+          <h3 class="font-title-sm text-sm text-on-surface">${r.nombre_receta}</h3>
+          <div class="flex items-center gap-1 mt-0.5">
+            <span class="px-2 py-0.5 bg-surface-container rounded-full text-[11px] text-on-surface-variant ${r.RecetaIngredientes?.length === 0 ? 'text-error bg-error-container' : ''}" ${r.RecetaIngredientes?.length === 0 ? 'title="Receta sin ingredientes: no podrá pasar a En Cocina"' : ''}>${r.RecetaIngredientes?.length === 0 ? '⚠ sin ingredientes' : `${r.RecetaIngredientes.length} ingred.`}</span>
+            <span class="font-label-bold text-primary text-sm">${precio != null ? fmtMoney(precio) : 'precio libre'}</span>
+          </div>
+          <input class="w-24 mt-1 bg-surface-container-low rounded px-2 py-0.5 text-xs border border-outline-variant" type="number" min="0" step="0.01" value="${precio != null ? precio : ''}" placeholder="0.00"
+            id="lineaprecio-${r.id_receta}" oninput="lineaPrecioViva(${r.id_receta})" title="Precio unitario (editable)">
+        </div>
+        <div class="flex flex-col items-center bg-surface-container-low rounded-xl p-1">
+          <button class="stepper-btn material-symbols-outlined text-primary text-sm" onclick="pedirLinea(${r.id_receta}, 1)">add_circle</button>
+          <span class="font-label-bold py-0.5 text-sm" id="lineacant-${r.id_receta}">0</span>
+          <button class="stepper-btn material-symbols-outlined text-on-surface-variant text-sm" onclick="pedirLinea(${r.id_receta}, -1)">do_not_disturb_on</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    updPedidoFooter();
+  } catch (err) {
+    container.innerHTML = getErrorHTML('No se pudieron cargar las recetas.', 'openNewOrder()');
+  }
+}
+
+function pedirLinea(id, delta) {
+  const line = PQ_PEDIDO.lineas[id] || { cantidad: 0 };
+  let c = (line.cantidad || 0) + delta;
+  if (c < 0) c = 0;
+  const receta = document.querySelector(`#new-order-recetas [data-receta="${id}"] h3`);
+  PQ_PEDIDO.lineas[id] = {
+    nombre: receta ? receta.textContent : `Receta ${id}`,
+    cantidad: c,
+    precio: parseFloat(document.getElementById(`lineaprecio-${id}`)?.value) || 0,
+  };
+  const el = document.getElementById(`lineacant-${id}`);
+  if (el) el.textContent = c;
+  updPedidoFooter();
+}
+
+// sincroniza el precio editado sin tocar la cantidad
+function lineaPrecioViva(id) {
+  const precio = parseFloat(document.getElementById(`lineaprecio-${id}`)?.value) || 0;
+  if (PQ_PEDIDO.lineas[id]) {
+    PQ_PEDIDO.lineas[id].precio = precio;
+  } else {
+    const receta = document.querySelector(`#new-order-recetas [data-receta="${id}"] h3`);
+    PQ_PEDIDO.lineas[id] = { nombre: receta ? receta.textContent : `Receta ${id}`, cantidad: 0, precio };
+  }
+  updPedidoFooter();
+}
+
+function updPedidoFooter() {
+  const total = Object.values(PQ_PEDIDO.lineas).reduce((s, l) => s + l.cantidad * (l.precio || 0), 0);
+  const el = document.getElementById('new-order-total');
+  if (el) el.innerHTML = fmtMoneyHTML(total);
+}
+
+async function submitNewOrder() {
+  const cliente = PQ_PEDIDO.cliente;
+  if (!cliente?.id_cliente) { showToast('Selecciona un cliente primero', 'error'); return; }
+  const fechaEntrega = document.getElementById('new-order-date')?.value;
+  if (!fechaEntrega) { showToast('Indica la fecha de entrega', 'error'); return; }
+  const detalles = Object.entries(PQ_PEDIDO.lineas)
+    .filter(([, l]) => l.cantidad > 0)
+    .map(([id, l]) => ({ id_receta: Number(id), cantidad: l.cantidad, precio_unitario: l.precio }));
+
+  if (detalles.length === 0) { showToast('Agrega al menos una receta', 'error'); return; }
+
+  showToast('Verificando stock con FIFO…', 'info');
+  const estadoPago = document.getElementById('new-order-pago')?.value || 'Pendiente';
+
+  try {
+    // Validación de stock real: la API verifica por porción de receta -> multiplicar por cantidad pedida
+    const checks = await Promise.all(detalles.map(d =>
+      Promise.all([
+        apiFetch(`/recetas/${d.id_receta}/verificar-stock`).catch(() => ({ data: { suficiente: true, detalles: [] } })),
+        apiFetch(`/recetas/${d.id_receta}`).catch(() => null),
+      ]).then(([chk, rec]) => ({ chk, cantidad: d.cantidad, nombre: PQ_PEDIDO.lineas[d.id_receta]?.nombre || `Receta ${d.id_receta}` }))
+    ));
+    const faltantes = [];
+    checks.forEach(({ chk, cantidad, nombre }) => {
+      const dets = chk?.data?.detalles || [];
+      dets.filter(x => cantidad * parseFloat(x.requerido ?? 0) > parseFloat(x.disponible ?? 0)).forEach(x => faltantes.push({
+        ingrediente: x.ingrediente || `Ingrediente #${x.id_ingrediente ?? '?'}`,
+        receta: nombre,
+        disponible: parseFloat(x.disponible ?? 0),
+        requerido: cantidad * parseFloat(x.requerido ?? 0),
+      }));
+    });
+    if (faltantes.length > 0) {
+      const listEl = document.getElementById('stock-error-list');
+      if (listEl) {
+        listEl.innerHTML = `<ul>${faltantes.map(d => `
+          <li class="flex items-start gap-2 mb-2"><span class="material-symbols-outlined text-error text-sm">remove_shopping_cart</span>
+          <div class="text-sm"><span class="font-label-bold text-on-surface">${d.ingrediente}</span> <span class="text-on-surface-variant text-xs">(para ${d.receta})</span><br>
+          <span class="text-on-surface-variant">Disponible: <span class="text-error font-semibold">${d.disponible}</span></span>
+          <span class="text-on-surface-variant mx-1">•</span>
+          <span class="text-on-surface-variant">Requerido: <span class="text-primary font-semibold">${d.requerido}</span></span></div></li>`).join('')}</ul>`;
+      }
+      openView('view-stock-error');
+      return;
+    }
+
+    const res = await apiFetch('/pedidos', {
+      method: 'POST',
+      body: JSON.stringify({
+        id_cliente: cliente.id_cliente,
+        fecha_entrega: fechaEntrega,
+        estado_pago: estadoPago,
+        monto_abonado: estadoPago === 'Pagado' ? detalles.reduce((s, d) => s + d.cantidad * d.precio_unitario, 0) : 0,
+        detalles,
+      }),
+    });
+    const pedido = res?.data || {};
+    // tarjeta de éxito real
+    const idEl = document.getElementById('success-pedido-id');
+    if (idEl) idEl.textContent = `PEDIDO #${pedido.id_pedido ?? '—'}`;
+    const estEl = document.getElementById('success-pedido-estado');
+    if (estEl) estEl.textContent = pedido.estado_entrega || 'Por Preparar';
+    const linEl = document.getElementById('success-pedido-lineas');
+    if (linEl) linEl.innerHTML = detalles.map(d => `
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm">cake</span>
+      <span class="font-body-md text-sm">${d.cantidad} × ${PQ_PEDIDO.lineas[d.id_receta]?.nombre || `Receta ${d.id_receta}`}</span></div>`).join('');
+    openView('view-order-success');
+    PJ_resetPedido();
+    renderOrders();
+    renderDashboard();
+    showToast('Pedido registrado ✓', 'ok');
+  } catch (err) {
+    showToast(err.message || 'Error al crear el pedido', 'error');
+  }
+}
+
+function PJ_resetPedido() {
+  PQ_PEDIDO = { cliente: null, lineas: {} };
+}
+
+// ---------- COMPRAS: completar lista → genera lotes (RF-02) ----------
+async function completarLista(idLista) {
+  if (!confirm('¿Completar la lista y generar los lotes en inventario?')) return;
+  try {
+    await apiFetch(`/compras/listas/${idLista}/completar`, { method: 'PATCH', body: JSON.stringify({}) });
+    showToast(`Lista #${idLista} completada ✓ lotes creados`, 'ok');
+    openAuthedModule('compras');
+    renderInventory();
+    checkAlertBadgesOnLoad();
+  } catch (err) {
+    showToast(err.message || 'Error al completar la lista', 'error');
   }
 }
 

@@ -1340,12 +1340,9 @@
     </div>
     <div class="bg-surface-container-lowest rounded-xl card-shadow p-4">
       <h2 class="font-headline-md text-lg text-on-surface mb-3">¿Quién compra hoy?</h2>
-      <div class="relative mb-3 group"><span class="material-symbols-outlined absolute left-0 top-1/2 -translate-y-1/2 text-outline text-sm">search</span><input class="w-full pl-6 pr-2 py-1 bg-transparent border-b border-outline-variant focus:border-primary focus:ring-0 focus:bg-[#FFF8E1] transition-all font-body-md text-sm" placeholder="Buscar por nombre, cédula o teléfono" type="text"></div>
+      <div class="relative mb-3 group"><span class="material-symbols-outlined absolute left-0 top-1/2 -translate-y-1/2 text-outline text-sm">search</span><input class="w-full pl-6 pr-2 py-1 bg-transparent border-b border-outline-variant focus:border-primary focus:ring-0 focus:bg-[#FFF8E1] transition-all font-body-md text-sm" placeholder="Buscar por nombre, cédula o teléfono" type="text" id="select-client-search" oninput="renderSelectClientList()"></div>
       <button class="flex items-center justify-center gap-1 w-full h-[40px] bg-primary-container text-on-primary-container rounded-xl font-button-text text-button-text hover:brightness-90 active:scale-95 transition-all text-sm mb-3" onclick="openRegisterClient()"><span class="material-symbols-outlined text-sm">person_add</span> Registrar Nuevo Cliente</button>
-      <div class="space-y-2">
-        <div class="flex items-center justify-between p-2 rounded-xl hover:bg-surface-container transition-colors cursor-pointer" onclick="openNewOrder()"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center font-title-sm text-sm text-on-primary-container">AM</div><div><h3 class="font-label-bold text-sm text-on-surface">Ana Martínez</h3><p class="font-body-sm text-xs text-on-surface-variant">V-12.345.678 • 0424-1234567</p></div></div><span class="material-symbols-outlined text-xs text-outline-variant">chevron_right</span></div>
-        <div class="flex items-center justify-between p-2 rounded-xl hover:bg-surface-container transition-colors cursor-pointer" onclick="openNewOrder()"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center font-title-sm text-sm text-on-primary-container">RG</div><div><h3 class="font-label-bold text-sm text-on-surface">Ricardo Gómez</h3><p class="font-body-sm text-xs text-on-surface-variant">V-10.987.654 • 0412-9876543</p></div></div><span class="material-symbols-outlined text-xs text-outline-variant">chevron_right</span></div>
-      </div>
+      <div class="space-y-2" id="client-select-list"></div>
       <div class="flex items-center gap-2 bg-[#FFF8E1] p-2 rounded-xl border border-primary-container/20 mt-3"><span class="material-symbols-outlined text-xs text-on-primary-container" style="font-variation-settings:'FILL'1;">stars</span><span class="font-body-sm text-xs text-on-primary-container">Los clientes frecuentes acumulan puntos Sprinkle.</span></div>
     </div>
   </div>
@@ -1356,23 +1353,26 @@
       <button class="back-btn material-symbols-outlined" onclick="closeView('view-new-order')">arrow_back</button>
       <span class="title">Nuevo Pedido</span>
     </div>
-    <div class="relative mb-4"><span class="material-symbols-outlined absolute left-0 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span><input class="search-input w-full pl-6 py-1 font-body-md text-sm placeholder:text-on-surface-variant/50" placeholder="Buscar producto o receta" type="text"></div>
-    <div class="space-y-3">
-      <div class="product-card bg-surface-container-lowest rounded-xl p-3 card-shadow flex gap-3 items-center">
-        <div class="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container"><span class="material-symbols-outlined text-4xl text-primary">donut_small</span></div>
-        <div class="flex-grow"><h3 class="font-title-sm text-sm text-on-surface">Donas de Chocolate</h3><div class="flex items-center gap-1 mt-0.5"><span class="px-2 py-0.5 bg-surface-container rounded-full text-[11px] text-on-surface-variant">Disp: 50 un</span><span class="font-label-bold text-primary text-sm">$1.50</span></div></div>
-        <div class="flex flex-col items-center bg-surface-container-low rounded-xl p-1"><button class="stepper-btn material-symbols-outlined text-primary text-sm">add_circle</button><span class="font-label-bold py-0.5 text-sm">12</span><button class="stepper-btn material-symbols-outlined text-on-surface-variant text-sm">do_not_disturb_on</button></div>
+    <div class="font-body-sm text-xs text-on-surface-variant mb-2" id="new-order-client">Cliente: —</div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+      <div>
+        <label class="font-label-bold text-label-bold text-secondary mb-1 block text-xs">Fecha de entrega</label>
+        <input class="w-full bg-surface-container-lowest border-b border-outline-variant py-1 px-2 font-body-md text-sm rounded-lg" id="new-order-date" type="date">
       </div>
-      <div class="product-card bg-surface-container-lowest rounded-xl p-3 card-shadow flex gap-3 items-center">
-        <div class="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container"><span class="material-symbols-outlined text-4xl text-primary">cake</span></div>
-        <div class="flex-grow"><h3 class="font-title-sm text-sm text-on-surface">Pastel de Vainilla</h3><div class="flex items-center gap-1 mt-0.5"><span class="px-2 py-0.5 bg-surface-container rounded-full text-[11px] text-on-surface-variant">Disp: 5 un</span><span class="font-label-bold text-primary text-sm">$20.00</span></div></div>
-        <div class="flex flex-col items-center bg-surface-container-low rounded-xl p-1"><button class="stepper-btn material-symbols-outlined text-primary text-sm">add_circle</button><span class="font-label-bold py-0.5 text-sm">1</span><button class="stepper-btn material-symbols-outlined text-on-surface-variant text-sm">do_not_disturb_on</button></div>
+      <div>
+        <label class="font-label-bold text-label-bold text-secondary mb-1 block text-xs">Estado de pago inicial</label>
+        <select class="w-full bg-surface-container-lowest border-b border-outline-variant py-1 px-2 font-body-md text-sm rounded-lg" id="new-order-pago">
+          <option selected value="Pendiente">Pendiente</option>
+          <option value="Adelantado">Adelantado</option>
+          <option value="Pagado">Pagado</option>
+        </select>
       </div>
     </div>
+    <div class="space-y-3" id="new-order-recetas"></div>
     <div class="fixed bottom-24 left-0 w-full px-4 pointer-events-none">
       <div class="bg-surface-container-lowest p-3 rounded-2xl shadow-[0px_-4px_12px_rgba(0,0,0,0.08)] flex flex-col gap-2 pointer-events-auto border border-outline-variant/10 max-w-[440px] mx-auto">
-        <div class="flex justify-between items-center"><span class="text-body-sm text-xs text-on-surface-variant">Total acumulado</span><span class="font-display-lg text-lg text-on-surface">$38.00</span></div>
-        <button class="py-2 bg-primary-container text-on-primary-container rounded-xl font-button-text text-button-text shadow-md hover:brightness-95 active:scale-[0.98] transition-all text-sm" onclick="openOrderSuccess()">Siguiente</button>
+        <div class="flex justify-between items-center"><span class="text-body-sm text-xs text-on-surface-variant">Total acumulado</span><span class="font-display-lg text-lg text-on-surface" id="new-order-total">—</span></div>
+        <button class="py-2 bg-primary-container text-on-primary-container rounded-xl font-button-text text-button-text shadow-md hover:brightness-95 active:scale-[0.98] transition-all text-sm" onclick="submitNewOrder()">Verificar Stock y Enviar</button>
       </div>
     </div>
   </div>
@@ -1385,14 +1385,14 @@
     </div>
     <div class="flex flex-col items-center text-center">
       <div class="w-20 h-20 bg-tertiary-container text-on-tertiary-container rounded-full flex items-center justify-center mb-4 shadow-lg"><span class="material-symbols-outlined text-4xl" style="font-variation-settings:'wght'600;">check_circle</span></div>
-      <h2 class="font-headline-md text-lg text-on-surface mb-1">¡Pedido Procesado con Éxito!</h2>
-      <p class="text-body-sm text-secondary mb-4">El pedido #1045 ha pasado a producción y el inventario se ha actualizado.</p>
-      <div class="w-full bg-surface-container-lowest rounded-xl p-4 card-shadow text-left mb-4">
-        <div class="flex justify-between items-center mb-2"><span class="font-label-bold text-label-bold text-outline text-xs">PEDIDO ID: #1045</span><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-bold uppercase">En Cocina</span></div>
-        <div class="space-y-1 mb-2"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm">cake</span><span class="font-body-md text-sm">Pastel de Chocolate</span></div><div class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm">donut_small</span><span class="font-body-md text-sm">Donas de Chocolate</span></div></div>
-        <div class="bg-[#FFF8E1] border border-primary-fixed-dim rounded-lg p-2 flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings:'FILL'1;">inventory</span><p class="font-body-sm text-xs text-on-primary-container">Se ha aplicado el descuento FIFO a los ingredientes.</p></div>
+      <h2 class="font-headline-md text-lg text-on-surface mb-1">¡Pedido Registrado con Éxito!</h2>
+      <p class="text-body-sm text-secondary mb-4">El pedido quedó en producción y está listo para prepararse.</p>
+      <div class="w-full bg-surface-container-lowest rounded-xl p-4 card-shadow text-left mb-4" id="success-pedido-card">
+        <div class="flex justify-between items-center mb-2"><span class="font-label-bold text-label-bold text-outline text-xs" id="success-pedido-id">PEDIDO #—</span><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-bold uppercase" id="success-pedido-estado">Por Preparar</span></div>
+        <div class="space-y-1 mb-2" id="success-pedido-lineas"></div>
+        <div class="bg-[#FFF8E1] border border-primary-fixed-dim rounded-lg p-2 flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings:'FILL'1;">inventory</span><p class="font-body-sm text-xs text-on-primary-container">Al pasar a "En Cocina" se descontarán los ingredientes automáticamente (FIFO).</p></div>
       </div>
-      <button class="w-full h-[44px] bg-primary-container text-on-primary-container rounded-xl font-button-text text-button-text hover:brightness-90 active:scale-[0.98] transition-all shadow-md text-sm" onclick="closeView('view-order-success')">Ver Lista de Pedidos</button>
+      <button class="w-full h-[44px] bg-primary-container text-on-primary-container rounded-xl font-button-text text-button-text hover:brightness-90 active:scale-[0.98] transition-all shadow-md text-sm" onclick="closeView('view-order-success'); switchTab('orders');">Ver Lista de Pedidos</button>
     </div>
   </div>
 
@@ -1402,11 +1402,8 @@
       <button class="back-btn material-symbols-outlined" onclick="closeView('view-order-detail')">arrow_back</button>
       <span class="title">Detalle de Pedido</span>
     </div>
-    <div class="space-y-4">
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2"><div><div class="flex items-center gap-2"><h2 class="font-headline-md text-lg">Pedido #1045</h2><span class="bg-[#FFF8E1] text-[#FFC107] px-2 py-0.5 rounded-full font-label-bold text-xs flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-[#FFC107]"></span>Pendiente</span></div><p class="font-body-sm text-xs text-on-surface-variant">Realizado el 20 de Junio, 2024</p></div><div class="flex flex-wrap gap-2"><button class="bg-primary-container hover:opacity-90 active:scale-95 transition-all text-on-primary-container h-[40px] px-4 rounded-xl font-button-text text-button-text flex items-center gap-1 text-sm"><span class="material-symbols-outlined text-sm">sync_alt</span> Cambiar Estado</button></div></div>
-      <div class="bg-surface-container-lowest rounded-xl card-shadow p-4"><h3 class="font-title-sm text-sm mb-3 border-b border-surface-variant pb-2">Información del Cliente</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container"><span class="material-symbols-outlined text-sm">person</span></div><div><p class="font-label-bold text-xs text-on-surface-variant">Cliente</p><p class="font-body-md text-sm font-semibold">Juan Pérez</p><p class="font-body-sm text-xs text-on-surface-variant">555-0123</p></div></div><div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed"><span class="material-symbols-outlined text-sm">local_shipping</span></div><div><p class="font-label-bold text-xs text-on-surface-variant">Envío</p><p class="font-body-md text-sm font-semibold">Av. Las Flores 123</p><p class="font-body-sm text-xs text-on-surface-variant">Delivery Solicitado: Sí 🚚</p></div></div></div></div>
-      <div class="bg-surface-container-lowest rounded-xl card-shadow overflow-hidden"><div class="p-4 border-b border-surface-variant"><h3 class="font-title-sm text-sm">Productos del Pedido</h3></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse text-sm"><thead class="bg-surface-container-low"><tr><th class="px-4 py-2 font-label-bold text-on-surface-variant">Producto</th><th class="px-4 py-2 font-label-bold text-on-surface-variant text-center">Cant.</th><th class="px-4 py-2 font-label-bold text-on-surface-variant text-right">Total</th></tr></thead><tbody><tr><td class="px-4 py-2"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">cake</span> Pastel de Chocolate</div></td><td class="px-4 py-2 text-center">1</td><td class="px-4 py-2 text-right font-semibold">$25.00</td></tr><tr><td class="px-4 py-2"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">celebration</span> Velas</div></td><td class="px-4 py-2 text-center">1</td><td class="px-4 py-2 text-right font-semibold">$0.50</td></tr></tbody></table></div></div>
-      <div class="bg-surface-container-lowest rounded-xl card-shadow p-4"><h3 class="font-title-sm text-sm mb-3 border-b border-surface-variant pb-2">Resumen</h3><div class="space-y-2"><div class="flex justify-between"><span class="text-body-sm text-xs text-on-surface-variant">Subtotal</span><span class="text-body-sm text-sm font-semibold">$25.50</span></div><div class="flex justify-between"><span class="text-body-sm text-xs text-on-surface-variant">Descuento</span><span class="text-body-sm text-sm text-tertiary">-$0.00</span></div><div class="flex justify-between pt-2 border-t border-surface-variant"><span class="font-title-sm text-sm">Total</span><span class="font-display-lg text-lg text-[#FFC107] font-bold">$25.50</span></div></div><div class="bg-surface-container-low rounded-lg p-2 mt-3"><div class="flex items-center justify-between"><span class="font-label-bold text-xs text-on-surface-variant">Estado de Pago</span><span class="text-error font-label-bold text-xs">Pendiente</span></div></div></div>
+    <div class="space-y-4" id="order-detail-body">
+      <div class="p-4 text-center"><div class="loader-ring"></div><p class="mt-2 text-sm text-secondary">Cargando pedido...</p></div>
     </div>
   </div>
 
@@ -1419,10 +1416,10 @@
     <div class="flex flex-col items-center text-center">
       <div class="w-16 h-16 bg-error-container text-error rounded-full flex items-center justify-center mb-4"><span class="material-symbols-outlined text-3xl" style="font-variation-settings:'FILL'1;">error</span></div>
       <h2 class="font-headline-md text-lg text-on-surface mb-2">❌ Stock insuficiente</h2>
-      <p class="text-body-sm text-on-surface text-sm">No hay suficiente stock para los siguientes productos:</p>
-      <div class="w-full bg-surface-container-low p-3 rounded-lg border-l-4 border-error mt-3 text-left"><ul><li class="flex items-start gap-2"><span class="material-symbols-outlined text-error text-sm">remove_shopping_cart</span><div class="text-sm"><span class="font-label-bold text-on-surface">Harina</span><br><span class="text-on-surface-variant">Disponible: <span class="text-error font-semibold">1kg</span></span><span class="text-on-surface-variant mx-1">•</span><span class="text-on-surface-variant">Requerido: <span class="text-primary font-semibold">2kg</span></span></div></li></ul></div>
+      <p class="text-body-sm text-on-surface text-sm">No hay suficiente stock para los siguientes ingredientes:</p>
+      <div class="w-full bg-surface-container-low p-3 rounded-lg border-l-4 border-error mt-3 text-left" id="stock-error-list"></div>
       <p class="text-body-sm text-xs text-on-surface-variant mt-3">Por favor, ajusta las cantidades o repón el inventario.</p>
-      <button class="w-full h-[44px] bg-primary-container text-on-primary-container rounded-xl font-button-text text-button-text shadow-md hover:brightness-90 active:scale-[0.98] transition-all text-sm mt-4" onclick="closeView('view-stock-error')">Entendido</button>
+      <button class="w-full h-[44px] bg-primary-container text-on-primary-container rounded-xl font-button-text text-button-text shadow-md hover:brightness-90 active:scale-[0.98] transition-all text-sm mt-4" onclick="closeView('view-stock-error'); openView('view-new-order');">Entendido</button>
     </div>
   </div>
 
