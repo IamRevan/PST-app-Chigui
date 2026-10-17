@@ -8,5 +8,6 @@ const router = Router();
 router.post('/login', AuthController.login);
 router.post('/register', validatePasswordMiddleware, AuthController.register);
 router.get('/perfil', authenticate, AuthController.perfil);
+router.put('/perfil', authenticate, AuthController.actualizarPerfil);
 
 module.exports = router;

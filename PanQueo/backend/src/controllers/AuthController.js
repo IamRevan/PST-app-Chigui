@@ -82,3 +82,27 @@ exports.perfil = async (req, res) => {
     res.status(500).json({ status: 'error', message: 'Error al obtener perfil' });
   }
 };
+
+exports.actualizarPerfil = async (req, res) => {
+  try {
+    const { nombre, apellido, telefono } = req.body;
+
+    const usuario = await Usuario.findByPk(req.usuario.id_usuario);
+    if (!usuario) {
+      return res.status(404).json({ status: 'error', message: 'Usuario no encontrado' });
+    }
+
+    const cambios = {};
+    if (nombre !== undefined) cambios.nombre = nombre;
+    if (apellido !== undefined) cambios.apellido = apellido;
+    if (telefono !== undefined) cambios.telefono = telefono;
+
+    await usuario.update(cambios);
+
+    const data = usuario.get({ plain: true });
+    delete data.password;
+    res.json({ status: 'success', data });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: 'Error al actualizar perfil' });
+  }
+};

@@ -357,7 +357,10 @@ function closeView(viewId) {
 }
 
 // Views triggers
-function openRegisterLot() { openView('view-register-lot'); }
+function openRegisterLot() {
+  openView('view-register-lot');
+  cargarIngredientesParaLote();
+}
 function openRegisterClient() { openView('view-register-client'); }
 function openClientHistory() { openView('view-client-history'); }
 function openProductDetail() { openView('view-product-detail'); }
@@ -368,8 +371,25 @@ function openNewOrder() { openView('view-new-order'); }
 function openOrderSuccess() { openView('view-order-success'); }
 function openOrderDetail() { openView('view-order-detail'); }
 function openStockError() { openView('view-stock-error'); }
-function openSettings() { openView('view-settings'); }
-function openEditProfile() { openView('view-edit-profile'); }
+function openSettings() {
+  openView('view-settings');
+  const sel = document.getElementById('settings-currency');
+  if (sel) sel.value = localStorage.getItem('PQ_CUR_MODE') || 'dual';
+}
+async function openEditProfile() {
+  openView('view-edit-profile');
+  try {
+    const res = await apiFetch('/auth/perfil');
+    const u = res?.data || {};
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+    set('ep-nombre', u.nombre);
+    set('ep-apellido', u.apellido);
+    set('ep-email', u.email);
+    set('ep-telefono', u.telefono);
+  } catch (err) {
+    showToast('No se pudo cargar tu perfil', 'error');
+  }
+}
 
 function openSecurity() { openModal('Seguridad', 'Gestión de contraseña y autenticación de dos factores.'); }
 function openHelp() { openModal('Ayuda & Soporte', 'Contacto con soporte técnico: soporte@panqueo.com'); }
@@ -679,6 +699,14 @@ async function openRecetaDetalle(id) {
           <span style="font-weight:600;">${i.Ingrediente?.nombre_ing || i.nombre_ing || `ID ${i.id_ingrediente}`}</span>
           <span>${parseFloat(i.cantidad_requerida)} ${i.Ingrediente?.unidad_medida || ''}</span>
         </div>`).join('')}
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button onclick="toolReceta(${id}, 'stock')" style="flex:1;padding:10px;border:0;border-radius:12px;background:#785900;color:#fff;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">inventory</span> Verificar stock
+        </button>
+        <button onclick="toolReceta(${id}, 'costo')" style="flex:1;padding:10px;border:0;border-radius:12px;background:#785900;color:#fff;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">calculate</span> Simular costo
+        </button>
+      </div>
     `;
   } catch (err) {
     body.innerHTML = getErrorHTML('No se pudo cargar la receta.', `openRecetaDetalle(${id})`);
@@ -892,7 +920,227 @@ async function renderInventory() {
 }
 
 function showProductDetails(id) {
-  openView('view-product-detail');
+  openIngredienteDetail(id);
+}
+
+// ---------- LOTES: formulario real (trazabilidad FEFO) ----------
+async function cargarIngredientesParaLote() {
+  const select = document.getElementById('lot-product');
+  if (!select) return;
+  select.innerHTML = '<option value="">Cargando ingredientes…</option>';
+  try {
+    const res = await apiFetch('/inventario/ingredientes?limit=100');
+    const items = Array.isArray(res?.data) ? res.data : [];
+    if (items.length === 0) {
+      select.innerHTML = '<option value="">Primero registra un ingrediente</option>';
+      return;
+    }
+    select.innerHTML = items.map(i =>
+      `<option value="${i.id_ingrediente}" data-unidad="${i.unidad_medida || ''}">${i.nombre_ing}</option>`
+    ).join('');
+    select.onchange = () => {
+      const opt = select.selectedOptions[0];
+      const unitEl = document.getElementById('lot-unit');
+      if (unitEl) unitEl.textContent = opt?.dataset.unidad || '';
+    };
+    select.onchange();
+    const hoy = new Date().toISOString().slice(0, 10);
+    const entryEl = document.getElementById('lot-entry');
+    if (entryEl && !entryEl.value) entryEl.value = hoy;
+  } catch (err) {
+    select.innerHTML = '<option value="">Error al cargar ingredientes</option>';
+  }
+}
+
+async function saveLote() {
+  const select = document.getElementById('lot-product');
+  const idIngrediente = select?.value;
+  const cantidad = parseFloat(document.getElementById('lot-qty')?.value);
+  const fechaIngreso = document.getElementById('lot-entry')?.value;
+  const fechaVenc = document.getElementById('lot-expiry')?.value;
+  const precio = document.getElementById('lot-price')?.value;
+  const moneda = document.getElementById('lot-coin')?.value || 'USD';
+
+  if (!idIngrediente) { showToast('Selecciona un ingrediente', 'error'); return; }
+  if (!cantidad || cantidad <= 0) { showToast('Cantidad inválida', 'error'); return; }
+  if (!fechaIngreso) { showToast('Indica la fecha de ingreso', 'error'); return; }
+  if (!fechaVenc) { showToast('Indica la fecha de vencimiento', 'error'); return; }
+
+  try {
+    await apiFetch('/inventario/lotes', {
+      method: 'POST',
+      body: JSON.stringify({
+        id_ingrediente: Number(idIngrediente),
+        cantidad_actual: cantidad,
+        fecha_ingreso: fechaIngreso,
+        fecha_venc: fechaVenc,
+        precio_compra_unitario: precio && parseFloat(precio) > 0 ? parseFloat(precio) : null,
+        moneda,
+      }),
+    });
+    closeView('view-register-lot');
+    showToast('Lote registrado ✓ (trazabilidad FEFO)', 'ok');
+    renderInventory();
+    checkAlertBadgesOnLoad();
+  } catch (err) {
+    showToast(err.message || 'Error al registrar el lote', 'error');
+  }
+}
+
+// ---------- INGREDIENTE: detalle con lotes + ajuste FEFO ----------
+async function openIngredienteDetail(id) {
+  const title = document.getElementById('pq-ing-title');
+  const sub = document.getElementById('pq-ing-sub');
+  const body = document.getElementById('pq-ing-body');
+  if (!body) return;
+  body.innerHTML = getLoadingHTML();
+  if (title) title.textContent = 'Ingrediente';
+  if (sub) sub.textContent = 'Lotes disponibles y ajuste de stock (FEFO).';
+  openSheet('sheet-ingrediente');
+
+  try {
+    const res = await apiFetch(`/inventario/ingredientes/${id}`);
+    const ing = res?.data || {};
+    const lotes = ing.LoteIngredientes || [];
+    if (title) title.textContent = ing.nombre_ing || 'Ingrediente';
+    if (sub) sub.textContent = `Stock actual: ${(ing.stock_actual ?? 0)} ${ing.unidad_medida || ''} · Mínimo: ${ing.stock_minimo ?? 0}`;
+
+    body.innerHTML = lotes.length === 0
+      ? getEmptyHTML('Sin lotes registrados. Usa "Agregar Lote".')
+      : `
+        <div style="font-weight:700;font-size:12px;text-transform:uppercase;color:var(--pq-on-surface-muted);margin-bottom:8px;">Lotes (procedimiento FEFO)</div>
+        ${lotes.map(l => {
+          const cant = parseFloat(l.cantidad_actual || 0);
+          const venc = l.fecha_venc ? l.fecha_venc.slice(0, 10) : '—';
+          const dias = l.fecha_venc ? Math.ceil((new Date(l.fecha_venc) - new Date()) / 86400000) : null;
+          const vencePronto = dias !== null && dias <= 7;
+          const precio = l.precio_compra_unitario ? `${monedaFmt(l.precio_compra_unitario, l.moneda)}` : '—';
+          return `
+          <div style="padding:10px 12px;border-radius:12px;background:var(--pq-surface-1);margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <div>
+                <div style="font-weight:600;font-size:13px;">Lote #${l.id_lote} · ${cant} ${ing.unidad_medida || ''}</div>
+                <div style="font-size:11px;color:var(--pq-on-surface-muted);">Vence ${venc}${dias !== null ? ` · ${dias >= 0 ? dias + ' días' : 'VENCIDO'}` : ''} · ${precio}</div>
+              </div>
+              ${vencePronto ? '<span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:999px;color:#b26a00;background:rgba(255,193,7,.15);">PRÓXIMO A VENCER</span>' : ''}
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="number" min="0" step="0.01" placeholder="Cantidad real"
+                style="flex:1;padding:8px 10px;border:1px solid var(--pq-outline);border-radius:10px;background:var(--pq-surface);color:var(--pq-on-surface);font-size:12px;"
+                id="ajuste-${l.id_lote}">
+              <button onclick="saveAjuste(${l.id_lote}, ${id})"
+                style="padding:8px 14px;border:0;border-radius:10px;background:#785900;color:#fff;font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;">Ajustar</button>
+            </div>
+          </div>`;
+        }).join('')}
+    `;
+  } catch (err) {
+    body.innerHTML = getErrorHTML('No se pudo cargar el ingrediente.', `openIngredienteDetail(${id})`);
+  }
+}
+
+function monedaFmt(v, moneda) {
+  const num = parseFloat(v || 0);
+  return moneda === 'Bs' ? `${num.toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs.` : `$ ${num.toFixed(2)}`;
+}
+
+async function saveAjuste(idLote, idIngrediente) {
+  const input = document.getElementById(`ajuste-${idLote}`);
+  const nuevaCantidad = input ? parseFloat(input.value) : NaN;
+  if (isNaN(nuevaCantidad) || nuevaCantidad < 0) {
+    showToast('Ingresa la cantidad real del lote', 'error');
+    return;
+  }
+  try {
+    const res = await apiFetch('/inventario/ajuste', {
+      method: 'POST',
+      body: JSON.stringify({ id_lote: idLote, nueva_cantidad: nuevaCantidad, motivo: 'Ajuste manual desde la web' }),
+    });
+    const anomalia = res?.data?.anomalia;
+    if (anomalia) {
+      showToast(`Ajustado, pero ojo: ${anomalia.mensaje}`, 'error');
+    } else {
+      showToast(`Lote #${idLote} ajustado a ${nuevaCantidad} ✓`, 'ok');
+    }
+    openIngredienteDetail(idIngrediente);
+    renderInventory();
+    checkAlertBadgesOnLoad();
+  } catch (err) {
+    showToast(err.message || 'Error al ajustar el lote', 'error');
+  }
+}
+
+// ---------- RECETAS: verificar stock + simular costo ----------
+async function toolReceta(id, tipo) {
+  const title = document.getElementById('pq-tool-title');
+  const sub = document.getElementById('pq-tool-sub');
+  const body = document.getElementById('pq-tool-body');
+  if (!body) return;
+  openSheet('sheet-receta-tool');
+  body.innerHTML = getLoadingHTML();
+
+  try {
+    if (tipo === 'stock') {
+      if (title) title.textContent = 'Verificar Stock';
+      if (sub) sub.textContent = '¿Ingredientes suficientes para producir esta receta?';
+      const [detalleRes, recetaRes] = await Promise.all([
+        apiFetch(`/recetas/${id}/verificar-stock`),
+        apiFetch(`/recetas/${id}`).catch(() => null),
+      ]);
+      const nombreReceta = recetaRes?.data?.nombre_receta;
+      if (nombreReceta && title) title.textContent = `Verificar Stock · ${nombreReceta}`;
+      const mapaNombres = new Map(((recetaRes?.data?.RecetaIngredientes) || [])
+        .map(ri => [ri.id_ingrediente, ri.Ingrediente?.nombre_ing || ri.Ingrediente?.nombre || null]));
+      const d = detalleRes?.data || {};
+      const detalles = d.detalles || [];
+      if (detalles.length === 0) {
+        body.innerHTML = getEmptyHTML('La receta no tiene ingredientes asociados.');
+        return;
+      }
+      body.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 12px;border-radius:12px;background:${d.suficiente ? 'rgba(76,175,80,.12)' : 'rgba(255,82,82,.12)'};">
+          <span class="material-symbols-outlined" style="color:${d.suficiente ? '#2e7d32' : '#c62828'};">${d.suficiente ? 'check_circle' : 'error'}</span>
+          <span style="font-weight:700;font-size:13px;color:${d.suficiente ? '#2e7d32' : '#c62828'};">${d.suficiente ? 'Stock suficiente para producir' : 'Stock insuficiente'}</span>
+        </div>
+        ${detalles.map(x => {
+          const ok = x.suficiente !== undefined ? x.suficiente : (parseFloat(x.disponible) >= parseFloat(x.requerido));
+          const nombre = x.ingrediente || x.nombre_ing || x.Ingrediente?.nombre_ing || mapaNombres.get(x.id_ingrediente) || `Ingrediente #${x.id_ingrediente}`;
+          return `
+          <div style="display:flex;justify-content:space-between;padding:8px 12px;border-radius:10px;background:var(--pq-surface-1);margin-bottom:5px;font-size:12px;">
+            <span style="font-weight:600;">${nombre}</span>
+            <span style="color:${ok ? 'var(--pq-ok,#2e7d32)' : '#c62828'};">Requiere ${parseFloat(x.cantidad_requerida ?? x.requerido ?? 0)} · Dispone ${parseFloat(x.disponible ?? 0)}</span>
+          </div>`;
+        }).join('')}
+      `;
+    } else {
+      if (title) title.textContent = 'Simular Costo';
+      if (sub) sub.textContent = 'Calculadora de precios con la tasa BCV vigente.';
+      const [costoRes] = await Promise.all([
+        apiFetch(`/recetas/${id}/simular-costo`),
+        apiFetch(`/recetas/${id}`).then(r => {
+          const nm = r?.data?.nombre_receta;
+          if (nm && title) title.textContent = `Simular Costo · ${nm}`;
+        }).catch(() => {}),
+      ]);
+      const c = costoRes?.data || {};
+      const cp = c.costoProduccion || {};
+      const pm = c.precioMinimoRecomendado || {};
+      const ps = c.precioSugerido || {};
+      const fila = (label, usd, bs, strong) => `
+        <div style="display:flex;justify-content:space-between;padding:${strong ? '10px' : '8px'} 12px;border-radius:10px;background:var(--pq-surface-1);margin-bottom:5px;font-size:${strong ? '13px' : '12px'};${strong ? 'font-weight:700;border:1px solid rgba(255,193,7,.35);' : ''}">
+          <span>${label}</span>
+          <span>$ ${parseFloat(usd ?? 0).toFixed(2)} · ${parseFloat(bs ?? 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs.</span>
+        </div>`;
+      body.innerHTML = `
+        ${fila('Costo de producción', cp.USD, cp.Bs)}
+        ${fila('Precio mínimo (20% margen)', pm.USD, pm.Bs)}
+        ${fila('Precio sugerido (35% margen)', ps.USD, ps.Bs, true)}
+        <div style="font-size:11px;color:var(--pq-on-surface-muted);margin-top:8px;">Márgenes: mínimo ${c.margenMinimo || '20%'} · sugerido ${c.margenSugerido || '35%'}</div>
+      `;
+    }
+  } catch (err) {
+    body.innerHTML = getErrorHTML('No se pudo calcular la herramienta.', `toolReceta(${id}, '${tipo}')`);
+  }
 }
 
 // --- ORDERS ---
@@ -1051,16 +1299,77 @@ async function showClientHistoryBackend(clientId) {
 }
 
 // --- PROFILE ---
-function renderProfile() {
-  const userJson = localStorage.getItem('user');
-  if (userJson) {
-    try {
-      const user = JSON.parse(userJson);
-      const profileName = document.querySelector('.profile-name');
-      const profileRole = document.querySelector('.profile-role');
-      if (profileName) profileName.textContent = user.nombre || 'Capibara Sprinkle';
-      if (profileRole) profileRole.textContent = user.rol || 'Administrador';
-    } catch (e) {}
+async function renderProfile() {
+  const nombreEl = document.querySelector('.profile-name');
+  const rolEl = document.querySelector('.profile-role');
+  const emailEl = document.getElementById('profile-email');
+  const phoneEl = document.getElementById('profile-phone');
+  const miembroEl = document.getElementById('stat-miembro');
+  const pedidosEl = document.getElementById('stat-pedidos');
+  const ingEl = document.getElementById('stat-ingredientes');
+
+  // Datos base del token almacenado (instantáneo)
+  let user = null;
+  try { user = JSON.parse(localStorage.getItem('user')); } catch (e) {}
+
+  try {
+    const res = await apiFetch('/auth/perfil');
+    const u = res?.data || user || {};
+    if (nombreEl) nombreEl.textContent = [u.nombre, u.apellido].filter(Boolean).join(' ') || 'PanQueo';
+    if (rolEl) rolEl.textContent = (u.rol || 'Propietario').charAt(0).toUpperCase() + (u.rol || 'Propietario').slice(1);
+    if (emailEl) emailEl.textContent = u.email || '—';
+    if (phoneEl) phoneEl.textContent = u.telefono || '—';
+    if (miembroEl) miembroEl.textContent = u.createdAt ? new Date(u.createdAt).toLocaleDateString('es-VE') : '—';
+
+    // Estadísticas reales
+    if (pedidosEl) {
+      apiFetch('/pedidos?limit=100').then(r => {
+        const pedidos = r?.data?.pedidos || [];
+        pedidosEl.textContent = pedidos.length;
+      }).catch(() => { pedidosEl.textContent = '—'; });
+    }
+    if (ingEl) {
+      apiFetch('/inventario/ingredientes?limit=100').then(r => {
+        const ings = Array.isArray(r?.data) ? r.data : [];
+        ingEl.textContent = ings.length;
+      }).catch(() => { ingEl.textContent = '—'; });
+    }
+  } catch (err) {
+    // fallback con datos de sesión local
+    if (nombreEl) nombreEl.textContent = user?.nombre || 'PanQueo';
+    if (rolEl) rolEl.textContent = user?.rol || 'Propietario';
+    if (emailEl) emailEl.textContent = user?.email || '—';
+  }
+}
+
+// Guardar cambios de perfil (PUT /auth/perfil)
+async function handleUpdateProfile() {
+  const btn = event?.target?.closest('form')?.querySelector('button[type="submit"]');
+  const original = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; }
+  try {
+    const nombre = document.getElementById('ep-nombre')?.value.trim();
+    const apellido = document.getElementById('ep-apellido')?.value.trim();
+    const telefono = document.getElementById('ep-telefono')?.value.trim();
+    if (!nombre) { showToast('El nombre es obligatorio', 'error'); return; }
+
+    const res = await apiFetch('/auth/perfil', {
+      method: 'PUT',
+      body: JSON.stringify({ nombre, apellido, telefono }),
+    });
+    const u = res?.data || {};
+    // sincronizar el usuario de la sesión local
+    let local = {};
+    try { local = JSON.parse(localStorage.getItem('user')) || {}; } catch (e) {}
+    localStorage.setItem('user', JSON.stringify({ ...local, ...u }));
+
+    closeView('view-edit-profile');
+    showToast('Perfil actualizado ✓', 'ok');
+    renderProfile();
+  } catch (err) {
+    showToast(err.message || 'No se pudo actualizar el perfil', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = original; }
   }
 }
 
@@ -1121,10 +1430,14 @@ function validateAdjustAmount(val) {
 }
 
 function setTheme(mode) {
-  const html = document.documentElement;
-  if (mode === 'dark') {
-    html.classList.add('dark');
-  } else {
-    html.classList.remove('dark');
-  }
+  localStorage.setItem('PQ_THEME', mode);
+  applyTheme(mode);
+}
+
+// Cambia el modo de visualización de la bimoneda desde Configuración
+function setPQCurrencyMode(mode) {
+  if (!['dual', 'usd', 'bs'].includes(mode)) return;
+  localStorage.setItem('PQ_CUR_MODE', mode);
+  renderRatePill();
+  renderAll();
 }

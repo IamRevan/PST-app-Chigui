@@ -103,6 +103,7 @@ exports.actualizar = async (req, res) => {
 
     res.json({ status: 'success', data: recetaCompleta });
   } catch (error) {
+    console.error('Error actualizar receta:', error);
     await transaction.rollback();
     res.status(500).json({ status: 'error', message: 'Error al actualizar receta' });
   }
