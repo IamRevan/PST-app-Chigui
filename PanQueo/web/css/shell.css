@@ -89,6 +89,44 @@ html.dark .alert-banner {
   color: #ffd76f;
 }
 
+/* ---------- MODO OSCURO: dashboard, barra superior y perfil ---------- */
+/* Dashboard: saludo en amarillo de marca + subtítulo legible */
+html.dark .greeting { color: #fabd00; }
+html.dark .greeting-sub { color: var(--pq-on-surface-muted); }
+/* Barra superior (donde están perfil y tasa BCV): iconos y bordes visibles */
+html.dark .top-bar .app-title { color: #fabd00; }
+html.dark .top-bar .notif-icon { color: var(--pq-on-surface); }
+html.dark .top-bar .notif-icon:hover { color: #fabd00; }
+html.dark .currency-toggle { background: var(--pq-surface-2); color: var(--pq-on-surface-muted); }
+html.dark .currency-toggle .curr-btn.active { background: #ffc107; color: #261a00; }
+/* Sheet de la tasa BCV: su color está puesto inline (#785900), se revierte aquí */
+html.dark #pq-tasa-current { color: #fabd00 !important; }
+/* Tab Perfil */
+html.dark .profile-card, html.dark .stats-card, html.dark .quick-access {
+  background: var(--pq-surface) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+html.dark .profile-avatar { background: var(--pq-surface-1); }
+html.dark .profile-name { color: var(--pq-on-surface); }
+html.dark .profile-contact { color: var(--pq-on-surface-muted); }
+html.dark .stats-card h4 { color: #fabd00; }
+html.dark .stat-line { border-bottom-color: rgba(255, 255, 255, 0.08); }
+html.dark .stat-line { color: var(--pq-on-surface-muted); }
+html.dark .stat-line strong { color: var(--pq-on-surface); }
+html.dark .level-badge { background: rgba(255, 193, 7, 0.18); color: #ffd76f; }
+html.dark .quick-item { border-bottom-color: rgba(255, 255, 255, 0.07); }
+html.dark .quick-item:hover { background: var(--pq-surface-2); }
+html.dark .quick-item .icon-box { background: var(--pq-surface-2); color: #fabd00; }
+html.dark .quick-item:hover .icon-box { background: #ffc107; color: #261a00; }
+html.dark .quick-item .label { color: var(--pq-on-surface); }
+html.dark .quick-item .chevron { color: var(--pq-on-surface-muted); }
+/* Texto genérico que venía con color claro fijo */
+html.dark .text-muted { color: var(--pq-on-surface-muted) !important; }
+html.dark .modal-box p { color: var(--pq-on-surface-muted) !important; }
+html.dark .modal-box h2, html.dark .modal-box h3 { color: var(--pq-on-surface); }
+html.dark .btn-logout { color: #ff8a80; border-color: rgba(255, 138, 128, 0.55); background: rgba(255, 138, 128, 0.06); }
+
 /* ---------- SIDEBAR DE ESCRITORIO (≥1024px) ---------- */
 .pq-sidebar {
   display: none;
