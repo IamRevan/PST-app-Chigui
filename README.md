@@ -1,77 +1,85 @@
 # PanQueo 🧁
 
-**Sistema de gestión inteligente para repostería** — MVP demo 100% funcional.
+**Sistema de gestión inteligente para repostería** — dual-dialecto: SQLite en desarrollo, PostgreSQL en producción.
 
-Tres aplicaciones en un mismo proyecto. El **MVP** es la web app (`PanQueo/web/`), que funciona sin servidor — solo abre el HTML.
+Tres aplicaciones en un mismo proyecto:
 
 | App | Stack | Estado |
 |-----|-------|--------|
-| **Web (MVP)** (`PanQueo/web/`) | HTML + CSS + JS vanilla | ✅ MVP completo — sin dependencias, usable al abrir el HTML |
+| **Web** (`PanQueo/web/`) | HTML + CSS + JS vanilla + Backend real | ✅ Fases 1–3.4 completas — shell escritorio, dark mode, bimoneda BCV, inventario FIFO real |
 | **Mobile** (`PanQueo/app/`) | React Native (Expo ~57), React Navigation 7 | 26 pantallas, navegación funcional, datos mock (requiere npm install + expo) |
-| **Backend** (`PanQueo/backend/`) | Node.js + Express + Sequelize + PostgreSQL | API REST con 10 controladores, 12 modelos, auth JWT |
+| **Backend** (`PanQueo/backend/`) | Node.js + Express + Sequelize | API REST con 10 controladores, 13 modelos, auth JWT, 91/91 tests |
 
 ---
 
-## Web App (MVP) — `PanQueo/web/`
+## Web App — `PanQueo/web/`
 
 ### Cómo iniciar
 
-Abrir `index.html` en cualquier navegador. No requiere servidor ni instalación.
+```bash
+cd PanQueo/backend
+npm install
+npm start                      # API en :3000 (sync auto de modelos en dev)
 
-### Funcionalidad
+# En otra terminal
+cd PanQueo/backend/scripts
+node serve_web.js              # Web estática en http://localhost:5500
+```
 
-**Auth**
-- Splash animado → Login con email y contraseña
-- Register con nombre, apellido, email, teléfono
-- Restablecer contraseña
-- Conexión al backend con fallback offline
+> El login requiere un usuario del backend. Usuario de prueba en SQLite:
+> `fase3@panqueo.test` / `Panqueo_2026`
 
-**Dashboard**
-- KPI cards: Pedidos Hoy, Stock Bajo, Por Cobrar, vs Ayer
-- Órdenes activas de producción
-- Toggle de moneda (Bs/USD)
+### Identidad visual
 
-**Inventario**
-- Lista de insumos con barra de nivel de stock
-- Badge de stock crítico con alerta visual
-- **Modal Ver Historial** — movimientos (entradas, salidas, ajustes) con resumen de stock
-- **Modal Restock / Reponer** — formulario de registro de lote con N° lote, cantidad, fechas, proveedor
+- Amarillo de marca `#ffc107` / marrón `#785900`, tipografías **Inter + Poppins**
+- Mascota: capibara `SPARKLE.png` (avatar) y muffin `PANQUEO ICONO.png` (logo)
+- **Modo oscuro** completo con conmutador en la barra superior (persiste en `localStorage`): dashboard, tarjetas KPI, pedidos, perfil, sheets, formularios y widgets nativos (`color-scheme: dark`)
 
-**Órdenes**
-- Filtros: Todos / Pendientes / En Cocina / Listos / Entregados
-- **Modal Ver Detalle** — cliente, estado, total, fecha, productos, tipo de entrega
-- Botón "+ Nuevo Pedido" agrega orden mock
+### Shell de escritorio (≥1024 px)
 
-**Clientes**
-- Lista con búsqueda
-- **Modal Perfil de Cliente** — email, dirección, total pedidos, última orden
-- **Modal Nuevo Cliente** — formulario con nombre, teléfono, email, dirección
+- **Sidebar fija** con módulos, badges de alertas (stock bajo / cocina) y estado de la API en vivo
+- Bottom nav de móvil se oculta; el contenido pasa a un layout ancho
+- Vistas full-screen (detalle de pedido, etc.) se presentan como **tarjeta modal de trabajo** (680 px) con backdrop
 
-**Perfil**
-- Tarjeta de perfil con avatar, nombre, rol, email, teléfono
-- **Modal Editar Perfil** — formulario para editar nombre, email, teléfono
-- Estadísticas: miembro desde, pedidos gestionados, nivel
-- Cerrar sesión
+### Módulos
 
-**Notificaciones**
-- Modal con lista de notificaciones (stock bajo, lotes por vencer, pedidos completados)
-- Accesible desde el ícono 🔔 en el nav
+**Dashboard** — KPIs reales (pedidos, stock bajo, por cobrar, entrega hoy), producción activa con badge "En Cocina".
 
-### Sistema de modales
+**Inventario y Lotes** — lista de ingredientes desde la API, **Registrar Lote** real (ingrediente, unidad, precio/moneda), detalle del ingrediente con sus lotes y **ajuste de inventario** (anomalía > 20 % → alerta). Track por fecha de vencimiento FEFO.
 
-Todos los `alert()` y `prompt()` fueron reemplazados por modales bottom-sheet con animación, que incluyen:
-- Formularios con validación (Restock, Nuevo Cliente, Editar Perfil)
-- Vistas de detalle (Órdenes, Clientes, Historial)
-- Confirmaciones visuales con checkmark
+**Listas de Compra** — listas sugeridas por la predicción; "Completar lista" genera lotes reales en el inventario.
+
+**Recetas y Producción** — catálogo y detalle con requerimientos de ingredientes; herramientas por receta: verificar stock y simular costo.
+
+**Pedidos** — nuevo pedido real multi-receta (cliente, fecha, estado de pago, cantidades con validación FIFO y pantalla de error de stock), pasar a **En Cocina consume inventario FIFO idempotente**, marcar pagado, tarjeta de éxito.
+
+**Clientes** — búsqueda, registro y perfil con historial desde la API.
+
+**Reportes** (nuevo · Fase 3.4) — tres pestañas:
+- **Producción**: unidades producidas con desglose por receta (multi-linea desde `pedido_detalles`)
+- **Mermas**: lotes vencidos con stock, cantidad y valor en riesgo
+- **Trazabilidad FEFO**: log de cada descuento FIFO (lote, vencimiento, pedido, fecha) con detector de violaciones FEFO
+
+**Calculadora de Precios** (nuevo · Fase 3.4) — elige receta, cantidad de porciones y margen configurable (slider 0–100 %): costo real por porción y total (bimoneda $ / Bs según tasa BCV), precio mínimo (margen 20 %), precio recomendado (35 %) y ganancia estimada.
+
+**Perfil y Tasa BCV** — perfil editable real (`PUT /auth/perfil`), estadísticas dinámicas, **tasa BCV editable en sheet** que alimenta toda la bimoneda.
+
+### Bimoneda BCV
+
+Píldora en la barra superior con 3 modos: **Dual ($ + Bs.) / Solo USD / Solo Bs.** — el modo y la tasa persisten en `localStorage` (`PQ_CURRENCY`) y formatean todos los montos (KPIs, pedidos, reportes, calculadora) con `fmtMoneyHTML`.
+
+### Sistema de sheets + toasts
+
+Todas las interacciones usan bottom-sheets animados (en escritorio, modales centrados) con toasts de feedback — sin `alert()`.
 
 ### Archivos
 
 | Archivo | Propósito |
 |---------|-----------|
-| `index.html` | Estructura completa (splash, auth, main, modal overlay) |
-| `css/style.css` | Estilos con tema claro, animaciones, responsive |
-| `js/app.js` | Toda la lógica: auth, tabs, modales, renders, mock data |
-| `assets/` | Recursos estáticos |
+| `index.html` | Shell completa: sidebar, top-bar, tabs, 9 sheets, vistas full-screen |
+| `css/style.css` | Estilos base del MVP (identidad amarilla) |
+| `css/shell.css` | Shell Fase 3: tokens dark/light, sidebar, sheets, toasts, bimoneda, reset de dark |
+| `js/app.js` | Toda la lógica: auth, tabs, bimoneda, sheets, pedidos FIFO, reportes, calculadora |
 
 ---
 
@@ -107,35 +115,41 @@ Success: `PedidoExitosoScreen`, `LoteExitosoScreen`, `RegistroExitosoScreen`
 cd PanQueo/backend
 npm install
 # Configurar .env (ver .env.example)
-npm run migrate
+npm run migrate     # PostgreSQL (producción)
 npm run seed
-npm start
+npm start           # En development sincroniza los modelos con SQLite
+npm test            # 91/91 tests
 ```
 
 ### Endpoints
 
 | Ruta | Módulo |
 |------|--------|
-| `/api/auth` | Login, register, refresh, logout |
-| `/api/inventario` | CRUD ingredientes, ajustes de stock |
-| `/api/pedidos` | CRUD pedidos, cambio de estado |
-| `/api/recetas` | CRUD recetas con ingredientes |
+| `/api/auth` | Login, register, perfil (`GET/PUT`), logout |
+| `/api/inventario` | CRUD ingredientes, lotes, **ajustes de stock**, **alertas** |
+| `/api/pedidos` | CRUD pedidos, **cambio de estado (consume FIFO idempotente)** |
+| `/api/recetas` | CRUD recetas con ingredientes, **simular-costo**, **verificar-stock** |
 | `/api/clientes` | CRUD clientes |
-| `/api/compras` | Listas de compra |
+| `/api/compras` | Listas de compra, **completar lista → genera lotes** |
 | `/api/finanzas` | Historial de tasa de cambio, sugerencia de precios (dual: Bs/USD) |
-| `/api/asistente` | Chat IA, anomalías, consumo promedio diario |
+| `/api/asistente` | Predicción de compras, anomalías, consumo promedio diario |
 | `/api/proveedores` | CRUD proveedores |
-| `/api/reportes` | Reportes de producción, mermas, balance de pedidos |
+| `/api/reportes` | **Producción (por receta)**, **mermas**, **trazabilidad FEFO**, balance de pedidos |
 
-### Modelos (12)
+### Modelos (13)
 
-`Usuario`, `Cliente`, `Ingrediente`, `LoteIngrediente`, `Receta`, `RecetaIngrediente`, `Pedido`, `ListaCompra`, `DetalleListaCompra`, `Proveedor`, `HistorialTasaCambio`, `AlertasVencimiento`
+`Usuario`, `Cliente`, `Ingrediente`, `LoteIngrediente`, `Receta`, `RecetaIngrediente`, `Pedido`, `DetallePedido`, `ListaCompra`, `DetalleListaCompra`, `Proveedor`, `HistorialTasaCambio`, `ConsumoLote`
 
 ### Servicios
 
-- `FIFOService` — valoración de inventario FIFO con rollback
-- `AsistenteService` — consumo promedio, detección de anomalías, sugerencia de precios dual
+- `FIFOService` — consumo de inventario por **fecha de vencimiento (FEFO/FIFO)** con validación previa, idempotencia por pedido y **log de trazabilidad** en `consumos_lote` dentro de la misma transacción
+- `AsistenteService` — predicción de compras, sugerencia de precios dual (Bs/USD) sobre lotes recientes
 - `AlertasService` — alertas de stock y vencimiento
+
+### Base de datos dual-dialecto
+
+- **Desarrollo**: SQLite (sync automático de modelos al arrancar; no necesita migraciones)
+- **Producción**: PostgreSQL vía migraciones Sequelize (compatibles con ambos dialectos; la migración `20261020000001-create-consumos-lote.js` crea la tabla de trazabilidad FEFO)
 
 ---
 
@@ -156,17 +170,20 @@ PST-app-Chigui/
 │   │   └── package.json
 │   ├── backend/        # Node.js + Express + Sequelize
 │   │   ├── src/
-│   │   │   ├── config/
+│   │   │   ├── config/        # Dual-dialecto: SQLite (dev) / PostgreSQL (prod)
 │   │   │   ├── controllers/   # 10 controladores
 │   │   │   ├── middleware/
-│   │   │   ├── models/        # 12 modelos
+│   │   │   ├── migrations/    # 13 migraciones (incl. consumos_lote)
+│   │   │   ├── models/        # 13 modelos
 │   │   │   ├── routes/        # 11 archivos de rutas
-│   │   │   └── services/      # 3 servicios
+│   │   │   └── services/      # FIFOService, AsistenteService, AlertasService
+│   │   ├── scripts/           # serve_web.js (estático :5500), setup-db.js
 │   │   ├── .env
 │   │   └── package.json
 │   └── web/            # HTML + CSS + JS vanilla
 │       ├── index.html
 │       ├── css/style.css
+│       ├── css/shell.css
 │       └── js/app.js
 ├── Documento de desarrollo Maestro My peaplo Toasty.md
 └── README.md
@@ -174,9 +191,10 @@ PST-app-Chigui/
 
 ---
 
-## Notas para el MVP
+## Notas
 
-- La **app mobile** funciona 100% con datos mock — no requiere backend
-- La **web app** tiene conexión al backend con fallback offline
-- El **backend** tiene bugs corregidos (transacciones, destructure, placeholders) y módulos completos (Proveedores, Reportes, moneda dual)
+- La **app mobile** funciona 100 % con datos mock — no requiere backend
+- La **web app** ahora está conectada al backend real: pedidos, inventario FIFO, compras, reportes y calculadora usan la API (JWT Bearer)
+- El **backend** mantiene fallback tolerante: si una receta del pedido no tiene ingredientes, el cambio a En Cocina falla con mensaje claro (sin descuentos parciales)
+- La carpeta `web/Nueva Propuesta/` es material de referencia de diseño y **no se commitea**
 - `stitch_sprinkle_prototipo_app/` y `tmp_expo/` están en `.gitignore` (prototipos de diseño AI y proyecto de prueba)

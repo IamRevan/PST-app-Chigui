@@ -855,10 +855,11 @@ async function openCalculadora() {
   const options = PQ_CALC.recetas.map(r =>
     `<option value="${r.id_receta}" ${r.id_receta === PQ_CALC.recetaId ? 'selected' : ''}>${r.nombre_receta}</option>`).join('');
   body.innerHTML = `
-    <div class="input-group"><div class="input-line">
-      <span class="input-icon material-symbols-outlined">bakery_dining</span>
+    <div class="pq-field">
+      <span class="material-symbols-outlined">bakery_dining</span>
       <select id="pq-calc-receta" onchange="calcRecetaChange()">${options}</select>
-    </div></div>
+      <span class="material-symbols-outlined">expand_more</span>
+    </div>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0;">
       <span style="font-size:12px;color:var(--pq-on-surface-muted);font-weight:600;">Cantidad a producir</span>
       <div style="display:flex;align-items:center;gap:10px;">

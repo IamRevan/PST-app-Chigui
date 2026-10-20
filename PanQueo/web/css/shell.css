@@ -32,6 +32,8 @@ html.dark {
   --pq-on-primary-container: #261a00;
   --pq-error-container: #5c1a1a;
   --pq-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  /* Widgets nativos (selects, ranges, scrollbars) integrados al tema oscuro */
+  color-scheme: dark;
 }
 
 /* ---------- MODO OSCURO: overrides de clases Tailwind del MVP ---------- */
@@ -253,6 +255,38 @@ html.dark .pq-sidebar-footer { background: var(--pq-surface-2); }
   /* La barra flotante del nuevo pedido queda anclada al viewport */
   .fsv-panel .fixed.bottom-24 { bottom: 40px; }
 }
+
+/* ---------- CAMPOS DE FORMULARIO EN SHEETS ---------- */
+/* Caja de selección integrada al tema (calculadora y módulos con select) */
+.pq-field {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; border-radius: 14px;
+  background: var(--pq-surface-1);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  margin-bottom: 16px;
+  color: var(--pq-on-surface-muted);
+  transition: border-color 0.2s;
+}
+.pq-field:focus-within { border-color: #ffc107; }
+.pq-field > .material-symbols-outlined { font-size: 22px; }
+.pq-field select {
+  flex: 1; min-width: 0;
+  border: 0; background: transparent; outline: none;
+  color: var(--pq-on-surface);
+  font-family: Inter, sans-serif; font-size: 14px; font-weight: 600;
+  cursor: pointer;
+}
+.pq-field select:focus { outline: none; }
+html.dark .pq-field { background: var(--pq-surface-2); border-color: rgba(255, 255, 255, 0.1); }
+
+/* Inputs estilo input-line (tasa BCV, etc.) legibles en dark */
+html.dark .input-line { border-bottom-color: rgba(255, 255, 255, 0.15); }
+html.dark .input-line input { color: var(--pq-on-surface); }
+html.dark .input-line input::placeholder { color: var(--pq-outline); }
+html.dark .input-icon, html.dark .input-eye { color: var(--pq-on-surface-muted); }
+
+/* Slider de margen, siempre de marca */
+#pq-calc-margin { height: 6px; cursor: pointer; }
 
 /* ---------- PESTAÑAS DE REPORTES ---------- */
 .pq-rep-tab {
