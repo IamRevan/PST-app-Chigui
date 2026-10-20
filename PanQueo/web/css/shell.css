@@ -254,6 +254,26 @@ html.dark .pq-sidebar-footer { background: var(--pq-surface-2); }
   .fsv-panel .fixed.bottom-24 { bottom: 40px; }
 }
 
+/* ---------- PESTAÑAS DE REPORTES ---------- */
+.pq-rep-tab {
+  flex: 1;
+  padding: 8px 14px;
+  border: 1px solid var(--pq-outline);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pq-on-surface-muted);
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.pq-rep-tab.active {
+  background: rgba(255, 193, 7, 0.18);
+  border-color: rgba(255, 193, 7, 0.45);
+  color: #785900;
+}
+html.dark .pq-rep-tab.active { color: #fabd00; }
+
 /* ---------- PILA DE MONEDA (BIMONEDA) ---------- */
 .pq-rate-pill {
   white-space: nowrap;

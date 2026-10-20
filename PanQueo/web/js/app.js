@@ -640,6 +640,7 @@ function updateAlertBadges(total) {
 // ---------- MÓDULOS SIDEBAR (compras / recetas) ----------
 async function openAuthedModule(name) {
   if (!isLoggedIn) return;
+  if (name === 'reportes') { openSheet('sheet-reportes'); await openAuthedModuleReportes(); return; }
   const title = document.getElementById('pq-module-title');
   const sub = document.getElementById('pq-module-sub');
   const body = document.getElementById('pq-module-body');
@@ -731,6 +732,221 @@ async function openRecetaDetalle(id) {
   } catch (err) {
     body.innerHTML = getErrorHTML('No se pudo cargar la receta.', `openRecetaDetalle(${id})`);
   }
+}
+
+// ---------- REPORTES (producción / mermas / trazabilidad FEFO) ----------
+let PQ_REP = { tab: 'produccion', produccion: null, mermas: null, trazabilidad: null };
+
+async function openAuthedModuleReportes() {
+  const body = document.getElementById('pq-rep-body');
+  body.innerHTML = getLoadingHTML();
+  const [prod, merm, traz] = await Promise.allSettled([
+    apiFetch('/reportes/produccion'),
+    apiFetch('/reportes/mermas'),
+    apiFetch('/reportes/trazabilidad?limit=50'),
+  ]);
+  PQ_REP.produccion = prod.status === 'fulfilled' ? (prod.value?.data || prod.value) : null;
+  PQ_REP.mermas = merm.status === 'fulfilled' ? (merm.value?.data || merm.value) : null;
+  PQ_REP.trazabilidad = traz.status === 'fulfilled' ? (traz.value?.data || traz.value) : null;
+  body.innerHTML = '';
+  renderReporteTab('produccion');
+}
+
+function renderReporteTab(tab) {
+  PQ_REP.tab = tab;
+  document.querySelectorAll('.pq-rep-tab').forEach(b => b.classList.toggle('active', b.dataset.repTab === tab));
+  const body = document.getElementById('pq-rep-body');
+  const box = (label, valueHTML, sub = '') => `
+    <div style="flex:1;min-width:0;padding:12px;border-radius:14px;background:var(--pq-surface-1);text-align:center;">
+      <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:22px;">${valueHTML}</div>
+      <div style="font-size:11px;color:var(--pq-on-surface-muted);margin-top:2px;">${label}</div>
+      ${sub ? `<div style="font-size:10px;opacity:.7;margin-top:2px;">${sub}</div>` : ''}
+    </div>`;
+
+  if (tab === 'produccion') {
+    const d = PQ_REP.produccion;
+    if (!d) return void (body.innerHTML = getErrorHTML('No se pudo cargar el reporte de producción.', "renderReporteTab('produccion')"));
+    const recetas = Object.entries(d.producidosPorReceta || {}).sort((a, b) => b[1] - a[1]);
+    const max = Math.max(1, ...recetas.map(r => r[1]));
+    body.innerHTML = `
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        ${box('Unidades producidas', d.totalProducido ?? '—', 'Listo · Cocina · Entregado')}
+      </div>
+      <div style="font-weight:700;font-size:12px;text-transform:uppercase;color:var(--pq-on-surface-muted);margin:4px 0 8px;">Por receta</div>
+      ${recetas.length === 0 ? getEmptyHTML('Aún no hay producción registrada.') : recetas.map(([n, c]) => `
+        <div style="margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+            <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n}</span>
+            <span style="font-weight:700;">${c}</span>
+          </div>
+          <div style="height:8px;border-radius:999px;background:rgba(255,193,7,.15);overflow:hidden;">
+            <div style="height:100%;width:${Math.round(c / max * 100)}%;background:#ffc107;border-radius:999px;"></div>
+          </div>
+        </div>`).join('')}
+    `;
+  } else if (tab === 'mermas') {
+    const d = PQ_REP.mermas;
+    if (!d) return void (body.innerHTML = getErrorHTML('No se pudo cargar el reporte de mermas.', "renderReporteTab('mermas')"));
+    const lotes = Array.isArray(d.lotes) ? d.lotes : [];
+    const conMoneda = lotes.filter(l => l.moneda === 'USD').length >= lotes.filter(l => l.moneda === 'Bs').length;
+    body.innerHTML = `
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        ${box('Lotes vencidos con stock', d.totalLotesVencidos ?? '—')}
+        ${box('Cantidad perdida', `${parseFloat(d.mermaTotal ?? 0)}`, 'unidades')}
+        ${box('Valor en riesgo', conMoneda ? fmtMoneyHTML(d.mermaValorEstimado) : fmtBs(d.mermaValorEstimado), 'según precio de compra')}
+      </div>
+      <div style="font-weight:700;font-size:12px;text-transform:uppercase;color:var(--pq-on-surface-muted);margin:4px 0 8px;">Detalle (FEFO)</div>
+      ${lotes.length === 0 ? getEmptyHTML('Sin mermas: ningún lote vencido con stock disponible. 🎉') : lotes.map(l => `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;border-radius:10px;background:rgba(255,138,128,.09);margin-bottom:5px;font-size:12px;">
+          <div style="min-width:0;">
+            <div style="font-weight:600;">${l.Ingrediente?.nombre_ing || `Ingrediente #${l.id_ingrediente}`}</div>
+            <div style="font-size:11px;color:var(--pq-on-surface-muted);">Lote #${l.id_lote} · venció ${String(l.fecha_venc).slice(0, 10)}</div>
+          </div>
+          <div style="font-weight:700;white-space:nowrap;">${parseFloat(l.cantidad_actual)} ${l.Ingrediente?.unidad_medida || ''}</div>
+        </div>`).join('')}
+    `;
+  } else {
+    const d = PQ_REP.trazabilidad;
+    if (!d) return void (body.innerHTML = getErrorHTML('No se pudo cargar la trazabilidad FEFO.', "renderReporteTab('trazabilidad')"));
+    const regs = Array.isArray(d.registros) ? d.registros : [];
+    body.innerHTML = `
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        ${box('Reposiciones FIFO', d.totalRegistros ?? '—')}
+        ${box('Ingrediente consumido', `${parseFloat(d.totalConsumido ?? 0)}`, 'unidades')}
+        ${box('Violaciones FEFO', `<span style="color:${d.violacionesFEFO ? '#ff8a80' : '#7ce17b'};">${d.violacionesFEFO ?? 0}</span>`, 'lote no más antiguo')}
+      </div>
+      <div style="font-weight:700;font-size:12px;text-transform:uppercase;color:var(--pq-on-surface-muted);margin:4px 0 8px;">Últimos descuentos por pedido</div>
+      ${regs.length === 0 ? getEmptyHTML('Sin consumos registrados aún: se generan al pasar un pedido a "En Cocina".') : regs.map(r => `
+        <div style="padding:9px 12px;border-radius:10px;background:var(--pq-surface-1);margin-bottom:5px;font-size:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.ingrediente}</span>
+            <span style="white-space:nowrap;font-weight:700;">${r.cantidad_consumida} ${r.fefo ? '' : ' ⚠️'}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--pq-on-surface-muted);margin-top:2px;">
+            <span>Lote #${r.lote?.id_lote ?? '?'} · venc. ${r.lote?.fecha_venc ? String(r.lote.fecha_venc).slice(0, 10) : '?'}</span>
+            <span>${r.pedido ? `Pedido #${r.pedido.id_pedido}` : 'Ajuste manual'} · ${String(r.fecha_consumo).slice(0, 16).replace('T', ' ')}</span>
+          </div>
+          ${r.fefo ? '' : `<div style="font-size:10px;color:#ff8a80;margin-top:3px;">No FEFO: se omitieron lotes más antiguos (#${r.lotes_mas_antiguos_omitidos.map(l => l.id_lote || l).join(', ')})</div>`}
+        </div>`).join('')}
+    `;
+  }
+}
+
+// ---------- CALCULADORA DE PRECIOS ----------
+let PQ_CALC = { recetas: [], recetaId: null, costo: null, qty: 1, margin: 35 };
+
+async function openCalculadora() {
+  openSheet('sheet-calculadora');
+  const body = document.getElementById('pq-calc-body');
+  if (PQ_CALC.recetas.length === 0) {
+    body.innerHTML = getLoadingHTML();
+    try {
+      const res = await apiFetch('/recetas?limit=50');
+      PQ_CALC.recetas = Array.isArray(res?.data) ? res.data : (res?.data?.recetas || res?.data?.items || []);
+    } catch (err) {
+      body.innerHTML = getErrorHTML('No se pudo cargar el catálogo de recetas.', 'openCalculadora()');
+      return;
+    }
+  }
+  if (PQ_CALC.recetas.length === 0) {
+    body.innerHTML = getEmptyHTML('Registra una receta primero para poder calcular su precio.');
+    return;
+  }
+  const options = PQ_CALC.recetas.map(r =>
+    `<option value="${r.id_receta}" ${r.id_receta === PQ_CALC.recetaId ? 'selected' : ''}>${r.nombre_receta}</option>`).join('');
+  body.innerHTML = `
+    <div class="input-group"><div class="input-line">
+      <span class="input-icon material-symbols-outlined">bakery_dining</span>
+      <select id="pq-calc-receta" onchange="calcRecetaChange()">${options}</select>
+    </div></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0;">
+      <span style="font-size:12px;color:var(--pq-on-surface-muted);font-weight:600;">Cantidad a producir</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button onclick="calcQty(-1)" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--pq-outline);background:var(--pq-surface-1);color:var(--pq-on-surface);font-size:18px;font-weight:700;cursor:pointer;">−</button>
+        <span id="pq-calc-qty" style="font-family:Poppins,sans-serif;font-weight:700;font-size:16px;min-width:26px;text-align:center;">1</span>
+        <button onclick="calcQty(1)" style="width:34px;height:34px;border-radius:10px;border:0;background:#ffc107;color:#261a00;font-size:18px;font-weight:700;cursor:pointer;">+</button>
+      </div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--pq-on-surface-muted);font-weight:600;margin-bottom:4px;">
+        <span>Margen de ganancia</span><span id="pq-calc-margin-label" style="color:#785900;font-weight:700;">35%</span>
+      </div>
+      <input type="range" min="0" max="100" step="5" value="35" id="pq-calc-margin" oninput="calcMargin(this.value)" style="width:100%;accent-color:#ffc107;">
+    </div>
+    <div id="pq-calc-result"></div>
+  `;
+  PQ_CALC.recetaId = Number(document.getElementById('pq-calc-receta').value);
+  await loadCalcCosto();
+}
+
+async function calcRecetaChange() {
+  PQ_CALC.recetaId = Number(document.getElementById('pq-calc-receta').value);
+  PQ_CALC.qty = 1;
+  const qtyEl = document.getElementById('pq-calc-qty');
+  if (qtyEl) qtyEl.textContent = '1';
+  await loadCalcCosto();
+}
+
+async function loadCalcCosto() {
+  const resEl = document.getElementById('pq-calc-result');
+  if (!resEl) return;
+  resEl.innerHTML = getLoadingHTML();
+  try {
+    const res = await apiFetch(`/recetas/${PQ_CALC.recetaId}/simular-costo`);
+    PQ_CALC.costo = res?.data || res;
+  } catch (err) {
+    PQ_CALC.costo = null;
+  }
+  renderCalcResult();
+}
+
+function calcQty(delta) {
+  PQ_CALC.qty = Math.max(1, Math.min(999, PQ_CALC.qty + delta));
+  const el = document.getElementById('pq-calc-qty');
+  if (el) el.textContent = String(PQ_CALC.qty);
+  renderCalcResult();
+}
+
+function calcMargin(v) {
+  PQ_CALC.margin = Number(v);
+  const el = document.getElementById('pq-calc-margin-label');
+  if (el) el.textContent = `${v}%`;
+  renderCalcResult();
+}
+
+function renderCalcResult() {
+  const resEl = document.getElementById('pq-calc-result');
+  if (!resEl) return;
+  const c = PQ_CALC.costo;
+  if (!c || !c.costoProduccion) {
+    resEl.innerHTML = getEmptyHTML('La receta no tiene lotes con precio de compra todavía: registra lotes para calcular su costo real.');
+    return;
+  }
+  const qty = PQ_CALC.qty;
+  const margen = (1 + PQ_CALC.margin / 100);
+  const costoU = parseFloat(c.costoProduccion.USD || 0);
+  const precioU = costoU * margen;
+  const precioMinU = parseFloat(c.precioMinimoRecomendado?.USD || precioU);
+  const precioSugU = parseFloat(c.precioSugerido?.USD || precioU);
+  const row = (label, v, strong = false) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:12px;">
+      <span style="color:var(--pq-on-surface-muted);">${label}</span>
+      <span style="font-weight:${strong ? 700 : 600};${strong ? 'color:#fabd00;' : ''}">${fmtMoneyHTML(v)}</span>
+    </div>`;
+  resEl.innerHTML = `
+    <div style="padding:12px;border-radius:14px;background:var(--pq-surface-1);">
+      ${row('Costo por porción', costoU)}
+      ${row(`Costo de producir ${qty} ${qty === 1 ? 'porción' : 'porciones'}`, costoU * qty)}
+      ${row('Precio mínimo sugerido (20%) por porción', precioMinU)}
+      ${row('Precio recomendado por porción (35%)', precioSugU)}
+      ${row(`Tu precio con margen ${PQ_CALC.margin}%`, precioU, true)}
+      ${row(`Ingreso total si vendes ${qty}`, precioU * qty, true)}
+      ${row('Ganancia estimada por porción', precioU - costoU)}
+    </div>
+    <div style="font-size:10px;color:var(--pq-on-surface-muted);margin-top:6px;">
+      Basado en los precios de compra de los lotes más recientes. Tasa BCV usada: ${c.tasaCambioUsada || PQ_CURRENCY.rate || '—'} Bs/USD.
+    </div>
+  `;
 }
 
 // ---------- ESTADO DE API (sidebar) ----------

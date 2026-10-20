@@ -6,6 +6,7 @@ const router = Router();
 
 router.get('/produccion', authenticate, ReporteController.produccion);
 router.get('/mermas', authenticate, ReporteController.mermas);
+router.get('/trazabilidad', authenticate, ReporteController.trazabilidad);
 router.get('/balance-pedidos', authenticate, ReporteController.balancePedidos);
 
 module.exports = router;

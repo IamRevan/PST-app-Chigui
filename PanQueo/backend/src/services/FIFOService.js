@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const {
   LoteIngrediente, Ingrediente, RecetaIngrediente, Pedido, DetallePedido,
 } = require('../models');
+const ConsumoLote = require('../models/ConsumoLote');
 const sequelize = require('../config/database');
 
 class FIFOService {
@@ -113,8 +114,9 @@ class FIFOService {
         }
       }
 
-      // 2. Descontar en memoria y recolectar lotes modificados
+      // 2. Descontar en memoria y recolectar lotes modificados + trazabilidad
       const lotesModificados = [];
+      const consumosParaLog = [];
       for (const [idIngrediente, req] of requerimientos.entries()) {
         let cantidadRequerida = req.cantidad;
         const lotes = lotesMap.get(idIngrediente) || [];
@@ -123,20 +125,35 @@ class FIFOService {
           if (cantidadRequerida <= 0) break;
 
           const disponible = parseFloat(lote.cantidad_actual);
+          let consumido;
           if (disponible >= cantidadRequerida) {
             lote.cantidad_actual = (disponible - cantidadRequerida).toFixed(2);
+            consumido = cantidadRequerida;
             cantidadRequerida = 0;
           } else {
             lote.cantidad_actual = 0;
+            consumido = disponible;
             cantidadRequerida -= disponible;
           }
           lotesModificados.push(lote);
+          // Trazabilidad FEFO (Fase 3.4): registrar qué lote alimentó este pedido
+          consumosParaLog.push({
+            id_pedido: idPedido,
+            id_lote: lote.id_lote,
+            id_ingrediente: lote.id_ingrediente,
+            cantidad_consumida: Math.round(consumido * 100) / 100,
+          });
         }
       }
 
       // 3. Guardar en paralelo solo los lotes modificados
       if (lotesModificados.length > 0) {
         await Promise.all(lotesModificados.map((lote) => lote.save({ transaction })));
+      }
+
+      // 4. Log de trazabilidad FEFO dentro de la misma transacción
+      if (consumosParaLog.length > 0) {
+        await ConsumoLote.bulkCreate(consumosParaLog, { transaction });
       }
 
       // Actualizar estado del pedido

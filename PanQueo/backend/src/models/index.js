@@ -11,6 +11,7 @@ const DetallePedido = require('./DetallePedido');
 const HistorialTasaCambio = require('./HistorialTasaCambio');
 const Usuario = require('./Usuario');
 const Proveedor = require('./Proveedor');
+const ConsumoLote = require('./ConsumoLote');
 
 // Relaciones del documento (con ON DELETE del master)
 Cliente.hasMany(Pedido, { foreignKey: 'id_cliente', onDelete: 'RESTRICT' });
@@ -41,6 +42,13 @@ DetallePedido.belongsTo(Receta, { foreignKey: 'id_receta', as: 'Receta' });
 Ingrediente.hasMany(DetalleListaCompra, { foreignKey: 'id_ingrediente', onDelete: 'RESTRICT' });
 DetalleListaCompra.belongsTo(Ingrediente, { foreignKey: 'id_ingrediente' });
 
+// Trazabilidad FEFO: log de descuentos FIFO por pedido
+LoteIngrediente.hasMany(ConsumoLote, { foreignKey: 'id_lote', onDelete: 'CASCADE' });
+ConsumoLote.belongsTo(LoteIngrediente, { foreignKey: 'id_lote' });
+ConsumoLote.belongsTo(Ingrediente, { foreignKey: 'id_ingrediente' });
+Pedido.hasMany(ConsumoLote, { foreignKey: 'id_pedido' });
+ConsumoLote.belongsTo(Pedido, { foreignKey: 'id_pedido' });
+
 module.exports = {
   sequelize,
   Usuario,
@@ -55,4 +63,5 @@ module.exports = {
   DetallePedido,
   HistorialTasaCambio,
   Proveedor,
+  ConsumoLote,
 };

@@ -908,6 +908,8 @@
           <li><button class="pq-nav-item" data-tab="recetas" onclick="openAuthedModule('recetas')"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">bakery_dining</span> Recetas y Producción</span></button></li>
           <li><button class="pq-nav-item" data-tab="orders" onclick="switchTab('orders')"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">receipt_long</span> Pedidos</span></button></li>
           <li><button class="pq-nav-item" data-tab="clients" onclick="switchTab('clients')"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">group</span> Clientes</span></button></li>
+          <li><button class="pq-nav-item" data-tab="reportes" onclick="openAuthedModule('reportes')"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">insert_chart</span> Reportes</span></button></li>
+          <li><button class="pq-nav-item" data-tab="calculadora" onclick="openCalculadora()"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">calculate</span> Calculadora de Precios</span></button></li>
           <li><button class="pq-nav-item" data-tab="notificaciones" onclick="openAlertsSheet()"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">notifications</span> Notificaciones</span><span class="pq-nav-badge hidden" id="pq-nav-alert-badge-2">0</span></button></li>
           <li><button class="pq-nav-item" data-tab="profile" onclick="switchTab('profile')"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">person</span> Perfil y Tasa BCV</span></button></li>
         </ul>
@@ -1562,6 +1564,25 @@
     <h3 id="pq-tool-title">Receta</h3>
     <p class="pq-sheet-sub" id="pq-tool-sub"></p>
     <div id="pq-tool-body"></div>
+  </div>
+
+  <div class="pq-sheet" id="sheet-reportes" role="dialog">
+    <div class="pq-sheet-handle" style="position:relative;"><button class="pq-sheet-close" onclick="closeSheets()"><span class="material-symbols-outlined">close</span></button></div>
+    <h3>Reportes</h3>
+    <p class="pq-sheet-sub">Producción, mermas y trazabilidad FEFO de tu cocina.</p>
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <button class="pq-rep-tab active" data-rep-tab="produccion" onclick="renderReporteTab('produccion')">Producción</button>
+      <button class="pq-rep-tab" data-rep-tab="mermas" onclick="renderReporteTab('mermas')">Mermas</button>
+      <button class="pq-rep-tab" data-rep-tab="trazabilidad" onclick="renderReporteTab('trazabilidad')">FEFO</button>
+    </div>
+    <div id="pq-rep-body"></div>
+  </div>
+
+  <div class="pq-sheet" id="sheet-calculadora" role="dialog">
+    <div class="pq-sheet-handle" style="position:relative;"><button class="pq-sheet-close" onclick="closeSheets()"><span class="material-symbols-outlined">close</span></button></div>
+    <h3>Calculadora de Precios</h3>
+    <p class="pq-sheet-sub">Costo real por lote según los precios de tus lotes más recientes, con margen configurable.</p>
+    <div id="pq-calc-body"></div>
   </div>
 
   <div id="pq-toast-container"></div>
