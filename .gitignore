@@ -155,3 +155,5 @@ PanQueo/backend/.env
 PanQueo/backend/database.sqlite
 *.sqlite
 *.sqlite-journal
+
+sesion-panqueo.json
