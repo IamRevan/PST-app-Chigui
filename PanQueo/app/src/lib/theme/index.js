@@ -1,26 +1,18 @@
 // Familias de fuente cargadas en App.js via @expo-google-fonts.
-// En Android se debe referenciar la variante exacta (no 'Poppins' genérico)
+// En @expo-google-fonts 0.4.x los exports son assets (require del .ttf),
+// no strings; las fuentes se registran con el NOMBRE de la clave pasada a
+// useFonts (ver App.js), asi que fontFamily debe ser ese nombre en string.
+// En Android se debe referenciar la variante exacta (no 'Poppins' generico)
 // para que fontWeight no caiga a la regular.
-import {
-  Poppins_500Medium,
-  Poppins_600SemiBold,
-  Poppins_700Bold,
-} from '@expo-google-fonts/poppins';
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from '@expo-google-fonts/inter';
 
 export const fonts = {
-  poppinsMedium: Poppins_500Medium,
-  poppinsSemiBold: Poppins_600SemiBold,
-  poppinsBold: Poppins_700Bold,
-  interRegular: Inter_400Regular,
-  interMedium: Inter_500Medium,
-  interSemiBold: Inter_600SemiBold,
-  interBold: Inter_700Bold,
+  poppinsMedium: 'Poppins_500Medium',
+  poppinsSemiBold: 'Poppins_600SemiBold',
+  poppinsBold: 'Poppins_700Bold',
+  interRegular: 'Inter_400Regular',
+  interMedium: 'Inter_500Medium',
+  interSemiBold: 'Inter_600SemiBold',
+  interBold: 'Inter_700Bold',
 };
 
 export const colors = {
@@ -103,77 +95,77 @@ export const colors = {
 
 export const typography = {
   displayLg: {
-    fontFamily: Poppins_700Bold,
+    fontFamily: 'Poppins_700Bold',
     fontSize: 32,
     fontWeight: '700',
     lineHeight: 40,
     letterSpacing: -0.64,
   },
   displayLgMobile: {
-    fontFamily: Poppins_700Bold,
+    fontFamily: 'Poppins_700Bold',
     fontSize: 28,
     fontWeight: '700',
     lineHeight: 36,
     letterSpacing: -0.56,
   },
   headlineMd: {
-    fontFamily: Poppins_600SemiBold,
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 24,
     fontWeight: '600',
     lineHeight: 32,
   },
   titleSm: {
-    fontFamily: Poppins_600SemiBold,
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 18,
     fontWeight: '600',
     lineHeight: 24,
   },
   bodyMd: {
-    fontFamily: Inter_400Regular,
+    fontFamily: 'Inter_400Regular',
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 24,
   },
   bodySm: {
-    fontFamily: Inter_400Regular,
+    fontFamily: 'Inter_400Regular',
     fontSize: 14,
     fontWeight: '400',
     lineHeight: 20,
   },
   labelBold: {
-    fontFamily: Inter_600SemiBold,
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 20,
   },
   buttonText: {
-    fontFamily: Inter_600SemiBold,
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 16,
     letterSpacing: 0.16,
   },
   valueDisplay: {
-    fontFamily: Poppins_700Bold,
+    fontFamily: 'Poppins_700Bold',
     fontSize: 20,
     fontWeight: '700',
     lineHeight: 24,
   },
   productTitle: {
-    fontFamily: Poppins_600SemiBold,
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 24,
   },
   labelCaption: {
-    fontFamily: Inter_500Medium,
+    fontFamily: 'Inter_500Medium',
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 16,
     letterSpacing: 0.24,
   },
   metadata: {
-    fontFamily: Inter_400Regular,
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
     fontWeight: '400',
     lineHeight: 16,
