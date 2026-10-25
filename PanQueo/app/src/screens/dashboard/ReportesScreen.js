@@ -5,11 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
+  ActivityIndicator,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { ScreenWrapper } from "../../components/navigation/ScreenWrapper";
-import { Button } from "../../components/ui";
-import { SheetModal, CenterModal } from "../../components/ui/Modal";
+import { Card, Badge, Button } from "../../components/ui";
 import {
   colors,
   typography,
@@ -18,32 +18,42 @@ import {
   shadows,
 } from "../../lib/theme";
 import {
-  useReportesBalance,
   useReportesProduccion,
   useReportesMermas,
+  useReportesTrazabilidad,
+  useReportesBalance,
 } from "../../lib/hooks/useReportes";
 import { useCurrency } from "../../lib/currency";
 
-const RANGOS = [
-  "Últimos 7 días",
-  "Últimos 30 días",
-  "Este mes",
-  "Mes pasado",
-  "Personalizado",
+const TABS = [
+  { key: "produccion", label: "Producción", icon: "precision-manufacturing" },
+  { key: "mermas", label: "Mermas", icon: "warning-amber" },
+  { key: "trazabilidad", label: "Trazabilidad FEFO", icon: "history" },
+  { key: "balance", label: "Balance", icon: "account-balance-wallet" },
 ];
-const TABS = ["Balance", "Producción", "Mermas"];
 
 export const ReportesScreen = ({ navigation }) => {
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showDownload, setShowDownload] = useState(false);
-  const [selectedRange, setSelectedRange] = useState("Últimos 7 días");
-  const [activeTab, setActiveTab] = useState("Balance");
+  const [activeTab, setActiveTab] = useState("produccion");
 
-  // Por simplicidad de MVP, cargamos todos. Ideal: Solo cargar el activo y con fechas del selectedRange.
-  const { data: balance, loading: loadingB } = useReportesBalance();
-  const { data: produccion, loading: loadingP } = useReportesProduccion();
-  const { data: mermas, loading: loadingM } = useReportesMermas();
-  const { format } = useCurrency();
+  const { data: rawProd, loading: loadingProd } = useReportesProduccion();
+  const { data: rawMermas, loading: loadingMermas } = useReportesMermas();
+  const { data: rawTraz, loading: loadingTraz } = useReportesTrazabilidad();
+  const { data: rawBalance, loading: loadingBalance } = useReportesBalance();
+
+  const { format, formatDual } = useCurrency();
+
+  const produccion = rawProd || {};
+  const mermas = rawMermas || {};
+  const trazabilidad = rawTraz || {};
+  const balance = rawBalance || {};
+
+  const recetasProd = Object.entries(produccion.producidosPorReceta || {}).sort(
+    (a, b) => b[1] - a[1],
+  );
+  const maxProd = Math.max(1, ...recetasProd.map((r) => r[1]));
+
+  const lotesVencidos = Array.isArray(mermas.lotes) ? mermas.lotes : [];
+  const registrosTraz = Array.isArray(trazabilidad.registros) ? trazabilidad.registros : [];
 
   return (
     <ScreenWrapper>
@@ -52,306 +62,239 @@ export const ReportesScreen = ({ navigation }) => {
         contentContainerStyle={styles.content}
       >
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backIcon}>←</Text>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
           </TouchableOpacity>
-          <View style={styles.logoArea}>
-            <Text style={styles.logoEmoji}>🧁</Text>
-            <Text style={styles.logoText}>PanQueo</Text>
+          <View>
+            <Text style={styles.title}>Reportes y Auditoría</Text>
+            <Text style={styles.subtitle}>Producción, mermas e historial FEFO/FIFO</Text>
           </View>
         </View>
 
-        <Text style={styles.title}>Reportes</Text>
-
+        {/* Barra horizontal de pestañas */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.tabsContainer}
+          contentContainerStyle={styles.tabsContent}
         >
-          {TABS.map((t) => (
-            <TouchableOpacity
-              key={t}
-              style={[styles.tabBtn, activeTab === t && styles.tabBtnActive]}
-              onPress={() => setActiveTab(t)}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === t && styles.tabTextActive,
-                ]}
+          {TABS.map((t) => {
+            const active = activeTab === t.key;
+            return (
+              <TouchableOpacity
+                key={t.key}
+                style={[styles.tabBtn, active && styles.tabBtnActive]}
+                onPress={() => setActiveTab(t.key)}
+                activeOpacity={0.7}
               >
-                {t}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <MaterialIcons
+                  name={t.icon}
+                  size={16}
+                  color={active ? colors.onPrimaryContainer : colors.onSurfaceVariant}
+                />
+                <Text style={[styles.tabText, active && styles.tabTextActive]}>
+                  {t.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
-        <TouchableOpacity
-          style={styles.datePicker}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Text style={styles.dateIcon}>📅</Text>
-          <Text style={styles.dateText}>{selectedRange}</Text>
-          <Text style={styles.dateChange}>Filtro ▼</Text>
-        </TouchableOpacity>
-
-        {activeTab === "Balance" && (
-          <View style={{ gap: spacing.md }}>
-            <View style={styles.revenueCard}>
-              <Text style={styles.revenueLabel}>Ingresos Pagados</Text>
-              {loadingB ? (
-                <Text>Cargando...</Text>
-              ) : (
-                <Text style={styles.revenueValue}>
-                  {format(balance.total_ingresos || 0)}
-                </Text>
-              )}
-            </View>
-
-            <View style={styles.miniRow}>
-              <View
-                style={[
-                  styles.miniCard,
-                  {
-                    backgroundColor: `${colors.error}15`,
-                    borderColor: `${colors.error}33`,
-                  },
-                ]}
-              >
-                <Text style={styles.miniLabel}>Por Cobrar</Text>
-                {loadingB ? (
-                  <Text>...</Text>
-                ) : (
-                  <Text style={[styles.miniValue, { color: colors.error }]}>
-                    {format(balance.total_pendientes || 0)}
-                  </Text>
-                )}
-              </View>
-              <View style={styles.miniCard}>
-                <Text style={styles.miniLabel}>Total Pedidos</Text>
-                {loadingB ? (
-                  <Text>...</Text>
-                ) : (
-                  <Text style={styles.miniValue}>
-                    {balance.desglose?.length || 0}
-                  </Text>
-                )}
+        {/* TAB 1: PRODUCCIÓN */}
+        {activeTab === "produccion" && (
+          <View style={styles.tabBody}>
+            <View style={styles.kpiRow}>
+              <View style={styles.kpiCard}>
+                <Text style={styles.kpiValue}>{produccion.totalProducido ?? 0}</Text>
+                <Text style={styles.kpiLabel}>Unidades Producidas</Text>
+                <Text style={styles.kpiSub}>Listo · Cocina · Entregado</Text>
               </View>
             </View>
 
-            <View style={styles.chartCard}>
-              <Text style={styles.chartTitle}>Desglose Reciente</Text>
-              {loadingB ? (
-                <Text>Cargando...</Text>
-              ) : (
-                balance.desglose?.slice(0, 5).map((d, i) => (
-                  <View
-                    key={i}
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      paddingVertical: spacing.sm,
-                      borderBottomWidth: 1,
-                      borderColor: colors.surfaceVariant,
-                    }}
-                  >
-                    <Text style={{ ...typography.bodySm }}>
-                      {d.fecha_pedido.substring(0, 10)} - #{d.id_pedido}
-                    </Text>
-                    <Text
-                      style={{
-                        ...typography.labelBold,
-                        color:
-                          d.estado_pago === "Pagado"
-                            ? colors.tertiary
-                            : colors.error,
-                      }}
-                    >
-                      ${d.costo_total}
-                    </Text>
-                  </View>
-                ))
-              )}
-            </View>
-          </View>
-        )}
-
-        {activeTab === "Producción" && (
-          <View style={{ gap: spacing.md }}>
-            <View style={styles.chartCard}>
-              <Text style={styles.chartTitle}>Top Productos Producidos</Text>
-              {loadingP ? (
-                <Text>Cargando...</Text>
-              ) : produccion.length === 0 ? (
-                <Text
-                  style={{
-                    padding: spacing.md,
-                    color: colors.onSurfaceVariant,
-                  }}
-                >
-                  Sin datos
-                </Text>
-              ) : (
-                produccion.map((p, i) => (
-                  <View
-                    key={i}
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      paddingVertical: spacing.sm,
-                      borderBottomWidth: 1,
-                      borderColor: colors.surfaceVariant,
-                    }}
-                  >
-                    <Text style={{ ...typography.bodyMd, flex: 1 }}>
-                      {p.nombre_receta || p.Receta?.nombre_receta}
-                    </Text>
-                    <View style={styles.miniBadge}>
-                      <Text style={styles.miniBadgeText}>
-                        {p.cantidad || p.total_producido} unds
-                      </Text>
+            <Text style={styles.sectionTitle}>Producción por Receta</Text>
+            {loadingProd ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : recetasProd.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <MaterialIcons name="cake" size={36} color={colors.outline} />
+                <Text style={styles.emptyText}>Aún no hay producción registrada.</Text>
+              </View>
+            ) : (
+              recetasProd.map(([nombre, cantidad]) => {
+                const porcentaje = Math.round((cantidad / maxProd) * 100);
+                return (
+                  <View key={nombre} style={styles.barItemCard}>
+                    <View style={styles.barItemHeader}>
+                      <Text style={styles.barItemName}>{nombre}</Text>
+                      <Text style={styles.barItemCount}>{cantidad} uds</Text>
+                    </View>
+                    <View style={styles.barBg}>
+                      <View style={[styles.barFill, { width: `${porcentaje}%` }]} />
                     </View>
                   </View>
-                ))
-              )}
-            </View>
+                );
+              })
+            )}
           </View>
         )}
 
-        {activeTab === "Mermas" && (
-          <View style={{ gap: spacing.md }}>
+        {/* TAB 2: MERMAS */}
+        {activeTab === "mermas" && (
+          <View style={styles.tabBody}>
+            <View style={styles.kpiGrid}>
+              <View style={styles.kpiCard}>
+                <Text style={[styles.kpiValue, { color: colors.error }]}>
+                  {mermas.totalLotesVencidos ?? 0}
+                </Text>
+                <Text style={styles.kpiLabel}>Lotes Vencidos</Text>
+                <Text style={styles.kpiSub}>Con stock actual</Text>
+              </View>
+              <View style={styles.kpiCard}>
+                <Text style={[styles.kpiValue, { color: colors.error }]}>
+                  {parseFloat(mermas.mermaTotal ?? 0)}
+                </Text>
+                <Text style={styles.kpiLabel}>Cantidad Perdida</Text>
+                <Text style={styles.kpiSub}>Unidades en riesgo</Text>
+              </View>
+            </View>
+
+            <View style={styles.valueAtRiskBox}>
+              <Text style={styles.valueAtRiskLabel}>Valor Financiero en Riesgo</Text>
+              <Text style={styles.valueAtRiskAmount}>
+                {formatDual(mermas.mermaValorEstimado || 0)}
+              </Text>
+              <Text style={styles.valueAtRiskSub}>Según precio de compra de los lotes</Text>
+            </View>
+
+            <Text style={styles.sectionTitle}>Detalle de Lotes Vencidos (FEFO)</Text>
+            {loadingMermas ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : lotesVencidos.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <MaterialIcons name="verified" size={36} color={colors.tertiary} />
+                <Text style={styles.emptyText}>Sin mermas: ningún lote vencido con stock disponible. 🎉</Text>
+              </View>
+            ) : (
+              lotesVencidos.map((l) => (
+                <View key={l.id_lote} style={styles.mermaItemCard}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.mermaItemName}>
+                      {l.Ingrediente?.nombre_ing || `Ingrediente #${l.id_ingrediente}`}
+                    </Text>
+                    <Text style={styles.mermaItemMeta}>
+                      Lote #{l.id_lote} · Venció: {String(l.fecha_venc || "").slice(0, 10)}
+                    </Text>
+                  </View>
+                  <Text style={styles.mermaItemQty}>
+                    {parseFloat(l.cantidad_actual)} {l.Ingrediente?.unidad_medida || ""}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
+        {/* TAB 3: TRAZABILIDAD FEFO */}
+        {activeTab === "trazabilidad" && (
+          <View style={styles.tabBody}>
+            <View style={styles.kpiGrid}>
+              <View style={styles.kpiCard}>
+                <Text style={styles.kpiValue}>{trazabilidad.totalRegistros ?? 0}</Text>
+                <Text style={styles.kpiLabel}>Descuentos FIFO</Text>
+                <Text style={styles.kpiSub}>Pedidos procesados</Text>
+              </View>
+              <View style={styles.kpiCard}>
+                <Text style={styles.kpiValue}>
+                  {parseFloat(trazabilidad.totalConsumido ?? 0)}
+                </Text>
+                <Text style={styles.kpiLabel}>Uds Consumidas</Text>
+                <Text style={styles.kpiSub}>Materia prima usada</Text>
+              </View>
+              <View style={styles.kpiCard}>
+                <Text
+                  style={[
+                    styles.kpiValue,
+                    {
+                      color:
+                        (trazabilidad.violacionesFEFO || 0) > 0
+                          ? colors.error
+                          : colors.tertiary,
+                    },
+                  ]}
+                >
+                  {trazabilidad.violacionesFEFO ?? 0}
+                </Text>
+                <Text style={styles.kpiLabel}>Violaciones FEFO</Text>
+                <Text style={styles.kpiSub}>Lote no más antiguo</Text>
+              </View>
+            </View>
+
+            <Text style={styles.sectionTitle}>Últimos Descuentos por Pedido (Auditoría)</Text>
+            {loadingTraz ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : registrosTraz.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <MaterialIcons name="history" size={36} color={colors.outline} />
+                <Text style={styles.emptyText}>
+                  Sin consumos registrados aún: se generan automáticamente al pasar un pedido a "En Cocina".
+                </Text>
+              </View>
+            ) : (
+              registrosTraz.map((r, i) => (
+                <View key={r.id_consumo || i} style={styles.trazItemCard}>
+                  <View style={styles.trazItemTop}>
+                    <Text style={styles.trazItemIng}>{r.ingrediente}</Text>
+                    <Text style={styles.trazItemQty}>
+                      {r.cantidad_consumida} {r.fefo ? "" : " ⚠️"}
+                    </Text>
+                  </View>
+                  <View style={styles.trazItemBottom}>
+                    <Text style={styles.trazItemMeta}>
+                      Lote #{r.lote?.id_lote ?? "?"} · venc. {r.lote?.fecha_venc ? String(r.lote.fecha_venc).slice(0, 10) : "?"}
+                    </Text>
+                    <Text style={styles.trazItemMeta}>
+                      {r.pedido ? `Pedido #${r.pedido.id_pedido}` : "Ajuste"} · {String(r.fecha_consumo || "").slice(0, 10)}
+                    </Text>
+                  </View>
+                  {!r.fefo && (
+                    <View style={styles.fefoAlertBox}>
+                      <Text style={styles.fefoAlertText}>
+                        No FEFO: se omitieron lotes más antiguos (
+                        {(r.lotes_mas_antiguos_omitidos || []).map((l) => l.id_lote || l).join(", ")}
+                        )
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
+        {/* TAB 4: BALANCE */}
+        {activeTab === "balance" && (
+          <View style={styles.tabBody}>
             <View style={styles.revenueCard}>
-              <Text style={styles.revenueLabel}>Valor Perdido Estimado</Text>
-              {loadingM ? (
-                <Text>Cargando...</Text>
-              ) : (
-                <Text style={[styles.revenueValue, { color: colors.error }]}>
-                  $
-                  {mermas
-                    .reduce(
-                      (acc, m) =>
-                        acc +
-                        parseFloat(m.cantidad_actual) *
-                          parseFloat(m.precio_compra_unitario || 0),
-                      0,
-                    )
-                    .toFixed(2)}
-                </Text>
-              )}
+              <Text style={styles.revenueLabel}>Ingresos Totales Cobrados</Text>
+              <Text style={styles.revenueValue}>{formatDual(balance.total_ingresos || 0)}</Text>
             </View>
-            <View style={styles.chartCard}>
-              <Text style={styles.chartTitle}>Lotes Vencidos</Text>
-              {loadingM ? (
-                <Text>Cargando...</Text>
-              ) : mermas.length === 0 ? (
-                <Text
-                  style={{
-                    padding: spacing.md,
-                    color: colors.onSurfaceVariant,
-                  }}
-                >
-                  No hay mermas registradas.
+
+            <View style={styles.kpiRow}>
+              <View style={[styles.kpiCard, { borderColor: `${colors.error}40` }]}>
+                <Text style={[styles.kpiValue, { color: colors.error }]}>
+                  {formatDual(balance.total_pendientes || 0)}
                 </Text>
-              ) : (
-                mermas.map((m, i) => (
-                  <View
-                    key={i}
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      paddingVertical: spacing.sm,
-                      borderBottomWidth: 1,
-                      borderColor: colors.surfaceVariant,
-                    }}
-                  >
-                    <View>
-                      <Text style={{ ...typography.labelBold }}>
-                        {m.Ingrediente?.nombre_ing}
-                      </Text>
-                      <Text
-                        style={{
-                          ...typography.bodySm,
-                          color: colors.onSurfaceVariant,
-                        }}
-                      >
-                        Venció: {m.fecha_venc}
-                      </Text>
-                    </View>
-                    <Text
-                      style={{ ...typography.titleSm, color: colors.error }}
-                    >
-                      {m.cantidad_actual} {m.Ingrediente?.unidad_medida}
-                    </Text>
-                  </View>
-                ))
-              )}
+                <Text style={styles.kpiLabel}>Pendiente por Cobrar</Text>
+                <Text style={styles.kpiSub}>Pedidos abonados o pendientes</Text>
+              </View>
             </View>
           </View>
         )}
-
-        <Button
-          title="Descargar PDF"
-          variant="primary"
-          onPress={() => setShowDownload(true)}
-          style={styles.downloadBtn}
-        />
       </ScrollView>
-
-      <SheetModal
-        visible={showDatePicker}
-        onClose={() => setShowDatePicker(false)}
-        title="Seleccionar período"
-      >
-        {RANGOS.map((r) => (
-          <TouchableOpacity
-            key={r}
-            style={[
-              styles.rangeItem,
-              selectedRange === r && styles.rangeItemActive,
-            ]}
-            onPress={() => {
-              setSelectedRange(r);
-              setShowDatePicker(false);
-            }}
-          >
-            <Text
-              style={[
-                styles.rangeText,
-                selectedRange === r && styles.rangeTextActive,
-              ]}
-            >
-              {selectedRange === r ? "● " : "○ "}
-              {r}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </SheetModal>
-
-      <CenterModal
-        visible={showDownload}
-        onClose={() => setShowDownload(false)}
-        title="Descargar Reporte"
-      >
-        <Text style={styles.downloadDesc}>
-          Se generará un archivo PDF con los reportes del período seleccionado.
-        </Text>
-        <View style={styles.downloadFormats}>
-          {["PDF", "Excel", "CSV"].map((fmt) => (
-            <TouchableOpacity key={fmt} style={styles.formatBtn}>
-              <Text style={styles.formatBtnText}>{fmt}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <Button
-          title="Descargar"
-          variant="primary"
-          onPress={() => {
-            setShowDownload(false);
-            Alert.alert("Descarga", "Reporte descargado exitosamente");
-          }}
-          style={{ marginTop: spacing.md }}
-        />
-      </CenterModal>
     </ScreenWrapper>
   );
 };
@@ -361,178 +304,145 @@ const styles = StyleSheet.create({
   content: { padding: spacing.gutter, paddingBottom: 40, gap: spacing.md },
   headerRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-  },
-  backIcon: { fontSize: 24, color: colors.onSurface },
-  logoArea: { flexDirection: "row", alignItems: "center", gap: spacing.base },
-  logoEmoji: { fontSize: 20 },
-  logoText: {
-    ...typography.displayLgMobile,
-    fontSize: 20,
-    color: colors.primary,
-  },
-  title: { ...typography.headlineMd, color: colors.onSurface },
-  tabsContainer: {
-    flexDirection: "row",
-    paddingVertical: spacing.xs,
+    gap: spacing.sm,
+    paddingTop: 4,
     marginBottom: spacing.xs,
   },
+  backBtn: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "flex-start",
+  },
+  title: { ...typography.headlineMd, fontSize: 20, color: colors.onSurface },
+  subtitle: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 12 },
+  tabsContainer: { marginVertical: 4 },
+  tabsContent: { gap: 6 },
   tabBtn: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 999,
-    backgroundColor: colors.surfaceContainerLowest,
-    marginRight: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surfaceContainerLow,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: colors.surfaceVariant,
   },
   tabBtnActive: {
     backgroundColor: colors.primaryContainer,
     borderColor: colors.primaryContainer,
   },
-  tabText: { ...typography.labelBold, color: colors.onSurfaceVariant },
-  tabTextActive: { color: colors.onPrimaryContainer },
-  datePicker: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.surfaceContainerLow,
-    padding: spacing.sm,
-    borderRadius: borderRadius.xl,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    gap: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  dateIcon: { fontSize: 16 },
-  dateText: { ...typography.bodySm, color: colors.onSurfaceVariant, flex: 1 },
-  dateChange: { ...typography.labelBold, color: colors.primary },
-  revenueCard: {
-    backgroundColor: colors.surfaceContainerLowest,
-    padding: spacing.lg,
-    borderRadius: borderRadius.xl,
-    ...shadows.md,
-    borderWidth: 1,
-    borderColor: `${colors.outlineVariant}80`,
-    gap: spacing.xs,
-  },
-  revenueLabel: {
+  tabText: { ...typography.labelCaption, fontSize: 12, color: colors.onSurfaceVariant, fontWeight: "600" },
+  tabTextActive: { color: colors.onPrimaryContainer, fontWeight: "700" },
+  tabBody: { gap: spacing.md },
+  sectionTitle: {
     ...typography.labelBold,
-    color: colors.onSurfaceVariant,
+    color: colors.primary,
+    fontSize: 12,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
   },
-  revenueValue: { fontSize: 32, fontWeight: "700", color: colors.onSurface },
-  revenueTrend: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  trendIcon: { fontSize: 16 },
-  trendText: {
-    ...typography.bodySm,
-    color: colors.tertiary,
-    fontWeight: "600",
-  },
-  miniRow: { flexDirection: "row", gap: spacing.md },
-  miniCard: {
+  kpiRow: { flexDirection: "row", gap: spacing.sm },
+  kpiGrid: { flexDirection: "row", gap: spacing.xs },
+  kpiCard: {
     flex: 1,
     backgroundColor: colors.surfaceContainerLowest,
     padding: spacing.md,
-    borderRadius: borderRadius.xl,
-    ...shadows.md,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: `${colors.outlineVariant}80`,
-    gap: spacing.xs,
+    borderColor: colors.surfaceVariant,
+    alignItems: "center",
+    gap: 2,
   },
-  miniLabel: {
-    ...typography.labelBold,
-    color: colors.onSurfaceVariant,
-    fontSize: 12,
-  },
-  miniValue: { fontSize: 20, fontWeight: "700", color: colors.onSurface },
-  miniBadge: {
-    backgroundColor: `${colors.tertiaryContainer}4D`,
-    paddingHorizontal: spacing.base,
-    paddingVertical: 1,
-    borderRadius: 4,
-    alignSelf: "flex-start",
-  },
-  miniBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: colors.onTertiaryContainer,
-  },
-  chartCard: {
+  kpiValue: { ...typography.headlineMd, fontSize: 20, color: colors.primary },
+  kpiLabel: { ...typography.labelCaption, fontWeight: "700", color: colors.onSurface, fontSize: 11 },
+  kpiSub: { ...typography.metadata, fontSize: 10, color: colors.onSurfaceVariant, textAlign: "center" },
+  barItemCard: {
     backgroundColor: colors.surfaceContainerLowest,
-    padding: spacing.lg,
-    borderRadius: borderRadius.xl,
-    ...shadows.md,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.surfaceVariant,
+    gap: 6,
   },
-  chartHeader: {
+  barItemHeader: { flexDirection: "row", justifyContent: "space-between" },
+  barItemName: { ...typography.bodySm, fontWeight: "600", color: colors.onSurface, flex: 1 },
+  barItemCount: { ...typography.labelBold, color: colors.primary, fontSize: 13 },
+  barBg: {
+    height: 8,
+    borderRadius: borderRadius.full,
+    backgroundColor: `${colors.primaryContainer}30`,
+    overflow: "hidden",
+  },
+  barFill: {
+    height: "100%",
+    backgroundColor: colors.primaryContainer,
+    borderRadius: borderRadius.full,
+  },
+  valueAtRiskBox: {
+    backgroundColor: "rgba(255,82,82,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,82,82,0.25)",
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    alignItems: "center",
+    gap: 2,
+  },
+  valueAtRiskLabel: { ...typography.labelCaption, color: colors.error, textTransform: "uppercase", fontWeight: "700" },
+  valueAtRiskAmount: { ...typography.headlineMd, color: colors.error, fontSize: 18 },
+  valueAtRiskSub: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 11 },
+  mermaItemCard: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: spacing.lg,
-  },
-  chartTitle: { ...typography.labelBold, color: colors.onSurface },
-  chartInfo: { fontSize: 16 },
-  bars: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    height: 160,
-    gap: spacing.sm,
-  },
-  barCol: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: spacing.base,
-  },
-  bar: { width: "60%", backgroundColor: colors.primary, borderRadius: 4 },
-  barLabel: { fontSize: 10, fontWeight: "700", color: colors.onSurfaceVariant },
-  pieRow: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
-  pie: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.surfaceContainerLow,
-    position: "relative",
-  },
-  pieSeg: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-    borderRadius: 60,
-  },
-  legend: { flex: 1, gap: spacing.sm },
-  legendRow: { flexDirection: "row", alignItems: "center", gap: spacing.base },
-  legendDot: { width: 12, height: 12, borderRadius: 6 },
-  legendLabel: { ...typography.bodySm, color: colors.onSurface, flex: 1 },
-  legendPct: { fontWeight: "700", color: colors.onSurfaceVariant },
-  downloadBtn: { marginTop: spacing.sm },
-  rangeItem: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.xs,
-  },
-  rangeItemActive: { backgroundColor: colors.primaryContainer },
-  rangeText: { ...typography.bodyMd, color: colors.onSurfaceVariant },
-  rangeTextActive: { color: colors.onPrimaryContainer, fontWeight: "600" },
-  downloadDesc: {
-    ...typography.bodyMd,
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.md,
-    textAlign: "center",
-  },
-  downloadFormats: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    justifyContent: "center",
-  },
-  formatBtn: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    padding: 10,
+    backgroundColor: "rgba(255,138,128,0.08)",
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: "rgba(255,138,128,0.2)",
   },
-  formatBtnText: { ...typography.labelBold, color: colors.onSurface },
+  mermaItemName: { ...typography.bodySm, fontWeight: "600", color: colors.onSurface },
+  mermaItemMeta: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 11 },
+  mermaItemQty: { ...typography.labelBold, color: colors.error, fontSize: 13 },
+  trazItemCard: {
+    backgroundColor: colors.surfaceContainerLowest,
+    padding: 10,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.surfaceVariant,
+    gap: 4,
+  },
+  trazItemTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  trazItemIng: { ...typography.bodySm, fontWeight: "700", color: colors.onSurface },
+  trazItemQty: { ...typography.labelBold, color: colors.primary, fontSize: 12 },
+  trazItemBottom: { flexDirection: "row", justifyContent: "space-between" },
+  trazItemMeta: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 11 },
+  fefoAlertBox: {
+    backgroundColor: "rgba(255,82,82,0.1)",
+    padding: 6,
+    borderRadius: borderRadius.sm,
+    marginTop: 2,
+  },
+  fefoAlertText: { ...typography.metadata, color: colors.error, fontSize: 10, fontWeight: "600" },
+  revenueCard: {
+    backgroundColor: `${colors.primaryContainer}25`,
+    padding: spacing.lg,
+    borderRadius: borderRadius.xl,
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    borderColor: colors.primaryContainer,
+  },
+  revenueLabel: { ...typography.labelCaption, color: colors.primary, fontWeight: "700", textTransform: "uppercase" },
+  revenueValue: { ...typography.headlineMd, color: colors.primary, fontSize: 24 },
+  emptyCard: {
+    padding: spacing.xl,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: borderRadius.lg,
+    gap: 8,
+  },
+  emptyText: { ...typography.bodySm, color: colors.onSurfaceVariant, textAlign: "center" },
 });

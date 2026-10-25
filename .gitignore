@@ -157,3 +157,15 @@ PanQueo/backend/database.sqlite
 *.sqlite-journal
 
 sesion-panqueo.json
+
+# Entornos y herramientas locales de IA
+.agent/
+.agents/
+.opencode/
+.skills/
+tools/
+scripts/
+opencode.json
+AGENTS.md
+GEMINI.md
+SKILLS_INDEX.md

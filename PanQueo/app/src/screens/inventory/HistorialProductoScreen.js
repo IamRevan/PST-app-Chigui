@@ -1,15 +1,19 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/navigation/ScreenWrapper';
 import { Card, Badge, Loading, ErrorMessage } from '../../components/ui';
-import { colors, typography, spacing, borderRadius, shadows } from '../../lib/theme';
+import { colors, typography, spacing, borderRadius } from '../../lib/theme';
 import { useIngredienteById } from '../../lib/hooks/useInventario';
+import { useCurrency } from '../../lib/currency';
 
 /**
- * Historial de un ingrediente — trazabilidad por lotes (RF-01): * resume stock actual/mínimo y lista los lotes registrados con su estado
+ * Historial de un ingrediente — trazabilidad por lotes (RF-01):
+ * resume stock actual/mínimo y lista los lotes registrados con su estado
  * (Disponible / Por vencer / Agotado), ordenados por fecha de vencimiento (FIFO).
  */
 export const HistorialProductoScreen = ({ navigation, route }) => {
   const ingredienteId = route?.params?.ingredienteId;
+  const { format } = useCurrency();
 
   // El backend expone GET /inventario/ingredientes/:id (ingrediente + lotes)
   const { data: ingrediente, loading, error } = useIngredienteById(ingredienteId);
@@ -56,11 +60,15 @@ export const HistorialProductoScreen = ({ navigation, route }) => {
     <ScreenWrapper>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backIcon}>←</Text>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
           </TouchableOpacity>
-          <Text style={styles.title}>Historial</Text>
-          <View style={{ width: 32 }} />
+          <Text style={styles.title}>Historial y Lotes</Text>
+          <View style={{ width: 44 }} />
         </View>
 
         <Card variant="elevated" style={styles.resumeCard}>
@@ -99,7 +107,7 @@ export const HistorialProductoScreen = ({ navigation, route }) => {
               <Text style={styles.movFrom}>
                 {parseFloat(lote.cantidad_actual)} de {parseFloat(lote.cantidad_inicial)} {unit} disponibles
                 {parseFloat(lote.precio_compra_unitario ?? 0) > 0
-                  ? ` · $ ${parseFloat(lote.precio_compra_unitario)} und.`
+                  ? ` · Costo: ${format(parseFloat(lote.precio_compra_unitario))} / ${unit}`
                   : ''}
               </Text>
               <View style={styles.movFooter}>
@@ -117,8 +125,19 @@ export const HistorialProductoScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.gutter, paddingBottom: 40, gap: spacing.md },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
-  backIcon: { fontSize: 24, color: colors.onSurface },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+    marginBottom: spacing.xs,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
   title: { ...typography.titleSm, color: colors.onSurface },
   resumeCard: { padding: spacing.md, alignItems: 'center' },
   productName: { ...typography.titleSm, color: colors.onSurface, marginBottom: spacing.md },

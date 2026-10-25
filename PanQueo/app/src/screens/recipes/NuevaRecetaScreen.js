@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { ScreenWrapper } from "../../components/navigation/ScreenWrapper";
 import { Button, Input, Card } from "../../components/ui";
 import {
@@ -14,7 +15,6 @@ import {
   typography,
   spacing,
   borderRadius,
-  shadows,
 } from "../../lib/theme";
 import { useInventario } from "../../lib/hooks/useInventario";
 import apiClient from "../../lib/api/client";
@@ -60,7 +60,7 @@ export const NuevaRecetaScreen = ({ navigation }) => {
       const payload = {
         nombre_receta: name.trim(),
         instrucciones: description.trim(),
-        rendimiento: portions,
+        rendimiento: portions || "1",
         ingredientes: ingredients.map((i) => ({
           id_ingrediente: i.id_ingrediente,
           cantidad_requerida: i.quantity,
@@ -68,8 +68,9 @@ export const NuevaRecetaScreen = ({ navigation }) => {
       };
 
       await apiClient.post(ENDPOINTS.RECETAS, payload);
-      Alert.alert("Receta guardada", `"${name}" se ha creado exitosamente`);
-      navigation.goBack();
+      Alert.alert("Receta guardada", `"${name}" se ha creado exitosamente`, [
+        { text: "OK", onPress: () => navigation.goBack() },
+      ]);
     } catch (err) {
       Alert.alert("Error", err.message || "Hubo un error al guardar la receta");
     } finally {
@@ -84,28 +85,32 @@ export const NuevaRecetaScreen = ({ navigation }) => {
         contentContainerStyle={styles.content}
       >
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backIcon}>←</Text>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
           </TouchableOpacity>
           <Text style={styles.title}>Nueva Receta</Text>
-          <View style={{ width: 32 }} />
+          <View style={{ width: 44 }} />
         </View>
 
         <Input
           label="Nombre de la receta"
           value={name}
           onChangeText={setName}
-          placeholder="Ej: Pan de Mantequilla"
+          placeholder="Ej: Pan de Jamón Tradicional"
         />
         <Input
-          label="Descripción"
+          label="Descripción / Procedimiento"
           value={description}
           onChangeText={setDescription}
-          placeholder="Opcional"
+          placeholder="Opcional: notas de horneado o preparación"
           multiline
         />
 
-        <Text style={styles.sectionTitle}>Ingredientes</Text>
+        <Text style={styles.sectionTitle}>Ingredientes Requeridos</Text>
         {ingredients.map((ing) => (
           <Card
             key={ing.id_ingrediente}
@@ -121,8 +126,9 @@ export const NuevaRecetaScreen = ({ navigation }) => {
               </View>
               <TouchableOpacity
                 onPress={() => removeIngredient(ing.id_ingrediente)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Text style={styles.removeIcon}>✕</Text>
+                <MaterialIcons name="close" size={20} color={colors.error} />
               </TouchableOpacity>
             </View>
           </Card>
@@ -132,11 +138,11 @@ export const NuevaRecetaScreen = ({ navigation }) => {
           <Card variant="border" style={styles.pickerCard}>
             <Text style={styles.pickerLabel}>Selecciona un ingrediente</Text>
             {loading ? (
-              <Text>Cargando ingredientes...</Text>
+              <Text style={{ color: colors.onSurfaceVariant, padding: spacing.sm }}>Cargando ingredientes...</Text>
             ) : (
               <ScrollView style={styles.pickerList} nestedScrollEnabled>
                 {ingredientesDisponibles
-                  .filter(
+                  ?.filter(
                     (i) =>
                       !ingredients.find(
                         (x) => x.id_ingrediente === i.id_ingrediente,
@@ -171,15 +177,15 @@ export const NuevaRecetaScreen = ({ navigation }) => {
             {selectedIngredient && (
               <View style={styles.qtyRow}>
                 <Input
-                  label="Cantidad"
+                  label={`Cantidad en ${selectedIngredient.unidad_medida}`}
                   value={quantity}
                   onChangeText={setQuantity}
-                  placeholder="0"
-                  keyboardType="numeric"
+                  placeholder="0.0"
+                  keyboardType="decimal-pad"
                   style={{ flex: 1 }}
                 />
                 <Button
-                  title="Agregar"
+                  title="Añadir"
                   variant="primary"
                   onPress={addIngredient}
                   style={styles.addBtn}
@@ -195,9 +201,9 @@ export const NuevaRecetaScreen = ({ navigation }) => {
           />
         )}
 
-        <Text style={styles.sectionTitle}>Rendimiento</Text>
+        <Text style={styles.sectionTitle}>Rendimiento Base</Text>
         <Input
-          label="Porciones"
+          label="Porciones estimadas por tanda"
           value={portions}
           onChangeText={setPortions}
           placeholder="Ej: 12"
@@ -233,9 +239,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: spacing.sm,
+    paddingTop: 4,
+    marginBottom: spacing.xs,
   },
-  backIcon: { fontSize: 24, color: colors.onSurface },
+  backBtn: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "flex-start",
+  },
   title: { ...typography.titleSm, color: colors.onSurface },
   sectionTitle: {
     ...typography.labelBold,
@@ -258,8 +270,7 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     marginTop: 2,
   },
-  removeIcon: { fontSize: 16, color: colors.error, padding: spacing.base },
-  pickerCard: { padding: spacing.md, maxHeight: 300 },
+  pickerCard: { padding: spacing.md, maxHeight: 320 },
   pickerLabel: {
     ...typography.labelBold,
     color: colors.onSurfaceVariant,

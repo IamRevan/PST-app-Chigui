@@ -5,8 +5,8 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { ScreenWrapper } from "../../components/navigation/ScreenWrapper";
 import { Card, Badge, Button } from "../../components/ui";
 import {
@@ -34,45 +34,39 @@ const STATUS_MAP = {
     border: "#FF9800",
     bg: colors.pendienteBg,
     text: colors.pendiente,
-    dot: "#FF9800",
   },
   Abonado: {
     border: "#2196F3",
     bg: colors.enCocinaBg,
     text: colors.enCocina,
-    dot: "#2196F3",
   },
-  Pagado: { border: "#4CAF50", bg: "#E8F5E9", text: "#2E7D32", dot: "#4CAF50" },
+  Pagado: { border: "#4CAF50", bg: "#E8F5E9", text: "#2E7D32" },
   "Por Preparar": {
     border: "#FF9800",
     bg: colors.pendienteBg,
     text: colors.pendiente,
-    dot: "#FF9800",
   },
   "En Cocina": {
     border: "#2196F3",
     bg: colors.enCocinaBg,
     text: colors.enCocina,
-    dot: "#2196F3",
   },
   Listo: {
     border: colors.tertiary,
     bg: `${colors.tertiaryContainer}33`,
     text: colors.tertiary,
-    dot: colors.tertiary,
   },
   Entregado: {
     border: "#9E9E9E",
     bg: "#F5F5F5",
     text: "#757575",
-    dot: "#9E9E9E",
   },
 };
 
 export const OrdersScreen = ({ navigation }) => {
   const [activeFilter, setActiveFilter] = useState("Todos");
   const { data: rawOrders, loading, refetch } = usePedidos();
-  const { format } = useCurrency();
+  const { format, formatDual } = useCurrency();
   const orders = Array.isArray(rawOrders) ? rawOrders : (rawOrders?.pedidos || []);
 
   const filtered = orders.filter((p) => {
@@ -87,7 +81,10 @@ export const OrdersScreen = ({ navigation }) => {
         contentContainerStyle={styles.content}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Órdenes</Text>
+          <View>
+            <Text style={styles.title}>Órdenes y Pedidos</Text>
+            <Text style={styles.subtitle}>{orders.length} pedidos registrados</Text>
+          </View>
           <Button
             title="+ Nuevo Pedido"
             variant="primary"
@@ -108,6 +105,7 @@ export const OrdersScreen = ({ navigation }) => {
                 activeFilter === f && styles.filterPillActive,
               ]}
               onPress={() => setActiveFilter(f)}
+              activeOpacity={0.7}
             >
               <Text
                 style={[
@@ -122,76 +120,89 @@ export const OrdersScreen = ({ navigation }) => {
         </ScrollView>
 
         {loading && (
-          <Text style={{ textAlign: "center", padding: 20 }}>
-            Cargando pedidos...
-          </Text>
+          <Text style={styles.loadingText}>Cargando pedidos...</Text>
         )}
 
         {!loading &&
           filtered.map((order) => {
-            const sc =
-              STATUS_MAP[order.estado_entrega] || STATUS_MAP["Pendiente"];
-            const estadoBadge =
-              order.estado_entrega === "Por Preparar"
-                ? "Pendiente"
-                : order.estado_entrega;
+            const sc = STATUS_MAP[order.estado_entrega] || STATUS_MAP["Pendiente"];
+            const esPagado = order.estado_pago === "Pagado";
             return (
-              <View
+              <TouchableOpacity
                 key={order.id_pedido}
                 style={[styles.orderCard, { borderLeftColor: sc.border }]}
+                onPress={() =>
+                  navigation.navigate("DetallePedido", {
+                    pedidoId: order.id_pedido,
+                  })
+                }
+                activeOpacity={0.75}
               >
                 <View style={styles.orderTop}>
                   <View style={styles.orderTopLeft}>
                     <Text style={styles.orderId}>#{order.id_pedido}</Text>
                     <Badge
-                      label={estadoBadge}
-                      variant={estadoBadge.toLowerCase().replace(/\s+/g, "-")}
+                      label={order.estado_entrega}
+                      variant={
+                        order.estado_entrega === "Listo"
+                          ? "success"
+                          : order.estado_entrega === "En Cocina"
+                            ? "default"
+                            : "warning"
+                      }
                       dot
                     />
                     {order.es_delivery && (
-                      <Text style={styles.deliveryIcon}>🚚</Text>
+                      <MaterialIcons name="delivery-dining" size={18} color={colors.primary} />
                     )}
                   </View>
                   <Text style={styles.orderTotal}>
                     {format(order.costo_total || 0)}
                   </Text>
                 </View>
+
                 <View style={styles.orderDetails}>
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Cliente:</Text>
                     <Text style={styles.detailValue}>
-                      {order.Cliente?.nombre || `ID ${order.id_cliente}`}
+                      {order.Cliente?.nombre || `ID ${order.id_cliente}`} {order.Cliente?.apellido || ""}
                     </Text>
                   </View>
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Fecha:</Text>
-                    <Text style={styles.detailValue}>{order.fecha_pedido}</Text>
+                    <Text style={styles.detailLabel}>Entrega:</Text>
+                    <Text style={styles.detailValue}>
+                      {order.fecha_entrega ? String(order.fecha_entrega).slice(0, 10) : "—"}
+                    </Text>
                   </View>
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Pago:</Text>
-                    <Text style={styles.detailValue}>{order.estado_pago}</Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        esPagado ? { color: colors.tertiary, fontWeight: "700" } : { color: colors.onSurface },
+                      ]}
+                    >
+                      {order.estado_pago}
+                    </Text>
                   </View>
                 </View>
-                <TouchableOpacity
-                  style={styles.viewDetail}
-                  onPress={() =>
-                    navigation.navigate("DetallePedido", {
-                      pedidoId: order.id_pedido,
-                    })
-                  }
-                >
-                  <Text style={styles.viewDetailText}>Ver Detalle</Text>
-                  <Text style={styles.viewDetailArrow}>→</Text>
-                </TouchableOpacity>
-              </View>
+
+                <View style={styles.viewDetail}>
+                  <Text style={styles.viewDetailText}>Ver Detalle Completo</Text>
+                  <MaterialIcons name="arrow-forward" size={16} color={colors.primary} />
+                </View>
+              </TouchableOpacity>
             );
           })}
 
         {!loading && filtered.length === 0 && (
-          <Text style={styles.emptyText}>
-            No hay pedidos{" "}
-            {activeFilter !== "Todos" ? activeFilter.toLowerCase() : ""}
-          </Text>
+          <View style={styles.emptyCard}>
+            <MaterialIcons name="receipt-long" size={40} color={colors.outline} />
+            <Text style={styles.emptyText}>
+              No hay pedidos{" "}
+              {activeFilter !== "Todos" ? `en "${activeFilter.toLowerCase()}"` : ""}
+            </Text>
+          </View>
         )}
       </ScrollView>
     </ScreenWrapper>
@@ -200,95 +211,83 @@ export const OrdersScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: spacing.gutter, paddingBottom: 40 },
+  content: { padding: spacing.gutter, paddingBottom: 100, gap: spacing.sm },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xs,
   },
-  title: { ...typography.titleSm, fontSize: 20, color: colors.onSurface },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: colors.outlineVariant,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  searchIcon: { fontSize: 20, color: colors.onSurfaceVariant },
-  searchText: { ...typography.bodyMd, color: colors.onSurfaceVariant, flex: 1 },
-  filtersRow: {
-    marginBottom: spacing.lg,
-  },
+  title: { ...typography.headlineMd, fontSize: 20, color: colors.onSurface },
+  subtitle: { ...typography.metadata, color: colors.onSurfaceVariant, marginTop: -2 },
+  filtersRow: { marginBottom: spacing.xs },
   filterPill: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xs,
-    borderRadius: 999,
-    backgroundColor: colors.surfaceContainerHighest,
-    marginRight: spacing.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surfaceContainerLow,
+    marginRight: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.surfaceVariant,
   },
   filterPillActive: {
     backgroundColor: colors.primaryContainer,
+    borderColor: colors.primaryContainer,
   },
   filterText: {
-    ...typography.labelBold,
+    ...typography.labelCaption,
     color: colors.onSurfaceVariant,
+    fontWeight: "600",
   },
   filterTextActive: {
     color: colors.onPrimaryContainer,
+    fontWeight: "700",
   },
+  loadingText: { textAlign: "center", padding: spacing.xl, color: colors.onSurfaceVariant },
   orderCard: {
     backgroundColor: colors.surfaceContainerLowest,
-    padding: spacing.lg,
     borderRadius: borderRadius.lg,
+    padding: spacing.md,
     borderLeftWidth: 4,
-    ...shadows.md,
-    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.surfaceVariant,
+    ...shadows.sm,
+    gap: spacing.xs,
   },
   orderTop: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: spacing.md,
-  },
-  orderTopLeft: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
   },
-  orderId: { ...typography.labelBold, color: colors.onSurface },
-  deliveryIcon: { fontSize: 18 },
-  orderTotal: { ...typography.titleSm, color: colors.primary, fontSize: 18 },
+  orderTopLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  orderId: { ...typography.titleSm, fontSize: 16, color: colors.onSurface },
+  orderTotal: { ...typography.labelBold, color: colors.primary, fontSize: 14 },
   orderDetails: {
-    gap: spacing.xs,
-    marginBottom: spacing.md,
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: borderRadius.md,
+    padding: 8,
+    gap: 3,
+    marginVertical: 4,
   },
-  detailRow: {
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
-  detailLabel: {
-    ...typography.labelBold,
-    color: colors.onSurfaceVariant,
-    fontSize: 13,
-  },
-  detailValue: { ...typography.bodySm, color: colors.onSurfaceVariant },
+  detailRow: { flexDirection: "row", justifyContent: "space-between" },
+  detailLabel: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 12 },
+  detailValue: { ...typography.bodySm, color: colors.onSurface, fontSize: 12, fontWeight: "500" },
   viewDetail: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.surfaceVariant,
+    justifyContent: "flex-end",
+    gap: 4,
+    paddingTop: 4,
   },
-  viewDetailText: { ...typography.buttonText, color: colors.primary },
-  viewDetailArrow: { fontSize: 18, color: colors.primary },
-  emptyText: {
-    ...typography.bodyMd,
-    color: colors.onSurfaceVariant,
-    textAlign: "center",
-    paddingVertical: spacing.xl,
+  viewDetailText: { ...typography.buttonText, color: colors.primary, fontSize: 12 },
+  emptyCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.xl,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: borderRadius.lg,
+    marginTop: spacing.md,
+    gap: 8,
   },
+  emptyText: { ...typography.bodySm, color: colors.onSurfaceVariant, textAlign: "center" },
 });

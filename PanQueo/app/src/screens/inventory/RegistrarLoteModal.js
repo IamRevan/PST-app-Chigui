@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Button, Input, ErrorMessage } from "../../components/ui";
@@ -30,6 +30,13 @@ export const RegistrarLoteModal = ({
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (visible) {
+      setIngredienteId(initialIngredienteId || "");
+      setError(null);
+    }
+  }, [visible, initialIngredienteId]);
+
   // Sincronizar si el screen destino cambia el ingrediente inicial
   const ingredienteActual = ingredientes.find(
     (i) => String(i.id_ingrediente) === String(ingredienteId),
@@ -50,8 +57,8 @@ export const RegistrarLoteModal = ({
     try {
       const payload = {
         id_ingrediente: Number(ingredienteId),
-        cantidad_actual: form.cantidad_actual,
-        cantidad_inicial: form.cantidad_actual,
+        cantidad_actual: parseFloat(form.cantidad_actual),
+        cantidad_inicial: parseFloat(form.cantidad_actual),
         fecha_ingreso: new Date().toISOString().split("T")[0],
         fecha_venc: form.fecha_venc,
       };
@@ -84,6 +91,7 @@ export const RegistrarLoteModal = ({
         <TouchableOpacity
           style={styles.selectorBtn}
           onPress={() => setShowSelector(true)}
+          activeOpacity={0.7}
         >
           <View style={styles.selectorBtnLeft}>
             <MaterialIcons name="inventory" size={18} color={colors.onSurfaceVariant} />
@@ -128,21 +136,22 @@ export const RegistrarLoteModal = ({
         </View>
 
         <Input
-          label="Precio de compra (opcional)"
+          label="Precio de compra (USD, opcional)"
           value={form.precio_compra}
           onChangeText={(v) => {
             setForm({ ...form, precio_compra: v });
           }}
-          placeholder="$ 0.00"
+          placeholder="0.00"
           keyboardType="decimal-pad"
         />
 
         <Text style={styles.infoText}>
-          * Ingreso: Automático (Hoy) / Moneda: USD (Regla 3)
+          * Fecha de ingreso automática (Hoy). Precio unitario base en USD para auditoría y simulador de costos.
         </Text>
 
         <Button
-          title={saving ? "Guardando..." : "Confirmar Lote"}
+          title={saving ? "Guardando Lote..." : "Confirmar y Guardar Lote"}
+          variant="primary"
           onPress={handleSubmit}
           disabled={saving}
           style={styles.confirmBtn}
@@ -213,8 +222,8 @@ const styles = StyleSheet.create({
     borderColor: colors.outlineVariant,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surfaceContainerLowest,
+    height: 46,
+    backgroundColor: colors.surfaceContainerLow,
     marginBottom: spacing.xs,
   },
   selectorBtnLeft: {
@@ -255,5 +264,5 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.md,
   },
-  confirmBtn: {},
+  confirmBtn: { marginTop: spacing.xs },
 });

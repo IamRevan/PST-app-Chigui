@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/navigation/ScreenWrapper';
 import { Card, Badge, Button, Loading, ErrorMessage } from '../../components/ui';
@@ -10,29 +17,20 @@ import { useCurrency } from '../../lib/currency';
 import apiClient from '../../lib/api/client';
 import { ENDPOINTS } from '../../lib/api/endpoints';
 
+const SEGUIMIENTO_ENTREGA = ['Por Preparar', 'En Cocina', 'Listo', 'Entregado'];
 const ESTADOS_PAGO = ['Pendiente', 'Abonado', 'Pagado'];
-const ESTADOS_ENTREGA = ['Por Preparar', 'En Cocina', 'Listo', 'Entregado'];
-
-const statusColor = (e) => {
-  const m = {
-    Pendiente: '#FF9800', Abonado: '#2196F3', Pagado: '#4CAF50',
-    'Por Preparar': '#FF9800', 'En Cocina': '#2196F3', Listo: '#4CAF50', Entregado: '#9E9E9E',
-  };
-  return m[e] || '#999';
-};
 
 export const DetallePedidoScreen = ({ route, navigation }) => {
   const pedidoId = route?.params?.pedidoId;
   const { data: pedido, loading, error, refetch } = usePedidoById(pedidoId);
   const { refetch: refetchPedidos } = usePedidos();
-  const { format } = useCurrency();
+  const { format, formatDual } = useCurrency();
 
   const [estadoPago, setEstadoPago] = useState(null);
   const [estadoEntrega, setEstadoEntrega] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [stockError, setStockError] = useState(null); // { message }
+  const [stockError, setStockError] = useState(null);
 
-  // Al cargar los datos reales, sincronizar los selectores de estado
   useEffect(() => {
     if (pedido) {
       setEstadoPago(pedido.estado_pago || 'Pendiente');
@@ -43,7 +41,7 @@ export const DetallePedidoScreen = ({ route, navigation }) => {
   if (!pedidoId) {
     return (
       <ScreenWrapper>
-        <Text style={styles.emptyText}>Selecciona un pedido</Text>
+        <Text style={styles.emptyText}>Selecciona un pedido para ver el detalle</Text>
       </ScreenWrapper>
     );
   }
@@ -65,30 +63,35 @@ export const DetallePedidoScreen = ({ route, navigation }) => {
   }
 
   const detalles = Array.isArray(pedido.DetallePedidos) ? pedido.DetallePedidos : [];
+  const total = parseFloat(pedido.costo_total || 0);
   const abonado = parseFloat(pedido.monto_abonado || 0);
-  const balance = parseFloat(pedido.costo_total || 0) - abonado;
+  const balance = Math.max(0, total - abonado);
+  const esPagado = pedido.estado_pago === 'Pagado';
 
-  const dirty = estadoPago !== pedido.estado_pago || estadoEntrega !== pedido.estado_entrega;
+  // Lógica de avance secuencial de estado (paridad estricta con app.js web)
+  const idx = SEGUIMIENTO_ENTREGA.indexOf(pedido.estado_entrega);
+  const nextEstado = idx >= 0 && idx < SEGUIMIENTO_ENTREGA.length - 1 ? SEGUIMIENTO_ENTREGA[idx + 1] : null;
 
   const parseStockError = (message) => {
-    // Formato backend: "Stock insuficiente para X. Requerido: N, Disponible: M"
     const match = /Stock insuficiente para ([^.]+)\.\s*Requerido: ([\d.]+), Disponible: ([\d.]+)/.exec(message || '');
-    if (!match) return { nombre: null, requerido: null, disponible: null };
-    return { nombre: match[1].trim(), requerido: match[2], disponible: match[3] };
+    if (!match) return { nombre: null, requerido: null, disponible: null, raw: message };
+    return { nombre: match[1].trim(), requerido: match[2], disponible: match[3], raw: message };
   };
 
-  const handleSave = async () => {
-    if (!dirty) return;
+  const handlePasarEstado = async (targetEstado) => {
     setSaving(true);
     try {
-      const payload = {};
-      if (estadoEntrega !== pedido.estado_entrega) payload.estado_entrega = estadoEntrega;
-      if (estadoPago !== pedido.estado_pago) payload.estado_pago = estadoPago;
-
-      await apiClient.patch(ENDPOINTS.PEDIDO_ESTADO(pedidoId), payload);
+      await apiClient.patch(ENDPOINTS.PEDIDO_ESTADO(pedidoId), {
+        estado_entrega: targetEstado,
+      });
       await refetch();
       await refetchPedidos();
-      Alert.alert('Éxito', 'Estado actualizado. Si pasó a "En Cocina", el inventario se descontó por FIFO.');
+      Alert.alert(
+        'Pedido Actualizado',
+        targetEstado === 'En Cocina'
+          ? 'Pedido en cocina. El inventario se descontó automáticamente con FIFO/FEFO.'
+          : `El pedido avanzó a estado "${targetEstado}".`
+      );
     } catch (err) {
       const message = err?.message || 'Error al actualizar el estado';
       if (message.includes('Stock insuficiente')) {
@@ -101,177 +104,188 @@ export const DetallePedidoScreen = ({ route, navigation }) => {
     }
   };
 
-  const esEnCocina = pedido.estado_entrega === 'En Cocina';
+  const handleMarcarPagado = async () => {
+    setSaving(true);
+    try {
+      await apiClient.patch(ENDPOINTS.PEDIDO_ESTADO(pedidoId), {
+        estado_pago: 'Pagado',
+        monto_abonado: total,
+      });
+      await refetch();
+      await refetchPedidos();
+      Alert.alert('Cobro Registrado', 'El pedido ha sido marcado como totalmente Pagado.');
+    } catch (err) {
+      Alert.alert('Error', err.message || 'No se pudo actualizar el pago');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <ScreenWrapper>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {/* Encabezado con ID y navegación */}
         <View style={styles.header}>
-          <Text style={styles.orderId}>Pedido #{pedido.id_pedido}</Text>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.orderId}>Pedido #{pedido.id_pedido}</Text>
+            <Text style={styles.orderDates}>
+              Entrega: {pedido.fecha_entrega ? String(pedido.fecha_entrega).slice(0, 10) : '—'}
+            </Text>
+          </View>
           <Badge
             label={pedido.estado_entrega}
-            variant={pedido.estado_entrega.toLowerCase().replace(/\s+/g, '-')}
+            variant={pedido.estado_entrega === 'Listo' ? 'success' : pedido.estado_entrega === 'En Cocina' ? 'default' : 'warning'}
             dot
           />
         </View>
 
-        <Card style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Cliente</Text>
-            <Text style={styles.infoValue}>
-              {pedido.Cliente
-                ? `${pedido.Cliente.nombre} ${pedido.Cliente.apellido || ''}`.trim()
-                : `ID ${pedido.id_cliente}`}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Fecha de Pedido</Text>
-            <Text style={styles.infoValue}>{pedido.fecha_pedido?.split('T')[0] || '—'}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Entrega</Text>
-            <Text style={styles.infoValue}>{pedido.fecha_entrega}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Delivery</Text>
-            <Text style={styles.infoValue}>
-              {pedido.es_delivery ? '🚚 Sí' : 'No'}
-            </Text>
-          </View>
-          {pedido.direccion_delivery && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Dirección</Text>
-              <Text style={styles.infoValue}>{pedido.direccion_delivery}</Text>
+        {/* Botones de acción rápida operativos */}
+        <View style={styles.actionButtonsRow}>
+          {nextEstado ? (
+            <TouchableOpacity
+              style={[styles.quickActionBtn, styles.quickActionNext, saving && { opacity: 0.6 }]}
+              onPress={() => handlePasarEstado(nextEstado)}
+              disabled={saving}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="sync-alt" size={18} color={colors.onPrimaryContainer} />
+              <Text style={styles.quickActionNextText}>Pasar a {nextEstado}</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {!esPagado ? (
+            <TouchableOpacity
+              style={[styles.quickActionBtn, styles.quickActionPay, saving && { opacity: 0.6 }]}
+              onPress={handleMarcarPagado}
+              disabled={saving}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="done-all" size={18} color={colors.white} />
+              <Text style={styles.quickActionPayText}>Marcar Pagado</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.paidBadgeBox}>
+              <MaterialIcons name="check-circle" size={16} color={colors.tertiary} />
+              <Text style={styles.paidBadgeText}>Totalmente Pagado</Text>
             </View>
           )}
-          {pedido.observaciones && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Observaciones</Text>
-              <Text style={styles.infoValue}>{pedido.observaciones}</Text>
-            </View>
-          )}
-        </Card>
-
-        <Card style={styles.productsCard}>
-          <Text style={styles.sectionTitle}>Productos</Text>
-          {detalles.length === 0 && (
-            <Text style={styles.emptyText}>Sin recetas registradas</Text>
-          )}
-          {detalles.map((d) => (
-            <View key={d.id_detalle} style={styles.productRow}>
-              <Text style={styles.productName}>
-                {d.Receta?.nombre_receta || `Receta #${d.id_receta}`}
-              </Text>
-              <Text style={styles.productQty}>x{parseFloat(d.cantidad)}</Text>
-              <Text style={styles.productPrice}>{format(d.precio_unitario || 0)}</Text>
-            </View>
-          ))}
-          <View style={[styles.totalRow, styles.firstTotalRow]}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>{format(pedido.costo_total)}</Text>
-          </View>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Abonado</Text>
-            <Text style={styles.totalValue}>{format(abonado)}</Text>
-          </View>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Balance</Text>
-            <Text style={[styles.totalValue, { color: balance > 0 ? colors.error : colors.tertiary }]}>
-              {format(balance)}
-            </Text>
-          </View>
-        </Card>
-
-        <Card style={styles.statusCard}>
-          <Text style={styles.sectionTitle}>Estado de Pago</Text>
-          <View style={styles.statusRow}>
-            {ESTADOS_PAGO.map((e) => (
-              <TouchableOpacity
-                key={e}
-                style={[styles.statusPill, estadoPago === e && { backgroundColor: statusColor(e), borderColor: statusColor(e) }]}
-                onPress={() => setEstadoPago(e)}
-              >
-                <Text style={[styles.statusPillText, estadoPago === e && { color: '#fff' }]}>{e}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Card>
-
-        <Card style={styles.statusCard}>
-          <Text style={styles.sectionTitle}>Estado de Entrega</Text>
-          {esEnCocina && (
-            <Text style={styles.fifoHint}>
-              ✓ Los ingredientes ya fueron descontados del inventario (FIFO)
-            </Text>
-          )}
-          {!esEnCocina && pedido.estado_entrega === 'Por Preparar' && estadoEntrega === 'En Cocina' && (
-            <Text style={styles.fifoWarn}>
-              ⓘ Al confirmar "En Cocina" se descontarán los ingredientes del inventario. Si no hay stock suficiente, el operativo mostrará un error y no se aplicará ningún cambio.
-            </Text>
-          )}
-          <View style={styles.statusRow}>
-            {ESTADOS_ENTREGA.map((e) => {
-              // El flujo es lineal: no regresar a estados previos al actual
-              const order = ESTADOS_ENTREGA.indexOf(pedido.estado_entrega);
-              const target = ESTADOS_ENTREGA.indexOf(e);
-              const bloqueado = target < order;
-              return (
-                <TouchableOpacity
-                  key={e}
-                  disabled={bloqueado}
-                  style={[
-                    styles.statusPill,
-                    estadoEntrega === e && { backgroundColor: statusColor(e), borderColor: statusColor(e) },
-                    bloqueado && styles.statusPillDisabled,
-                  ]}
-                  onPress={() => setEstadoEntrega(e)}
-                >
-                  <Text style={[styles.statusPillText, estadoEntrega === e && { color: '#fff' }]}>{e}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </Card>
-
-        <View style={styles.actions}>
-          <Button
-            title={saving ? 'Guardando...' : dirty ? 'Guardar Cambios' : 'Sin cambios pendientes'}
-            variant="primary"
-            onPress={handleSave}
-            disabled={saving || !dirty}
-          />
         </View>
+
+        {/* Tarjeta de Cliente */}
+        <Card style={styles.card}>
+          <View style={styles.cardHeader}>
+            <MaterialIcons name="person" size={20} color={colors.primary} />
+            <Text style={styles.cardTitle}>Información del Cliente</Text>
+          </View>
+          <View style={styles.clientDetailRow}>
+            <Text style={styles.clientName}>
+              {pedido.Cliente?.nombre || 'Cliente General'} {pedido.Cliente?.apellido || ''}
+            </Text>
+            {pedido.Cliente?.cedula ? (
+              <Text style={styles.clientMeta}>CI: {pedido.Cliente.cedula}</Text>
+            ) : null}
+            {pedido.Cliente?.telefono ? (
+              <Text style={styles.clientMeta}>📞 {pedido.Cliente.telefono}</Text>
+            ) : null}
+            {pedido.es_delivery ? (
+              <View style={styles.deliveryBadge}>
+                <MaterialIcons name="delivery-dining" size={16} color={colors.primary} />
+                <Text style={styles.deliveryText}>
+                  Delivery: {pedido.direccion_delivery || 'Dirección indicada al cliente'}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </Card>
+
+        {/* Tarjeta de Pagos */}
+        <Card style={styles.card}>
+          <View style={styles.cardHeader}>
+            <MaterialIcons name="payments" size={20} color={colors.primary} />
+            <Text style={styles.cardTitle}>Balance de Pago</Text>
+          </View>
+          <View style={styles.paymentGrid}>
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Estado de pago:</Text>
+              <Badge
+                label={pedido.estado_pago || 'Pendiente'}
+                variant={esPagado ? 'success' : pedido.estado_pago === 'Abonado' ? 'default' : 'warning'}
+              />
+            </View>
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Monto total:</Text>
+              <Text style={styles.paymentValueBold}>{formatDual(total)}</Text>
+            </View>
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Abonado a la fecha:</Text>
+              <Text style={styles.paymentValue}>{formatDual(abonado)}</Text>
+            </View>
+            <View style={[styles.paymentRow, styles.balanceRow]}>
+              <Text style={styles.balanceLabel}>Saldo por cobrar:</Text>
+              <Text style={[styles.balanceValue, balance > 0 ? { color: colors.error } : { color: colors.tertiary }]}>
+                {formatDual(balance)}
+              </Text>
+            </View>
+          </View>
+        </Card>
+
+        {/* Recetas del Pedido */}
+        <Card style={styles.card}>
+          <View style={styles.cardHeader}>
+            <MaterialIcons name="bakery-dining" size={20} color={colors.primary} />
+            <Text style={styles.cardTitle}>Recetas Solicitadas ({detalles.length})</Text>
+          </View>
+
+          {detalles.map((d, i) => {
+            const precioU = parseFloat(d.precio_unitario || 0);
+            const cant = parseFloat(d.cantidad || 0);
+            const subtotal = precioU * cant;
+            return (
+              <View key={d.id_detalle || i} style={styles.recipeRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.recipeName}>
+                    {d.Receta?.nombre_receta || `Receta #${d.id_receta}`}
+                  </Text>
+                  <Text style={styles.recipePriceSub}>
+                    {cant} porciones × {formatDual(precioU)}
+                  </Text>
+                </View>
+                <Text style={styles.recipeSubtotal}>{formatDual(subtotal)}</Text>
+              </View>
+            );
+          })}
+
+          <View style={styles.totalOrderBox}>
+            <Text style={styles.totalOrderLabel}>Total del Pedido</Text>
+            <Text style={styles.totalOrderVal}>{formatDual(total)}</Text>
+          </View>
+        </Card>
+
+        {pedido.observaciones ? (
+          <View style={styles.notesBox}>
+            <Text style={styles.notesTitle}>Observaciones:</Text>
+            <Text style={styles.notesText}>{pedido.observaciones}</Text>
+          </View>
+        ) : null}
       </ScrollView>
 
-      {/* Modal equivalente al view-stock-error del MVP web */}
+      {/* Modal de Error de Stock en FIFO */}
       <CenterModal
         visible={!!stockError}
         onClose={() => setStockError(null)}
-        title="❌ Stock insuficiente"
+        title="⚠️ Stock Insuficiente (FIFO)"
       >
-        <Text style={styles.stockErrorText}>
-          No hay suficiente inventario para preparar este pedido con la regla FIFO.
-        </Text>
-        {stockError?.nombre && (
-          <Card variant="border" style={styles.stockErrorCard}>
-            <View style={styles.stockErrorRow}>
-              <MaterialIcons name='inventory' size={20} color={colors.error} />
-              <Text style={styles.stockErrorName}>{stockError.nombre}</Text>
-            </View>
-            <View style={styles.stockDataRow}>
-              <Text style={styles.stockDataLabel}>Requerido</Text>
-              <Text style={styles.stockDataValue}>{stockError.requerido}</Text>
-            </View>
-            <View style={styles.stockDataRow}>
-              <Text style={styles.stockDataLabel}>Disponible</Text>
-              <Text style={[styles.stockDataValue, { color: colors.error }]}>
-                {stockError.disponible}
-              </Text>
-            </View>
-          </Card>
-        )}
-        <Text style={styles.stockErrorHint}>
-          Registra un lote nuevo (o completa tu Lista de Compras) para reponer el inventario y vuelve a intentarlo.
+        <Text style={styles.stockErrorDesc}>
+          {stockError?.nombre
+            ? `No es posible pasar a "En Cocina" porque falta stock del ingrediente:\n\n• ${stockError.nombre}\nRequerido: ${stockError.requerido}\nDisponible: ${stockError.disponible}`
+            : stockError?.raw || 'Stock insuficiente para procesar la receta por FIFO.'}
         </Text>
         <Button
           title="Entendido"
@@ -286,75 +300,139 @@ export const DetallePedidoScreen = ({ route, navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: spacing.gutter, paddingBottom: 40 },
+  content: { padding: spacing.gutter, paddingBottom: 40, gap: spacing.sm },
+  emptyText: { ...typography.bodySm, textAlign: 'center', padding: spacing.xl, color: colors.onSurfaceVariant },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+    paddingTop: 4,
   },
-  orderId: { ...typography.titleSm, color: colors.onSurface },
-  infoCard: { marginBottom: spacing.md, gap: spacing.sm },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
+  backBtn: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
   },
-  infoLabel: { ...typography.bodySm, color: colors.onSurfaceVariant },
-  infoValue: { ...typography.bodySm, fontWeight: '600', color: colors.onSurface, flexShrink: 1 },
-  productsCard: { marginBottom: spacing.md, gap: spacing.sm },
-  sectionTitle: { ...typography.labelBold, color: colors.onSurface, marginBottom: spacing.xs },
-  productRow: {
+  orderId: { ...typography.headlineMd, fontSize: 20, color: colors.onSurface },
+  orderDates: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 11 },
+  actionButtonsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginVertical: 4,
+    flexWrap: 'wrap',
+  },
+  quickActionBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.xs,
+    justifyContent: 'center',
+    gap: 6,
+    height: 42,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    flex: 1,
+    minWidth: 140,
+    ...shadows.sm,
   },
-  productName: { ...typography.bodyMd, color: colors.onSurface, flexShrink: 1 },
-  productQty: { ...typography.bodySm, color: colors.onSurfaceVariant },
-  productPrice: { ...typography.bodyMd, fontWeight: '600' },
-  firstTotalRow: { marginTop: spacing.sm },
-  totalRow: {
+  quickActionNext: {
+    backgroundColor: colors.primaryContainer,
+  },
+  quickActionNextText: {
+    ...typography.buttonText,
+    color: colors.onPrimaryContainer,
+    fontSize: 13,
+  },
+  quickActionPay: {
+    backgroundColor: colors.tertiary,
+  },
+  quickActionPayText: {
+    ...typography.buttonText,
+    color: colors.white,
+    fontSize: 13,
+  },
+  paidBadgeBox: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: `${colors.tertiaryContainer}30`,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: borderRadius.md,
+  },
+  paidBadgeText: {
+    ...typography.labelBold,
+    color: colors.tertiary,
+    fontSize: 12,
+  },
+  card: { padding: spacing.md, gap: spacing.xs, borderRadius: borderRadius.lg },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceVariant,
+    paddingBottom: 6,
+  },
+  cardTitle: {
+    ...typography.labelBold,
+    color: colors.primary,
+    fontSize: 12,
+    textTransform: 'uppercase',
+  },
+  clientDetailRow: { paddingTop: 4, gap: 2 },
+  clientName: { ...typography.bodySm, fontWeight: '700', color: colors.onSurface, fontSize: 15 },
+  clientMeta: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 12 },
+  deliveryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surfaceContainerLow,
+    padding: 6,
+    borderRadius: borderRadius.md,
+    marginTop: 4,
+  },
+  deliveryText: { ...typography.metadata, color: colors.onSurface, fontSize: 12 },
+  paymentGrid: { gap: 6, paddingTop: 4 },
+  paymentRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  paymentLabel: { ...typography.bodySm, color: colors.onSurfaceVariant, fontSize: 12 },
+  paymentValue: { ...typography.bodySm, color: colors.onSurface, fontSize: 12 },
+  paymentValueBold: { ...typography.labelBold, color: colors.onSurface, fontSize: 13 },
+  balanceRow: {
     borderTopWidth: 1,
     borderTopColor: colors.surfaceVariant,
-    paddingTop: spacing.sm,
-    marginTop: spacing.sm,
+    paddingTop: 6,
+    marginTop: 2,
   },
-  totalLabel: { ...typography.labelBold },
-  totalValue: { ...typography.titleSm, color: colors.primary },
-  statusCard: { marginBottom: spacing.md },
-  fifoHint: { ...typography.bodySm, color: colors.tertiary, marginTop: spacing.xs },
-  fifoWarn: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: spacing.xs },
-  statusRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  statusPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    backgroundColor: colors.surface,
-  },
-  statusPillDisabled: { opacity: 0.4 },
-  statusPillText: { ...typography.labelBold, fontSize: 12, color: colors.onSurfaceVariant },
-  actions: { marginTop: spacing.md },
-  emptyText: { ...typography.bodyMd, color: colors.onSurfaceVariant, textAlign: 'center', paddingVertical: spacing.xl },
-  stockErrorText: { ...typography.bodyMd, color: colors.onSurfaceVariant, marginBottom: spacing.sm },
-  stockErrorCard: { padding: spacing.md, gap: spacing.xs },
-  stockErrorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs },
-  stockErrorName: { ...typography.labelBold, color: colors.onSurface },
-  stockDataRow: {
+  balanceLabel: { ...typography.labelBold, color: colors.onSurface, fontSize: 13 },
+  balanceValue: { ...typography.headlineMd, fontSize: 15 },
+  recipeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceVariant,
   },
-  stockDataLabel: { ...typography.bodySm, color: colors.onSurfaceVariant },
-  stockDataValue: { ...typography.labelBold, color: colors.onSurface },
-  stockErrorHint: { ...typography.bodySm, color: colors.outline },
+  recipeName: { ...typography.bodySm, fontWeight: '600', color: colors.onSurface },
+  recipePriceSub: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 11 },
+  recipeSubtotal: { ...typography.labelBold, color: colors.onSurface, fontSize: 13 },
+  totalOrderBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: spacing.sm,
+    marginTop: 4,
+  },
+  totalOrderLabel: { ...typography.titleSm, color: colors.onSurface, fontSize: 15 },
+  totalOrderVal: { ...typography.headlineMd, color: colors.primary, fontSize: 18 },
+  notesBox: {
+    backgroundColor: colors.surfaceContainerLow,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    gap: 2,
+  },
+  notesTitle: { ...typography.labelBold, color: colors.onSurfaceVariant, fontSize: 11 },
+  notesText: { ...typography.bodySm, color: colors.onSurface, fontSize: 12 },
+  stockErrorDesc: { ...typography.bodySm, color: colors.onSurface, lineHeight: 20 },
 });

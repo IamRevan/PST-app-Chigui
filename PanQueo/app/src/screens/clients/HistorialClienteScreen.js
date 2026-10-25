@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { ScreenWrapper } from "../../components/navigation/ScreenWrapper";
 import { Button } from "../../components/ui";
 import {
@@ -23,7 +24,7 @@ import { useCurrency } from "../../lib/currency";
 
 export const HistorialClienteScreen = ({ navigation, route }) => {
   const clienteId = route?.params?.clienteId;
-  const { format } = useCurrency();
+  const { format, formatDual } = useCurrency();
 
   const { data: cliente, loading: loadingCliente } = useClienteById(clienteId);
   const { data: pedidos, loading: loadingPedidos } =
@@ -51,14 +52,16 @@ export const HistorialClienteScreen = ({ navigation, route }) => {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backRow}
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <Text style={styles.backIcon}>←</Text>
-          <Text style={styles.backLabel}>Volver</Text>
+          <MaterialIcons name="arrow-back" size={22} color={colors.onSurface} />
+          <Text style={styles.backLabel}>Volver a Clientes</Text>
         </TouchableOpacity>
 
         <View style={styles.profileCard}>
           {loadingCliente ? (
-            <Text style={{ textAlign: "center", width: "100%" }}>
+            <Text style={{ textAlign: "center", width: "100%", padding: spacing.md }}>
               Cargando información del cliente...
             </Text>
           ) : (
@@ -70,28 +73,28 @@ export const HistorialClienteScreen = ({ navigation, route }) => {
               </View>
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>
-                  {cliente?.nombre} {cliente?.apellido}
+                  {cliente?.nombre} {cliente?.apellido || ""}
                 </Text>
                 <View style={styles.contactRow}>
-                  <Text style={styles.contactIcon}>📞</Text>
+                  <MaterialIcons name="phone" size={16} color={colors.primary} />
                   <Text style={styles.contactText}>
                     {cliente?.telefono || "Sin teléfono"}
                   </Text>
                 </View>
                 <View style={styles.contactRow}>
-                  <Text style={styles.contactIcon}>📍</Text>
+                  <MaterialIcons name="location-on" size={16} color={colors.primary} />
                   <Text style={styles.contactText}>
-                    {cliente?.direccion || "Sin dirección"}
+                    {cliente?.direccion || "Sin dirección registrada"}
                   </Text>
                 </View>
                 <View style={styles.contactRow}>
-                  <Text style={styles.contactIcon}>🪪</Text>
+                  <MaterialIcons name="badge" size={16} color={colors.primary} />
                   <Text style={styles.contactText}>
                     C.I. {cliente?.cedula || "N/A"}
                   </Text>
                 </View>
                 <Button
-                  title="+ Nuevo Pedido"
+                  title="+ Nuevo Pedido para este Cliente"
                   variant="primary"
                   onPress={() =>
                     navigation.navigate("NuevoPedido", {
@@ -112,26 +115,21 @@ export const HistorialClienteScreen = ({ navigation, route }) => {
             <Text style={styles.statValue}>{pedidos ? pedidos.length : 0}</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Total Gastado</Text>
-            <Text style={styles.statValue}>${totalGastado.toFixed(0)}</Text>
+            <Text style={styles.statLabel}>Total Invertido</Text>
+            <Text style={styles.statValueBold}>{format(totalGastado)}</Text>
           </View>
           <View style={[styles.statCard, styles.statCardAccent]}>
-            <Text style={styles.statLabel}>Puntos</Text>
+            <Text style={styles.statLabel}>Puntos Fidelidad</Text>
             <Text style={styles.statValueSm}>
-              {cliente?.puntos_fidelidad || 0}
-            </Text>
-          </View>
-          <View style={[styles.statCard, styles.statCardAccent]}>
-            <Text style={styles.statLabel}>Última Visita</Text>
-            <Text style={styles.statValueSm}>
-              {pedidos && pedidos.length > 0 ? pedidos[0].fecha_pedido : "N/A"}
+              {cliente?.puntos_fidelidad || 0} pts
             </Text>
           </View>
         </View>
 
         <View style={styles.tableCard}>
           <View style={styles.tableHeader}>
-            <Text style={styles.tableTitle}>Historial de Pedidos</Text>
+            <MaterialIcons name="history" size={20} color={colors.primary} />
+            <Text style={styles.tableTitle}>Historial de Órdenes</Text>
           </View>
           <View style={styles.tableHead}>
             <Text style={[styles.th, styles.thFirst]}># Pedido</Text>
@@ -145,7 +143,7 @@ export const HistorialClienteScreen = ({ navigation, route }) => {
             </Text>
           )}
           {!loadingPedidos && (!pedidos || pedidos.length === 0) && (
-            <Text style={styles.emptyRow}>No hay pedidos registrados</Text>
+            <Text style={styles.emptyRow}>No hay pedidos registrados para este cliente</Text>
           )}
           {!loadingPedidos &&
             pedidos &&
@@ -161,9 +159,12 @@ export const HistorialClienteScreen = ({ navigation, route }) => {
                     pedidoId: o.id_pedido,
                   })
                 }
+                activeOpacity={0.7}
               >
                 <Text style={[styles.td, styles.tdId]}>#{o.id_pedido}</Text>
-                <Text style={styles.td}>{o.fecha_pedido}</Text>
+                <Text style={styles.td}>
+                  {o.fecha_pedido ? String(o.fecha_pedido).slice(0, 10) : "—"}
+                </Text>
                 <Text style={[styles.td, styles.tdBold]}>
                   {format(o.costo_total || 0)}
                 </Text>
@@ -173,9 +174,9 @@ export const HistorialClienteScreen = ({ navigation, route }) => {
                       styles.statusBadge,
                       o.estado_entrega === "Entregado"
                         ? styles.statusOk
-                        : o.estado_entrega === "Cancelado"
-                          ? styles.statusCancel
-                          : styles.statusOk,
+                        : o.estado_entrega === "Listo"
+                          ? styles.statusOk
+                          : styles.statusPending,
                     ]}
                   >
                     {o.estado_entrega}
@@ -183,12 +184,6 @@ export const HistorialClienteScreen = ({ navigation, route }) => {
                 </View>
               </TouchableOpacity>
             ))}
-          <TouchableOpacity
-            style={styles.viewAll}
-            onPress={() => navigation.navigate("Pedidos")}
-          >
-            <Text style={styles.viewAllText}>Ver todos los pedidos →</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </ScreenWrapper>
@@ -198,133 +193,98 @@ export const HistorialClienteScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.gutter, paddingBottom: 40, gap: spacing.md },
-  backRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  backIcon: { fontSize: 20, color: colors.onSurface },
-  backLabel: { ...typography.bodyMd, color: colors.onSurface },
+  emptyText: { ...typography.bodySm, textAlign: "center", padding: spacing.xl, color: colors.onSurfaceVariant },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 44,
+    paddingTop: 4,
+  },
+  backLabel: { ...typography.labelBold, color: colors.onSurface, fontSize: 13 },
   profileCard: {
     backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    flexDirection: "row",
-    gap: spacing.lg,
-    ...shadows.md,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: `${colors.outlineVariant}33`,
-  },
-  profileAvatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: colors.secondaryContainer,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 4,
-    borderColor: colors.surfaceContainerLowest,
+    borderColor: colors.surfaceVariant,
+    flexDirection: "row",
+    gap: spacing.md,
     ...shadows.sm,
   },
-  avatarText: { ...typography.displayLg, color: colors.onSecondaryContainer },
-  profileInfo: { flex: 1, gap: spacing.xs },
-  profileName: { ...typography.headlineMd, color: colors.onSurface },
-  contactRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  contactIcon: { fontSize: 16 },
-  contactText: { ...typography.bodySm, color: colors.onSurfaceVariant },
-  newOrderBtn: { marginTop: spacing.sm },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
+  profileAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.primaryContainer,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarText: { ...typography.headlineMd, color: colors.onPrimaryContainer, fontSize: 24 },
+  profileInfo: { flex: 1, gap: 4 },
+  profileName: { ...typography.titleSm, color: colors.onSurface, fontSize: 17 },
+  contactRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  contactText: { ...typography.bodySm, color: colors.onSurfaceVariant, fontSize: 12 },
+  newOrderBtn: { marginTop: spacing.xs },
+  statsRow: { flexDirection: "row", gap: spacing.xs },
   statCard: {
     flex: 1,
-    minWidth: "45%",
-    backgroundColor: colors.surfaceContainerLow,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    gap: spacing.xs,
-  },
-  statCardAccent: {
-    backgroundColor: `${colors.secondaryContainer}4D`,
+    backgroundColor: colors.surfaceContainerLowest,
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: `${colors.secondaryContainer}`,
+    borderColor: colors.surfaceVariant,
+    alignItems: "center",
+    gap: 2,
+    ...shadows.sm,
   },
-  statLabel: {
-    ...typography.labelBold,
-    color: colors.onSurfaceVariant,
-    textTransform: "uppercase",
-    fontSize: 12,
-  },
-  statValue: { ...typography.headlineMd, color: colors.primary },
-  statValueSm: { ...typography.titleSm, color: colors.onSurface },
+  statCardAccent: { backgroundColor: `${colors.primaryContainer}18` },
+  statLabel: { ...typography.labelCaption, color: colors.onSurfaceVariant, fontSize: 10, textAlign: "center" },
+  statValue: { ...typography.titleSm, color: colors.onSurface, fontSize: 16 },
+  statValueBold: { ...typography.labelBold, color: colors.primary, fontSize: 13 },
+  statValueSm: { ...typography.labelBold, color: colors.primary, fontSize: 13 },
   tableCard: {
     backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
-    overflow: "hidden",
-    ...shadows.md,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: `${colors.outlineVariant}33`,
+    borderColor: colors.surfaceVariant,
+    overflow: "hidden",
+    ...shadows.sm,
   },
   tableHeader: {
-    padding: spacing.md,
-    backgroundColor: `${colors.surfaceContainerHigh}4D`,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: `${colors.outlineVariant}1A`,
+    borderBottomColor: colors.surfaceVariant,
   },
-  tableTitle: { ...typography.titleSm, color: colors.onSurface },
+  tableTitle: { ...typography.labelBold, color: colors.primary, fontSize: 13, textTransform: "uppercase" },
   tableHead: {
     flexDirection: "row",
     backgroundColor: colors.surfaceContainerLow,
-    paddingVertical: spacing.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceVariant,
   },
-  th: {
-    flex: 1,
-    ...typography.labelBold,
-    color: colors.onSurfaceVariant,
-    paddingHorizontal: spacing.md,
-  },
-  thFirst: { flex: 1.2 },
+  th: { ...typography.labelCaption, color: colors.onSurfaceVariant, flex: 1, fontSize: 11 },
+  thFirst: { flex: 1 },
   thRight: { textAlign: "right" },
   tableRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: spacing.md,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
-  tableRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: `${colors.outlineVariant}1A`,
-  },
-  td: {
-    flex: 1,
-    ...typography.bodySm,
-    color: colors.onSurface,
-    paddingHorizontal: spacing.md,
-  },
-  tdId: { flex: 1.2, ...typography.labelBold, color: colors.primary },
+  tableRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.surfaceVariant },
+  td: { ...typography.bodySm, flex: 1, color: colors.onSurface, fontSize: 12 },
+  tdId: { ...typography.labelBold, color: colors.primary },
   tdBold: { fontWeight: "600" },
   tdRight: { alignItems: "flex-end" },
-  statusBadge: {
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.xs,
-    borderRadius: 999,
-    fontSize: 12,
-    fontWeight: "700",
-    overflow: "hidden",
-  },
-  statusOk: {
-    backgroundColor: colors.tertiaryContainer,
-    color: colors.onTertiaryContainer,
-  },
-  statusCancel: {
-    backgroundColor: colors.errorContainer,
-    color: colors.onErrorContainer,
-  },
-  viewAll: { padding: spacing.md, alignItems: "center" },
-  viewAllText: { ...typography.labelBold, color: colors.primary },
-  emptyRow: {
-    ...typography.bodySm,
-    color: colors.onSurfaceVariant,
-    textAlign: "center",
-    padding: spacing.lg,
-  },
-  emptyText: {
-    ...typography.bodyMd,
-    color: colors.onSurfaceVariant,
-    textAlign: "center",
-    paddingVertical: spacing.xl,
-  },
+  statusBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: borderRadius.full, fontSize: 10, fontWeight: "700" },
+  statusOk: { backgroundColor: "rgba(76,175,80,0.12)", color: colors.tertiary },
+  statusPending: { backgroundColor: "rgba(255,152,0,0.12)", color: "#FF9800" },
+  emptyRow: { padding: spacing.md, textAlign: "center", color: colors.onSurfaceVariant, fontSize: 12 },
 });

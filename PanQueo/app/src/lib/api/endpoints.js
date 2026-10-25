@@ -3,6 +3,7 @@ export const ENDPOINTS = {
   LOGIN: "/api/auth/login",
   REGISTER: "/api/auth/register",
   RESET_PASSWORD: "/api/auth/reset-password",
+  PERFIL: "/api/auth/perfil",
 
   // Clients
   CLIENTES: "/api/clientes",
@@ -27,18 +28,19 @@ export const ENDPOINTS = {
   // Reportes
   REPORTES_PRODUCCION: "/api/reportes/produccion",
   REPORTES_MERMAS: "/api/reportes/mermas",
+  REPORTES_TRAZABILIDAD: "/api/reportes/trazabilidad",
   REPORTES_BALANCE: "/api/reportes/balance-pedidos",
-
-  // Anomalias
-  ANOMALIAS: "/api/asistente/anomalias",
 
   // Recipes
   RECETAS: "/api/recetas",
   RECETA_BY_ID: (id) => `/api/recetas/${id}`,
+  RECETA_SIMULAR_COSTO: (id) => `/api/recetas/${id}/simular-costo`,
+  RECETA_VERIFICAR_STOCK: (id) => `/api/recetas/${id}/verificar-stock`,
 
   // Shopping Lists
   LISTAS_COMPRAS: "/api/compras/listas",
   LISTA_COMPRA_BY_ID: (id) => `/api/compras/listas/${id}`,
+  LISTA_COMPRA_COMPLETAR: (id) => `/api/compras/listas/${id}/completar`,
 
   // Exchange Rates
   TASAS_ACTUAL: "/api/finanzas/tasas/actual",
@@ -47,4 +49,8 @@ export const ENDPOINTS = {
   // Assistant
   PREDICCION_COMPRA: "/api/asistente/prediccion-compra",
   SUGERENCIAS_PRECIOS: "/api/asistente/sugerencias-precios",
+  ANOMALIAS: "/api/asistente/anomalias",
+
+  // Health check
+  HEALTH: "/api/health",
 };

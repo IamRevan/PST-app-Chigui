@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/navigation/ScreenWrapper';
 import { Button, Card } from '../../components/ui';
 import { CenterModal } from '../../components/ui/Modal';
-import { colors, typography, spacing, borderRadius, shadows } from '../../lib/theme';
+import { colors, typography, spacing, borderRadius } from '../../lib/theme';
 
 export const SeguridadScreen = ({ navigation }) => {
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showPass, setShowPass] = useState(false);
 
   const handleUpdate = () => {
     setShowSuccess(true);
@@ -16,33 +18,35 @@ export const SeguridadScreen = ({ navigation }) => {
     <ScreenWrapper>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backIcon}>←</Text>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
           </TouchableOpacity>
-          <View style={styles.logoArea}>
-            <Text style={styles.logoEmoji}>🧁</Text>
-            <Text style={styles.logoText}>PanQueo</Text>
-          </View>
-        </View>
-
-        <View style={styles.pageHeader}>
-          <Text style={styles.title}>Seguridad</Text>
-          <Text style={styles.subtitle}>Administra el acceso y protección de tu cuenta</Text>
+          <Text style={styles.headerTitle}>Seguridad y Acceso</Text>
+          <View style={{ width: 44 }} />
         </View>
 
         <Card style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionIcon}>🔑</Text>
+            <MaterialIcons name="lock-reset" size={22} color={colors.primary} />
             <Text style={styles.sectionTitle}>Cambiar contraseña</Text>
           </View>
 
           <View style={styles.field}>
             <Text style={styles.label}>Contraseña actual</Text>
             <View style={styles.inputRow}>
-              <Text style={styles.inputIcon}>🔑</Text>
-              <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor="#757575" secureTextEntry />
-              <TouchableOpacity>
-                <Text style={styles.visibilityIcon}>👁️</Text>
+              <MaterialIcons name="lock-outline" size={20} color={colors.outline} />
+              <TextInput
+                style={styles.input}
+                placeholder="••••••••"
+                placeholderTextColor={colors.outline}
+                secureTextEntry={!showPass}
+              />
+              <TouchableOpacity onPress={() => setShowPass(!showPass)}>
+                <MaterialIcons name={showPass ? 'visibility-off' : 'visibility'} size={20} color={colors.outline} />
               </TouchableOpacity>
             </View>
             <View style={styles.underline} />
@@ -51,11 +55,13 @@ export const SeguridadScreen = ({ navigation }) => {
           <View style={styles.field}>
             <Text style={styles.label}>Nueva contraseña</Text>
             <View style={styles.inputRow}>
-              <Text style={styles.inputIcon}>🔒</Text>
-              <TextInput style={styles.input} placeholder="Mínimo 8 caracteres" placeholderTextColor="#757575" secureTextEntry />
-              <View style={styles.rewardChip}>
-                <Text style={styles.rewardChipText}>Sprinkle Reward</Text>
-              </View>
+              <MaterialIcons name="vpn-key" size={20} color={colors.outline} />
+              <TextInput
+                style={styles.input}
+                placeholder="Mínimo 8 caracteres"
+                placeholderTextColor={colors.outline}
+                secureTextEntry={!showPass}
+              />
             </View>
             <View style={styles.underline} />
             <View style={styles.strengthBar}>
@@ -70,8 +76,13 @@ export const SeguridadScreen = ({ navigation }) => {
           <View style={styles.field}>
             <Text style={styles.label}>Confirmar contraseña</Text>
             <View style={styles.inputRow}>
-              <Text style={styles.inputIcon}>✅</Text>
-              <TextInput style={styles.input} placeholder="Repite tu nueva contraseña" placeholderTextColor="#757575" secureTextEntry />
+              <MaterialIcons name="check-circle-outline" size={20} color={colors.outline} />
+              <TextInput
+                style={styles.input}
+                placeholder="Repite tu nueva contraseña"
+                placeholderTextColor={colors.outline}
+                secureTextEntry={!showPass}
+              />
             </View>
             <View style={styles.underline} />
           </View>
@@ -81,61 +92,39 @@ export const SeguridadScreen = ({ navigation }) => {
 
         <Card style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionIcon}>📱</Text>
-              <Text style={styles.sectionTitle}>Sesiones activas</Text>
-            </View>
-            <View style={styles.deviceCount}>
-              <Text style={styles.deviceCountText}>Dispositivos: 2</Text>
-            </View>
+            <MaterialIcons name="devices" size={22} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Sesiones activas</Text>
           </View>
 
           <View style={styles.deviceItem}>
-            <Text style={styles.deviceIcon}>💻</Text>
+            <MaterialIcons name="computer" size={24} color={colors.primary} />
             <View style={styles.deviceInfo}>
               <View style={styles.deviceNameRow}>
-                <Text style={styles.deviceName}>Chrome (Windows)</Text>
+                <Text style={styles.deviceName}>Navegador Web</Text>
                 <View style={styles.currentSession}>
-                  <Text style={styles.currentSessionText}>Esta sesión</Text>
+                  <Text style={styles.currentSessionText}>Activa</Text>
                 </View>
               </View>
-              <Text style={styles.deviceMeta}>Último acceso: hoy 14:00</Text>
-              <Text style={styles.deviceIp}>IP: 192.168.1.45</Text>
+              <Text style={styles.deviceMeta}>Panel de Administración</Text>
             </View>
           </View>
 
           <View style={styles.deviceItem}>
-            <Text style={styles.deviceIcon}>📱</Text>
+            <MaterialIcons name="smartphone" size={24} color={colors.primary} />
             <View style={styles.deviceInfo}>
-              <Text style={styles.deviceName}>App PanQueo (iPhone)</Text>
-              <Text style={styles.deviceMeta}>Último acceso: ayer 23:15</Text>
-              <Text style={styles.deviceIp}>IP: 85.12.190.22</Text>
+              <View style={styles.deviceNameRow}>
+                <Text style={styles.deviceName}>App Móvil PanQueo</Text>
+                <View style={styles.currentSession}>
+                  <Text style={styles.currentSessionText}>Este dispositivo</Text>
+                </View>
+              </View>
+              <Text style={styles.deviceMeta}>Expo SDK 58</Text>
             </View>
-            <TouchableOpacity style={styles.logoutDevice}>
-              <Text style={styles.logoutDeviceIcon}>🚪</Text>
-            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity style={styles.logoutAll}>
-            <Text style={styles.logoutAllText}>Cerrar sesión en todos los dispositivos</Text>
-          </TouchableOpacity>
         </Card>
-
-        <View style={styles.twoFA}>
-          <View style={styles.twoFAIcon}>
-            <Text style={styles.twoFAEmoji}>✅</Text>
-          </View>
-          <View style={styles.twoFAInfo}>
-            <Text style={styles.twoFATitle}>Doble Seguridad</Text>
-            <Text style={styles.twoFADesc}>Activa la verificación en dos pasos para proteger aún más tus datos.</Text>
-            <TouchableOpacity>
-              <Text style={styles.twoFALink}>Configurar ahora →</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </ScrollView>
 
-      <CenterModal visible={showSuccess} onClose={() => setShowSuccess(false)} title="✓ Contraseña actualizada">
+      <CenterModal visible={showSuccess} onClose={() => setShowSuccess(false)} title="Contraseña actualizada">
         <Text style={styles.successDesc}>Tu contraseña se ha cambiado exitosamente.</Text>
         <Button title="Listo" variant="primary" onPress={() => setShowSuccess(false)} style={{ marginTop: spacing.md }} />
       </CenterModal>
@@ -146,53 +135,50 @@ export const SeguridadScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.gutter, paddingBottom: 40, gap: spacing.md },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  backBtn: {},
-  backIcon: { fontSize: 24, color: colors.onSurface },
-  logoArea: { flexDirection: 'row', alignItems: 'center', gap: spacing.base },
-  logoEmoji: { fontSize: 20 },
-  logoText: { ...typography.displayLgMobile, fontSize: 20, color: colors.primary },
-  pageHeader: { gap: spacing.xs },
-  title: { ...typography.headlineMd, color: colors.onSurface, textAlign: 'center' },
-  subtitle: { ...typography.bodySm, color: colors.onSurfaceVariant, textAlign: 'center' },
-  section: { gap: spacing.lg, padding: spacing.xl },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, justifyContent: 'space-between' },
-  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  sectionIcon: { fontSize: 20 },
-  sectionTitle: { ...typography.titleSm },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  headerTitle: { ...typography.titleSm, color: colors.onSurface },
+  section: { gap: spacing.md, padding: spacing.lg },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  sectionTitle: { ...typography.titleSm, color: colors.onSurface },
   field: { gap: spacing.xs },
-  label: { ...typography.labelBold, color: colors.outline },
+  label: { ...typography.labelBold, color: colors.onSurfaceVariant },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.base },
-  inputIcon: { fontSize: 18, color: '#757575' },
-  input: { flex: 1, ...typography.bodyMd, color: colors.onSurface, paddingVertical: spacing.base },
-  visibilityIcon: { fontSize: 18, color: '#757575' },
+  input: { flex: 1, ...typography.bodyMd, color: colors.onSurface, paddingVertical: spacing.sm },
   underline: { height: 1, backgroundColor: colors.outlineVariant },
-  rewardChip: { backgroundColor: '#FFF8E1', paddingHorizontal: spacing.base, paddingVertical: 2, borderRadius: 999 },
-  rewardChipText: { fontSize: 10, fontWeight: '700', color: colors.primaryContainer, textTransform: 'uppercase' },
   strengthBar: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs },
   strengthSeg: { flex: 1, height: 4, borderRadius: 2 },
   strengthText: { ...typography.bodySm, color: colors.primary, marginTop: spacing.xs },
-  deviceCount: { backgroundColor: '#FFF8E1', paddingHorizontal: spacing.base, paddingVertical: spacing.xs, borderRadius: borderRadius.lg },
-  deviceCountText: { ...typography.labelBold, fontSize: 12, color: colors.primaryContainer },
-  deviceItem: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, padding: spacing.md, backgroundColor: colors.surfaceContainerLow, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.outlineVariant },
-  deviceIcon: { fontSize: 24, marginTop: spacing.xs },
+  deviceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+  },
   deviceInfo: { flex: 1 },
   deviceNameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   deviceName: { ...typography.labelBold, color: colors.onSurface },
-  currentSession: { backgroundColor: `${colors.tertiaryContainer}4D`, paddingHorizontal: spacing.base, paddingVertical: 1, borderRadius: 999 },
-  currentSessionText: { fontSize: 10, fontWeight: '700', color: colors.tertiary, textTransform: 'uppercase' },
-  deviceMeta: { ...typography.bodySm, color: colors.onSurfaceVariant },
-  deviceIp: { fontSize: 12, color: colors.outline, marginTop: spacing.xs },
-  logoutDevice: { padding: spacing.xs },
-  logoutDeviceIcon: { fontSize: 18, color: colors.error },
-  logoutAll: { paddingVertical: spacing.sm, alignItems: 'center', borderWidth: 1, borderColor: colors.error, borderRadius: borderRadius.lg, marginTop: spacing.md },
-  logoutAllText: { ...typography.buttonText, color: colors.error },
-  twoFA: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, padding: spacing.lg, borderRadius: borderRadius.xl, backgroundColor: colors.secondaryContainer, borderWidth: 1, borderColor: colors.outlineVariant },
-  twoFAIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.surfaceContainerLowest, alignItems: 'center', justifyContent: 'center' },
-  twoFAEmoji: { fontSize: 32 },
-  twoFAInfo: { flex: 1 },
-  twoFATitle: { ...typography.titleSm, color: colors.onSecondaryContainer },
-  twoFADesc: { ...typography.bodySm, color: colors.onSurfaceVariant },
-  twoFALink: { ...typography.labelBold, color: colors.primary, marginTop: spacing.xs },
+  currentSession: {
+    backgroundColor: colors.primaryContainer,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 1,
+    borderRadius: 999,
+  },
+  currentSessionText: { fontSize: 10, fontWeight: '700', color: colors.onPrimaryContainer, textTransform: 'uppercase' },
+  deviceMeta: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 2 },
   successDesc: { ...typography.bodyMd, color: colors.onSurfaceVariant, textAlign: 'center' },
 });

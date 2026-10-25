@@ -26,7 +26,8 @@
       "apiUrl": "http://192.168.1.13:3000"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-status-bar"
     ]
   }
 }

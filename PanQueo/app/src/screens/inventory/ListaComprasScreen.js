@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { ScreenWrapper } from "../../components/navigation/ScreenWrapper";
 import { Button, Input } from "../../components/ui";
 import { SheetModal } from "../../components/ui/Modal";
@@ -222,12 +223,20 @@ export const ListaComprasScreen = ({ navigation }) => {
         contentContainerStyle={styles.content}
       >
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backIcon}>←</Text>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
           </TouchableOpacity>
           <Text style={styles.title}>Lista de Compras</Text>
-          <TouchableOpacity onPress={() => setShowAdd(true)}>
-            <Text style={styles.addIcon}>+</Text>
+          <TouchableOpacity
+            onPress={() => setShowAdd(true)}
+            style={styles.addBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <MaterialIcons name="add-circle" size={26} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
@@ -239,17 +248,17 @@ export const ListaComprasScreen = ({ navigation }) => {
           <View style={styles.summaryDivider} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Comprados</Text>
-            <Text style={styles.summaryValue}>{comprados}</Text>
+            <Text style={[styles.summaryValue, { color: colors.tertiary }]}>{comprados}</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Total Est.</Text>
-            <Text style={styles.summaryValue}>{format(totalEst)}</Text>
+            <Text style={[styles.summaryValue, { color: colors.secondary }]}>{format(totalEst)}</Text>
           </View>
         </View>
 
         {loading && (
-          <Text style={{ textAlign: "center", padding: 20 }}>
+          <Text style={{ textAlign: "center", padding: 20, color: colors.onSurfaceVariant }}>
             Cargando lista activa...
           </Text>
         )}
@@ -270,9 +279,10 @@ export const ListaComprasScreen = ({ navigation }) => {
                     item.status === "Comprado" && styles.checkboxDone,
                   ]}
                   onPress={() => toggleItem(item.id_detalle_lista)}
+                  activeOpacity={0.7}
                 >
                   {item.status === "Comprado" && (
-                    <Text style={styles.checkmark}>✓</Text>
+                    <MaterialIcons name="check" size={16} color={colors.onTertiaryContainer} />
                   )}
                 </TouchableOpacity>
                 <View style={styles.itemInfo}>
@@ -285,8 +295,7 @@ export const ListaComprasScreen = ({ navigation }) => {
                     {item.Ingrediente?.nombre_ing}
                   </Text>
                   <Text style={styles.itemMeta}>
-                    {item.cantidad_sugerida} {item.Ingrediente?.unidad_medida} ·
-                    {format(item.precio_estimado_unitario)}
+                    {item.cantidad_sugerida} {item.Ingrediente?.unidad_medida} · {format(item.precio_estimado_unitario)}
                   </Text>
                 </View>
               </View>
@@ -316,7 +325,7 @@ export const ListaComprasScreen = ({ navigation }) => {
       <SheetModal
         visible={showAdd}
         onClose={() => setShowAdd(false)}
-        title="Nuevo ítem"
+        title="Nuevo ítem de compra"
       >
         <Text
           style={{
@@ -337,12 +346,14 @@ export const ListaComprasScreen = ({ navigation }) => {
                   selectedIng?.id_ingrediente === i.id_ingrediente
                     ? colors.primaryContainer
                     : colors.surface,
+                borderRadius: borderRadius.sm,
+                marginBottom: 4,
                 borderBottomWidth: 1,
                 borderColor: colors.surfaceVariant,
               }}
               onPress={() => setSelectedIng(i)}
             >
-              <Text>{i.nombre_ing}</Text>
+              <Text style={{ ...typography.bodyMd, color: colors.onSurface }}>{i.nombre_ing}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -350,13 +361,14 @@ export const ListaComprasScreen = ({ navigation }) => {
           label="Cantidad"
           value={newQty}
           onChangeText={setNewQty}
-          placeholder="Ej: 25 kg"
+          placeholder="Ej: 25"
+          keyboardType="decimal-pad"
         />
         <Input
           label="Precio estimado unitario (USD)"
           value={newPrice}
           onChangeText={setNewPrice}
-          placeholder="Ej: $ 4.50"
+          placeholder="Ej: 4.50"
           keyboardType="decimal-pad"
         />
         <Button
@@ -377,10 +389,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingTop: 4,
+    marginBottom: spacing.xs,
   },
-  backIcon: { fontSize: 24, color: colors.onSurface },
+  backBtn: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "flex-start",
+  },
+  addBtn: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "flex-end",
+  },
   title: { ...typography.headlineMd, color: colors.onSurface },
-  addIcon: { fontSize: 24, color: colors.primary, fontWeight: "700" },
   summaryCard: {
     flexDirection: "row",
     backgroundColor: colors.surfaceContainerLowest,
@@ -415,9 +439,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 26,
+    height: 26,
+    borderRadius: borderRadius.sm,
     borderWidth: 2,
     borderColor: colors.outline,
     alignItems: "center",
@@ -425,12 +449,7 @@ const styles = StyleSheet.create({
   },
   checkboxDone: {
     backgroundColor: colors.tertiaryContainer,
-    borderColor: colors.tertiaryContainer,
-  },
-  checkmark: {
-    fontSize: 14,
-    color: colors.onTertiaryContainer,
-    fontWeight: "700",
+    borderColor: colors.tertiary,
   },
   itemInfo: { gap: 2 },
   itemName: {
@@ -443,17 +462,4 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
   },
   itemMeta: { ...typography.bodySm, color: colors.onSurfaceVariant },
-  itemRight: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  urgentBadge: {
-    backgroundColor: colors.errorContainer,
-    paddingHorizontal: spacing.base,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  urgentText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: colors.onErrorContainer,
-  },
-  itemAction: { fontSize: 16 },
 });

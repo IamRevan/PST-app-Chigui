@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { ScreenWrapper } from "../../components/navigation/ScreenWrapper";
 import { Button } from "../../components/ui";
 import {
@@ -19,6 +20,7 @@ import {
 import { AjusteInventarioModal } from "./AjusteInventarioModal";
 import { useLotesByIngrediente } from "../../lib/hooks/useLotes";
 import { useIngredienteById } from "../../lib/hooks/useInventario";
+import { useCurrency } from "../../lib/currency";
 
 export const DetalleProductoScreen = ({ navigation, route }) => {
   const ingredienteId = route?.params?.ingredienteId;
@@ -26,7 +28,8 @@ export const DetalleProductoScreen = ({ navigation, route }) => {
   const [selectedLote, setSelectedLote] = useState(null);
 
   const { data: ingrediente, loading: loadingIngrediente } = useIngredienteById(ingredienteId);
-  const { data: lotes, loading: loadingLotes } = useLotesByIngrediente(ingredienteId);
+  const { data: lotes, loading: loadingLotes, refetch: refetchLotes } = useLotesByIngrediente(ingredienteId);
+  const { formatDual } = useCurrency();
 
   const handleAjuste = (lote = null) => {
     setSelectedLote(lote);
@@ -43,22 +46,23 @@ export const DetalleProductoScreen = ({ navigation, route }) => {
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Text style={styles.backText}>←</Text>
+            <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
           </TouchableOpacity>
-          <View style={styles.logoRow}>
-            <Text style={styles.logoEmoji}>🧁</Text>
-            <Text style={styles.logoText}>PanQueo</Text>
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerTitle}>Detalle del Insumo</Text>
+            <Text style={styles.headerSub}>Control de lotes y trazabilidad</Text>
           </View>
         </View>
 
         <View style={styles.infoCard}>
           {loadingIngrediente ? (
-             <Text style={{textAlign: "center"}}>Cargando ingrediente...</Text>
+            <Text style={{ textAlign: "center", padding: spacing.md }}>Cargando ingrediente...</Text>
           ) : (
             <>
               <View style={styles.iconCircle}>
-                <Text style={styles.productIcon}>🥫</Text>
+                <MaterialIcons name="kitchen" size={26} color={colors.primary} />
               </View>
               <View style={styles.infoContent}>
                 <View style={styles.nameRow}>
@@ -69,12 +73,14 @@ export const DetalleProductoScreen = ({ navigation, route }) => {
                 </View>
                 <View style={styles.detailsGrid}>
                   <View>
-                    <Text style={styles.detailLabel}>Stock Mínimo</Text>
-                    <Text style={styles.detailValue}>{ingrediente?.stock_minimo || 0}</Text>
+                    <Text style={styles.detailLabel}>Stock Actual</Text>
+                    <Text style={[styles.detailValue, { color: colors.primary, fontWeight: '700' }]}>
+                      {parseFloat(ingrediente?.stock_actual || 0)} {ingrediente?.unidad_medida}
+                    </Text>
                   </View>
                   <View>
-                    <Text style={styles.detailLabel}>Unidad</Text>
-                    <Text style={styles.detailValue}>{ingrediente?.unidad_medida}</Text>
+                    <Text style={styles.detailLabel}>Stock Mínimo</Text>
+                    <Text style={styles.detailValue}>{ingrediente?.stock_minimo || 0} {ingrediente?.unidad_medida}</Text>
                   </View>
                   <View>
                     <Text style={styles.detailLabel}>Categoría</Text>
@@ -90,7 +96,7 @@ export const DetalleProductoScreen = ({ navigation, route }) => {
                   style={styles.actionBtn}
                 />
                 <Button
-                  title="Historial"
+                  title="Historial de Movimientos"
                   variant="outline"
                   onPress={() =>
                     navigation.navigate("HistorialProducto", {
@@ -107,16 +113,15 @@ export const DetalleProductoScreen = ({ navigation, route }) => {
         <View style={styles.lotsSection}>
           <View style={styles.lotsHeader}>
             <View style={styles.lotsTitleRow}>
-              <Text style={styles.lotsIcon}>📦</Text>
-              <Text style={styles.lotsTitle}>Lotes en Inventario (FIFO)</Text>
+              <MaterialIcons name="inventory-2" size={18} color={colors.primary} />
+              <Text style={styles.lotsTitle}>Lotes en Inventario (FIFO/FEFO)</Text>
             </View>
-            <Text style={styles.lotsOrder}>Ordenado por vencimiento</Text>
+            <Text style={styles.lotsOrder}>Ordenados por vencimiento ascendente</Text>
           </View>
           <View style={styles.lotsCard}>
             <View style={styles.lotsHead}>
-              <Text style={[styles.lotTh, { flex: 1.5 }]}>N° Lote</Text>
-              <Text style={styles.lotTh}>Cantidad</Text>
-              <Text style={styles.lotTh}>Ingreso</Text>
+              <Text style={[styles.lotTh, { flex: 1.2 }]}>N° Lote</Text>
+              <Text style={styles.lotTh}>Disp.</Text>
               <Text style={styles.lotTh}>Vencimiento</Text>
               <Text style={[styles.lotTh, { textAlign: "right" }]}>Estado</Text>
             </View>
@@ -126,10 +131,17 @@ export const DetalleProductoScreen = ({ navigation, route }) => {
               </Text>
             )}
 
+            {!loadingLotes && (!lotes || lotes.length === 0) && (
+              <Text style={styles.emptyLotesText}>
+                Sin lotes activos en existencia para este ingrediente.
+              </Text>
+            )}
+
             {!loadingLotes &&
               lotes &&
               lotes.map((lot, i) => {
                 const isExpired = new Date(lot.fecha_venc) < new Date();
+                const cant = parseFloat(lot.cantidad_actual || 0);
                 return (
                   <TouchableOpacity
                     key={lot.id_lote || i}
@@ -138,66 +150,42 @@ export const DetalleProductoScreen = ({ navigation, route }) => {
                       i < lotes.length - 1 && styles.lotRowBorder,
                     ]}
                     onPress={() => handleAjuste(lot)}
+                    activeOpacity={0.7}
                   >
-                    <Text
-                      style={[
-                        styles.lotTd,
-                        { flex: 1.5, ...typography.labelBold },
-                      ]}
-                    >
-                      L-{lot.id_lote}
+                    <View style={{ flex: 1.2 }}>
+                      <Text style={styles.lotId}>#{lot.id_lote}</Text>
+                      {lot.precio_compra_unitario ? (
+                        <Text style={styles.lotPrice}>
+                          {formatDual(lot.precio_compra_unitario)}/u
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text style={styles.lotQty}>
+                      {cant} {ingrediente?.unidad_medida}
                     </Text>
-                    <Text
-                      style={[
-                        styles.lotTd,
-                        { ...typography.titleSm, color: colors.primary },
-                      ]}
-                    >
-                      {lot.cantidad_actual}
+                    <Text style={styles.lotDate}>
+                      {String(lot.fecha_venc || "").slice(0, 10)}
                     </Text>
-                    <Text style={styles.lotTd}>{lot.fecha_ingreso}</Text>
-                    <Text
-                      style={[
-                        styles.lotTd,
-                        isExpired && { color: colors.error, fontWeight: "600" },
-                      ]}
-                    >
-                      {isExpired ? "⚠️ " : ""}
-                      {lot.fecha_venc}
-                    </Text>
-                    <View style={[styles.lotTd, { alignItems: "flex-end" }]}>
-                      <Text
+                    <View style={{ alignItems: "flex-end" }}>
+                      <View
                         style={[
-                          styles.lotStatus,
-                          isExpired
-                            ? styles.statusExpired
-                            : styles.statusActive,
+                          styles.statusBadge,
+                          isExpired ? styles.statusExpired : styles.statusNormal,
                         ]}
                       >
-                        {isExpired ? "Vencido" : "Vigente"}
-                      </Text>
+                        <Text
+                          style={[
+                            styles.statusBadgeText,
+                            isExpired ? styles.statusExpiredText : styles.statusNormalText,
+                          ]}
+                        >
+                          {isExpired ? "Vencido" : "Activo"}
+                        </Text>
+                      </View>
                     </View>
                   </TouchableOpacity>
                 );
               })}
-          </View>
-        </View>
-
-        <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>Uso Semanal Estimado</Text>
-          <Text style={styles.chartSub}>Basado en órdenes del último mes</Text>
-          <View style={styles.bars}>
-            {["L", "M", "M", "J", "V", "S", "D"].map((day, i) => (
-              <View key={i} style={styles.barCol}>
-                <View
-                  style={[
-                    styles.bar,
-                    { height: [40, 50, 30, 70, 45, 60, 20][i] },
-                  ]}
-                />
-                <Text style={styles.barLabel}>{day}</Text>
-              </View>
-            ))}
           </View>
         </View>
       </ScrollView>
@@ -205,10 +193,12 @@ export const DetalleProductoScreen = ({ navigation, route }) => {
       <AjusteInventarioModal
         visible={showAjusteModal}
         onClose={() => setShowAjusteModal(false)}
-        onSuccess={() =>
-          Alert.alert("Ajuste Exitoso", "El stock se actualizó correctamente")
-        }
-        initialLote={selectedLote}
+        ingrediente={ingrediente}
+        lote={selectedLote}
+        onSuccess={() => {
+          refetchLotes();
+          navigation.navigate("LoteExitoso");
+        }}
       />
     </ScreenWrapper>
   );
@@ -216,154 +206,98 @@ export const DetalleProductoScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: spacing.gutter, paddingBottom: 40, gap: spacing.lg },
+  content: { padding: spacing.gutter, paddingBottom: 40, gap: spacing.md },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: spacing.sm,
+    paddingTop: 4,
+    marginBottom: spacing.xs,
   },
-  backBtn: { padding: spacing.xs },
-  backText: { fontSize: 24, color: colors.onSurface },
-  logoRow: { flexDirection: "row", alignItems: "center", gap: spacing.base },
-  logoEmoji: { fontSize: 24 },
-  logoText: {
-    ...typography.displayLgMobile,
-    fontSize: 20,
-    color: colors.primary,
+  backBtn: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "flex-start",
   },
+  headerInfo: { flex: 1 },
+  headerTitle: { ...typography.headlineMd, fontSize: 18, color: colors.onSurface },
+  headerSub: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 11 },
   infoCard: {
     backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    gap: spacing.lg,
-    ...shadows.md,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.surfaceVariant,
+    ...shadows.sm,
+    gap: spacing.sm,
   },
   iconCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: `${colors.primaryContainer}1A`,
-    alignItems: "center",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: `${colors.primaryContainer}30`,
     justifyContent: "center",
-  },
-  productIcon: { fontSize: 40 },
-  infoContent: { gap: spacing.md },
-  nameRow: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    flexWrap: "wrap",
   },
-  productName: { ...typography.headlineMd, color: colors.primary },
+  infoContent: { gap: 6 },
+  nameRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  productName: { ...typography.titleSm, color: colors.onSurface, fontSize: 16 },
   skuBadge: {
-    backgroundColor: colors.secondaryContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 999,
+    backgroundColor: colors.surfaceContainerLow,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
   },
-  skuText: {
-    ...typography.bodySm,
-    color: colors.onSecondaryContainer,
-    fontWeight: "600",
-  },
-  detailsGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.lg },
-  detailLabel: {
-    ...typography.bodySm,
-    color: colors.onSurfaceVariant,
-    fontWeight: "600",
-  },
-  detailValue: { ...typography.titleSm, color: colors.onSurface },
-  infoActions: { gap: spacing.sm },
-  actionBtn: {},
-  lotsSection: { gap: spacing.md },
-  lotsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  lotsTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.base,
-  },
-  lotsIcon: { fontSize: 20 },
-  lotsTitle: { ...typography.titleSm, color: colors.onSurface },
-  lotsOrder: {
-    ...typography.bodySm,
-    color: colors.onSurfaceVariant,
-    fontStyle: "italic",
-  },
+  skuText: { ...typography.metadata, color: colors.primary, fontWeight: "700" },
+  detailsGrid: { flexDirection: "row", justifyContent: "space-between", paddingTop: 4 },
+  detailLabel: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 11 },
+  detailValue: { ...typography.bodySm, color: colors.onSurface, fontSize: 13 },
+  infoActions: { flexDirection: "row", gap: spacing.sm, paddingTop: 4 },
+  actionBtn: { flex: 1 },
+  lotsSection: { gap: spacing.xs },
+  lotsHeader: { gap: 2 },
+  lotsTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  lotsTitle: { ...typography.labelBold, color: colors.primary, fontSize: 13, textTransform: "uppercase" },
+  lotsOrder: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 11 },
   lotsCard: {
     backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.surfaceVariant,
     overflow: "hidden",
-    ...shadows.md,
+    ...shadows.sm,
   },
   lotsHead: {
     flexDirection: "row",
     backgroundColor: colors.surfaceContainerLow,
-    paddingVertical: spacing.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceVariant,
   },
-  lotTh: {
-    flex: 1,
-    ...typography.labelBold,
-    color: colors.onSurfaceVariant,
-    paddingHorizontal: spacing.sm,
-  },
+  lotTh: { ...typography.labelCaption, color: colors.onSurfaceVariant, flex: 1, fontSize: 11 },
   lotRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: spacing.md,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
-  lotRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: `${colors.outlineVariant}4D`,
-  },
-  lotTd: {
-    flex: 1,
-    ...typography.bodySm,
-    color: colors.onSurface,
-    paddingHorizontal: spacing.sm,
-  },
-  lotStatus: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 999,
-    fontSize: 12,
-    fontWeight: "700",
-    overflow: "hidden",
-  },
-  statusActive: {
-    backgroundColor: colors.tertiaryContainer,
-    color: colors.onTertiaryContainer,
-  },
-  statusExpired: {
-    backgroundColor: colors.errorContainer,
-    color: colors.onErrorContainer,
-  },
-  chartCard: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
+  lotRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.surfaceVariant },
+  lotId: { ...typography.labelBold, color: colors.primary, fontSize: 12 },
+  lotPrice: { ...typography.metadata, color: colors.outline, fontSize: 10 },
+  lotQty: { ...typography.bodySm, flex: 1, color: colors.onSurface, fontSize: 12 },
+  lotDate: { ...typography.metadata, flex: 1, color: colors.onSurfaceVariant, fontSize: 11 },
+  statusBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: borderRadius.full },
+  statusNormal: { backgroundColor: "rgba(76,175,80,0.12)" },
+  statusExpired: { backgroundColor: "rgba(255,82,82,0.12)" },
+  statusBadgeText: { ...typography.metadata, fontSize: 10, fontWeight: "700" },
+  statusNormalText: { color: colors.tertiary },
+  statusExpiredText: { color: colors.error },
+  emptyLotesText: {
     padding: spacing.lg,
-    ...shadows.md,
+    textAlign: "center",
+    color: colors.onSurfaceVariant,
+    fontSize: 12,
   },
-  chartTitle: { ...typography.labelBold, color: colors.onSurfaceVariant },
-  chartSub: {
-    ...typography.bodySm,
-    color: `${colors.onSurfaceVariant}B3`,
-    marginBottom: spacing.md,
-  },
-  bars: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    height: 80,
-    gap: spacing.sm,
-  },
-  barCol: { flex: 1, alignItems: "center", gap: spacing.xs },
-  bar: {
-    width: "100%",
-    backgroundColor: `${colors.primaryContainer}33`,
-    borderRadius: 4,
-  },
-  barLabel: { fontSize: 10, fontWeight: "700", color: colors.onSurfaceVariant },
 });

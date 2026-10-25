@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { ScreenWrapper } from "../../components/navigation/ScreenWrapper";
 import { Button } from "../../components/ui";
 import {
@@ -28,10 +29,10 @@ export const ClientsScreen = ({ navigation }) => {
   const filtered = clients.filter((c) => {
     const q = search.toLowerCase();
     return (
-      c.nombre.toLowerCase().includes(q) ||
-      c.apellido.toLowerCase().includes(q) ||
-      c.telefono.includes(q) ||
-      c.cedula.includes(q)
+      (c.nombre || "").toLowerCase().includes(q) ||
+      (c.apellido || "").toLowerCase().includes(q) ||
+      String(c.telefono || "").includes(q) ||
+      String(c.cedula || "").toLowerCase().includes(q)
     );
   });
 
@@ -43,25 +44,33 @@ export const ClientsScreen = ({ navigation }) => {
         style={styles.container}
         contentContainerStyle={styles.content}
       >
-        <Text style={styles.title}>Clientes</Text>
-
-        <View style={styles.searchRow}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar por nombre, teléfono o cédula"
-            placeholderTextColor="#757575"
-            value={search}
-            onChangeText={setSearch}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.title}>Directorio de Clientes</Text>
+            <Text style={styles.subtitle}>{clients.length} clientes registrados</Text>
+          </View>
+          <Button
+            title="+ Nuevo Cliente"
+            variant="primary"
+            onPress={() => setShowModal(true)}
           />
         </View>
 
-        <Button
-          title="+ Nuevo Cliente"
-          variant="primary"
-          onPress={() => setShowModal(true)}
-          style={styles.addBtn}
-        />
+        <View style={styles.searchRow}>
+          <MaterialIcons name="search" size={20} color={colors.outline} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar por nombre, CI o teléfono..."
+            placeholderTextColor={colors.outline}
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search ? (
+            <TouchableOpacity onPress={() => setSearch("")}>
+              <MaterialIcons name="close" size={18} color={colors.outline} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
         {loading && <Text style={styles.emptyText}>Cargando clientes...</Text>}
 
@@ -83,26 +92,33 @@ export const ClientsScreen = ({ navigation }) => {
                 </View>
                 <View style={styles.clientInfo}>
                   <Text style={styles.clientName}>
-                    {c.nombre} {c.apellido}
+                    {c.nombre} {c.apellido || ""}
                   </Text>
-                  <Text style={styles.clientPhone}>📞 {c.telefono}</Text>
+                  <View style={styles.phoneRow}>
+                    <MaterialIcons name="phone" size={14} color={colors.primary} />
+                    <Text style={styles.clientPhone}>{c.telefono || "Sin teléfono"}</Text>
+                  </View>
                   <Text style={styles.clientMeta}>
-                    CI: {c.cedula} · {c.puntos_fidelidad || 0} pts
+                    CI: {c.cedula || "—"} · Fidelidad: {c.puntos_fidelidad || 0} pts
                   </Text>
                 </View>
               </View>
-              <Text style={styles.arrow}>→</Text>
+              <MaterialIcons name="chevron-right" size={22} color={colors.outline} />
             </TouchableOpacity>
           ))}
 
         {!loading && filtered.length === 0 && (
-          <Text style={styles.emptyText}>No se encontraron clientes</Text>
+          <View style={styles.emptyCard}>
+            <MaterialIcons name="people-outline" size={40} color={colors.outline} />
+            <Text style={styles.emptyText}>No se encontraron clientes</Text>
+          </View>
         )}
       </ScrollView>
+
       <RegistrarClienteModal
         visible={showModal}
         onClose={() => setShowModal(false)}
-        onSuccess={(client) => {
+        onSuccess={() => {
           refetch();
         }}
       />
@@ -112,84 +128,61 @@ export const ClientsScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: spacing.gutter, paddingBottom: 40 },
-  title: {
-    ...typography.displayLgMobile,
-    fontSize: 20,
-    color: colors.onSurface,
-    marginBottom: spacing.md,
+  content: { padding: spacing.gutter, paddingBottom: 100, gap: spacing.sm },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing.xs,
   },
+  title: { ...typography.headlineMd, fontSize: 20, color: colors.onSurface },
+  subtitle: { ...typography.metadata, color: colors.onSurfaceVariant, marginTop: -2 },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
-    paddingVertical: spacing.sm,
-    gap: spacing.base,
-    marginBottom: spacing.md,
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    height: 44,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    gap: 8,
   },
-  searchIcon: { fontSize: 20, color: "#757575" },
-  searchInput: {
-    ...typography.bodySm,
-    color: colors.onSurface,
-    flex: 1,
-    paddingVertical: 0,
-  },
-  addBtn: { marginBottom: spacing.lg },
+  searchInput: { flex: 1, fontSize: 14, color: colors.onSurface },
   clientCard: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
     backgroundColor: colors.surfaceContainerLowest,
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    ...shadows.md,
-    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.surfaceVariant,
+    ...shadows.sm,
   },
-  clientLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    flex: 1,
-  },
+  clientLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.primaryContainer,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarText: { ...typography.titleSm, color: colors.onPrimaryContainer },
+  clientInfo: { flex: 1, gap: 2 },
+  clientName: { ...typography.bodySm, fontWeight: "700", color: colors.onSurface },
+  phoneRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  clientPhone: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 12 },
+  clientMeta: { ...typography.metadata, color: colors.outline, fontSize: 11 },
+  emptyText: { ...typography.bodySm, color: colors.onSurfaceVariant, textAlign: "center" },
+  emptyCard: {
     alignItems: "center",
     justifyContent: "center",
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.onPrimaryContainer,
-  },
-  clientInfo: { gap: 2 },
-  clientName: {
-    ...typography.bodyMd,
-    fontWeight: "600",
-    color: colors.onSurface,
-  },
-  clientPhone: { ...typography.bodySm, color: "#757575" },
-  phoneIcon: { fontSize: 14 },
-  clientMeta: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: colors.primary,
-    backgroundColor: colors.pillBg,
-    paddingHorizontal: spacing.base,
-    paddingVertical: 2,
-    borderRadius: 999,
-    alignSelf: "flex-start",
-    overflow: "hidden",
-    marginTop: 2,
-  },
-  arrow: { fontSize: 18, color: colors.primaryContainer },
-  emptyText: {
-    ...typography.bodyMd,
-    color: colors.onSurfaceVariant,
-    textAlign: "center",
-    paddingVertical: spacing.xl,
+    padding: spacing.xl,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: borderRadius.lg,
+    gap: 8,
+    marginTop: spacing.md,
   },
 });
