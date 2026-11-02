@@ -2,60 +2,132 @@
 const API_BASE = localStorage.getItem('API_BASE') || (window.location.hostname ? `http://${window.location.hostname}:3000/api` : 'http://localhost:3000/api');
 
 let isLoggedIn = false;
+let currentUser = null;
+let pendingMfaToken = null;
+let resetToken = null;
 let activeOrderFilter = 'all';
 let activeInventoryFilter = 'all';
 
-// Centralized API Fetch Helper
-async function apiFetch(endpoint, options = {}) {
-  const token = localStorage.getItem('token');
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {})
-  };
+// Fecha local YYYY-MM-DD (toISOString() usa UTC y se desfasa en la tarde/noche de Venezuela).
+function fechaLocalYMD(fecha = new Date()) {
+  const d = new Date(fecha);
+  const dos = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
+}
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+// La sesión web vive en una cookie httpOnly; JS nunca ve el token.
+// El token CSRF sí es legible (double-submit) y se envía en cada mutación.
+function getCookie(name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escaped}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
-  try {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers
-    });
-
-    if (response.status === 401) {
-      localStorage.removeItem('token');
-      isLoggedIn = false;
-      document.getElementById('main-app').classList.add('hidden');
-      document.getElementById('auth-screen').classList.remove('hidden');
-      showError('Sesión expirada. Por favor, inicia sesión de nuevo.');
-      throw new Error('No autorizado');
-    }
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
-    }
-
-    return data;
-  } catch (error) {
-    console.error(`API Error (${endpoint}):`, error);
-    throw error;
+class ApiError extends Error {
+  constructor(message, { status = 0, code = null, data = null } = {}) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.data = data;
   }
 }
 
+// Centralized API Fetch Helper
+async function apiFetch(endpoint, options = {}) {
+  const { skipAuthRedirect = false, ...rest } = options;
+  const method = (rest.method || 'GET').toUpperCase();
+  const headers = { ...(rest.headers || {}) };
+
+  if (rest.body && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    const csrf = getCookie('pq_csrf');
+    if (csrf) headers['X-CSRF-Token'] = csrf;
+  }
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      ...rest,
+      method,
+      headers,
+      credentials: 'include',
+    });
+  } catch (networkError) {
+    console.error(`API Error (${endpoint}):`, networkError);
+    throw new ApiError('No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.', {
+      code: 'SIN_CONEXION',
+    });
+  }
+
+  const raw = await response.text();
+  let data = null;
+  if (raw) {
+    try { data = JSON.parse(raw); } catch { data = { message: raw }; }
+  }
+
+  if (!response.ok) {
+    const error = new ApiError(data?.message || `Error ${response.status}`, {
+      status: response.status,
+      code: data?.code || null,
+      data: data?.data || null,
+    });
+
+    // Una sesión inválida en un endpoint normal devuelve al login.
+    if (response.status === 401 && !skipAuthRedirect) {
+      handleSessionExpired(error.code);
+    }
+    throw error;
+  }
+
+  return data;
+}
+
+function handleSessionExpired(code) {
+  if (!isLoggedIn) return;
+  isLoggedIn = false;
+  currentUser = null;
+  const main = document.getElementById('main-app');
+  const auth = document.getElementById('auth-screen');
+  if (main) main.classList.add('hidden');
+  if (auth) auth.classList.remove('hidden');
+  showLogin();
+  showError(code === 'SESION_REVOCADA'
+    ? 'Tu sesión fue cerrada. Inicia sesión de nuevo.'
+    : 'Sesión expirada. Por favor, inicia sesión de nuevo.');
+}
+
 // ========== INITIALIZATION & SPLASH ==========
-document.addEventListener('DOMContentLoaded', () => {
+let authCheckDone = false;
+let splashElapsed = false;
+
+document.addEventListener('DOMContentLoaded', async () => {
   wrapFullScreenViews();
-  initSplash();
   initEventListeners();
-  checkAuth();
   initTheme();
   checkApiStatus();
-  if (isLoggedIn) {
-    onSessionReady();
-  }
+  initSplash();
+  await checkAuth();
 });
+
+function revealStartScreen() {
+  if (!authCheckDone || !splashElapsed) return;
+  const splash = document.getElementById('splash-screen');
+  if (splash) splash.classList.add('hidden');
+
+  const main = document.getElementById('main-app');
+  const auth = document.getElementById('auth-screen');
+  if (isLoggedIn) {
+    if (main) main.classList.remove('hidden');
+    if (auth) auth.classList.add('hidden');
+  } else {
+    if (main) main.classList.add('hidden');
+    if (auth) auth.classList.remove('hidden');
+  }
+}
 
 // Envuelve cada vista full-screen en un panel único: en móvil es un contenedor
 // transparente (display:contents) y en desktop (≥1024px) se convierte en la
@@ -99,30 +171,32 @@ function initSplash() {
 
   const splash = document.getElementById('splash-screen');
   if (splash) {
-    splash.addEventListener('click', () => {
-      splash.classList.add('hidden');
-      if (isLoggedIn) {
-        document.getElementById('main-app').classList.remove('hidden');
-      } else {
-        document.getElementById('auth-screen').classList.remove('hidden');
-      }
-    });
+    const finish = () => {
+      splashElapsed = true;
+      revealStartScreen();
+    };
 
-    setTimeout(() => {
-      splash.classList.add('hidden');
-      if (isLoggedIn) {
-        document.getElementById('main-app').classList.remove('hidden');
-      } else {
-        document.getElementById('auth-screen').classList.remove('hidden');
-      }
-    }, 1500);
+    splash.addEventListener('click', finish);
+    setTimeout(finish, 1500);
   }
 }
 
-function checkAuth() {
-  const token = localStorage.getItem('token');
-  if (token) {
+async function checkAuth() {
+  try {
+    const res = await apiFetch('/auth/perfil', { skipAuthRedirect: true });
+    currentUser = res?.data || null;
     isLoggedIn = true;
+    onSessionReady();
+  } catch (error) {
+    isLoggedIn = false;
+    currentUser = null;
+    if (error?.status && error.status !== 401) {
+      console.warn('[auth] No se pudo verificar la sesión:', error.message);
+    }
+  } finally {
+    authCheckDone = true;
+    revealStartScreen();
+    processAuthUrlActions();
   }
 }
 
@@ -181,9 +255,11 @@ function initEventListeners() {
 }
 
 // ========== AUTHENTICATION HANDLERS ==========
+const AUTH_FORMS = ['login-form', 'mfa-form', 'register-form', 'reset-form', 'reset-password-form'];
+
 function togglePassword() {
   const pwd = document.getElementById('login-password');
-  const eye = document.querySelector('.input-eye');
+  const eye = document.querySelector('#login-form .input-eye');
   if (pwd) {
     if (pwd.type === 'password') {
       pwd.type = 'text';
@@ -198,82 +274,198 @@ function togglePassword() {
 function showLogin() {
   hideAllAuthForms();
   document.getElementById('login-form').classList.remove('hidden');
+  const email = document.getElementById('login-email');
+  if (email) email.focus();
+}
+
+function showMfa() {
+  hideAllAuthForms();
+  document.getElementById('mfa-form').classList.remove('hidden');
+  const code = document.getElementById('mfa-code');
+  if (code) code.focus();
 }
 
 function showRegister() {
   hideAllAuthForms();
   document.getElementById('register-form').classList.remove('hidden');
+  const nombre = document.getElementById('reg-nombre');
+  if (nombre) nombre.focus();
 }
 
 function showReset() {
   hideAllAuthForms();
   document.getElementById('reset-form').classList.remove('hidden');
+  const email = document.getElementById('reset-email');
+  if (email) email.focus();
+}
+
+function showResetPassword(token) {
+  resetToken = token || null;
+  hideAllAuthForms();
+  document.getElementById('reset-password-form').classList.remove('hidden');
+  const pwd = document.getElementById('rp-password');
+  if (pwd) pwd.focus();
 }
 
 function hideAllAuthForms() {
-  document.getElementById('login-form').classList.add('hidden');
-  document.getElementById('register-form').classList.add('hidden');
-  document.getElementById('reset-form').classList.add('hidden');
-  const err = document.getElementById('error-message');
-  if (err) err.classList.add('hidden');
+  AUTH_FORMS.forEach((id) => {
+    const form = document.getElementById(id);
+    if (form) form.classList.add('hidden');
+  });
+  showError('');
+  setAuthNotice('');
+  const resend = document.getElementById('resend-verify-link');
+  if (resend) resend.classList.add('hidden');
 }
 
 function showError(msg) {
   const el = document.getElementById('error-message');
-  if (el) {
-    el.textContent = msg;
-    el.classList.remove('hidden');
+  if (!el) return;
+  if (!msg) {
+    el.textContent = '';
+    el.classList.add('hidden');
+    return;
   }
+  el.textContent = msg;
+  el.classList.remove('hidden');
 }
 
-// Auth handlers with backend API connection
+function setAuthNotice(msg, type = 'info') {
+  const el = document.getElementById('auth-notice');
+  if (!el) return;
+  if (!msg) {
+    el.textContent = '';
+    el.classList.add('hidden');
+    el.classList.remove('is-ok', 'is-error');
+    return;
+  }
+  el.textContent = msg;
+  el.classList.remove('hidden', 'is-ok', 'is-error');
+  if (type === 'ok') el.classList.add('is-ok');
+  if (type === 'error') el.classList.add('is-error');
+}
+
+function enterApp(user) {
+  if (user) currentUser = user;
+  isLoggedIn = true;
+  pendingMfaToken = null;
+  // Limpieza de la versión anterior basada en JWT en localStorage
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+
+  const auth = document.getElementById('auth-screen');
+  const main = document.getElementById('main-app');
+  if (auth) auth.classList.add('hidden');
+  if (main) main.classList.remove('hidden');
+  setAuthNotice('');
+  showError('');
+  onSessionReady();
+}
+
+function setLoginBusy(button, busy, busyText) {
+  if (!button) return () => {};
+  const original = button.innerHTML;
+  if (busy) {
+    button.disabled = true;
+    button.textContent = busyText;
+  }
+  return () => {
+    button.disabled = false;
+    button.innerHTML = original;
+  };
+}
+
 async function handleLogin() {
-  const emailInput = document.getElementById('login-email');
-  const passInput = document.getElementById('login-password');
-  const email = emailInput ? emailInput.value.trim() : '';
-  const password = passInput ? passInput.value : '';
+  const email = document.getElementById('login-email')?.value.trim();
+  const password = document.getElementById('login-password')?.value || '';
 
   if (!email || !password) {
     showError('Todos los campos son requeridos');
     return;
   }
 
-  const loginBtn = document.querySelector('#login-form .btn-primary') || document.querySelector('#login-form button');
-  const originalBtnText = loginBtn ? loginBtn.innerHTML : '';
-  if (loginBtn) {
-    loginBtn.disabled = true;
-    loginBtn.textContent = 'Iniciando sesión...';
-  }
+  const restore = setLoginBusy(
+    document.querySelector('#login-form .btn-primary'),
+    true,
+    'Iniciando sesión...'
+  );
 
   try {
     const res = await apiFetch('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+      skipAuthRedirect: true,
     });
 
-    const token = res?.data?.token || res?.token;
-    if (token) {
-      localStorage.setItem('token', token);
-      const user = res?.data?.user || res?.data?.usuario || res?.user || res?.usuario;
-      if (user) {
-        localStorage.setItem('user', JSON.stringify(user));
-      }
-      isLoggedIn = true;
-      document.getElementById('auth-screen').classList.add('hidden');
-      document.getElementById('main-app').classList.remove('hidden');
-      onSessionReady();
-      renderAll();
-    } else {
-      showError('Respuesta de autenticación no válida.');
+    if (res?.status === 'mfa_required' || res?.code === 'MFA_REQUERIDO') {
+      pendingMfaToken = res?.data?.mfa_token || null;
+      showMfa();
+      setAuthNotice('Ingresa el código de 6 dígitos de tu aplicación autenticadora o un código de recuperación.');
+      return;
     }
+
+    enterApp(res?.data?.user);
   } catch (err) {
+    if (err.code === 'EMAIL_NO_VERIFICADO') {
+      showError(err.message);
+      const resend = document.getElementById('resend-verify-link');
+      if (resend) resend.classList.remove('hidden');
+      const emailInput = document.getElementById('login-email');
+      if (emailInput && !emailInput.value) emailInput.value = email;
+      return;
+    }
     showError(err.message || 'Error al iniciar sesión. Verifica tus credenciales o la conexión con el servidor.');
   } finally {
-    if (loginBtn) {
-      loginBtn.disabled = false;
-      loginBtn.innerHTML = originalBtnText;
-    }
+    restore();
   }
+}
+
+async function handleMfaVerify() {
+  const code = document.getElementById('mfa-code')?.value.trim();
+  if (!pendingMfaToken) {
+    showLogin();
+    showError('La verificación expiró. Inicia sesión de nuevo.');
+    return;
+  }
+  if (!code) {
+    showError('Ingresa el código de verificación.');
+    return;
+  }
+
+  const restore = setLoginBusy(
+    document.querySelector('#mfa-form .btn-primary'),
+    true,
+    'Verificando...'
+  );
+
+  try {
+    const res = await apiFetch('/auth/mfa/verificar', {
+      method: 'POST',
+      body: JSON.stringify({ mfa_token: pendingMfaToken, code }),
+      skipAuthRedirect: true,
+    });
+    enterApp(res?.data?.user);
+  } catch (err) {
+    if (err.code === 'MFA_TOKEN_INVALIDO') {
+      pendingMfaToken = null;
+      showLogin();
+      showError('La verificación expiró. Inicia sesión de nuevo.');
+      return;
+    }
+    showError(err.code === 'MFA_INVALIDO'
+      ? 'Código de verificación inválido. Revisa la hora de tu dispositivo.'
+      : (err.message || 'No se pudo verificar el código.'));
+  } finally {
+    restore();
+  }
+}
+
+function validatePasswordLocally(password, confirm) {
+  if (!password) return 'La contraseña es obligatoria.';
+  if (password.length < 12) return 'La contraseña debe tener al menos 12 caracteres.';
+  if (password.length > 72) return 'La contraseña no puede superar los 72 caracteres.';
+  if (confirm !== undefined && password !== confirm) return 'Las contraseñas no coinciden.';
+  return null;
 }
 
 async function handleRegister() {
@@ -281,61 +473,192 @@ async function handleRegister() {
   const apellido = document.getElementById('reg-apellido')?.value.trim();
   const email = document.getElementById('reg-email')?.value.trim();
   const telefono = document.getElementById('reg-telefono')?.value.trim();
-  const password = document.getElementById('reg-password')?.value;
+  const password = document.getElementById('reg-password')?.value || '';
+  const confirm = document.getElementById('reg-password-confirm')?.value || '';
 
   if (!nombre || !apellido || !email || !telefono || !password) {
     showError('Todos los campos son requeridos');
     return;
   }
 
-  const regBtn = document.querySelector('#register-form .btn-primary') || document.querySelector('#register-form button');
-  const originalBtnText = regBtn ? regBtn.innerHTML : '';
-  if (regBtn) {
-    regBtn.disabled = true;
-    regBtn.textContent = 'Registrando...';
+  const passwordError = validatePasswordLocally(password, confirm);
+  if (passwordError) {
+    showError(passwordError);
+    return;
   }
+
+  const restore = setLoginBusy(
+    document.querySelector('#register-form .btn-primary'),
+    true,
+    'Registrando...'
+  );
 
   try {
     const res = await apiFetch('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ nombre, apellido, email, telefono, password }),
+      skipAuthRedirect: true,
     });
 
-    const token = res?.data?.token || res?.token;
-    if (token) {
-      localStorage.setItem('token', token);
-    }
     const emailLoginInput = document.getElementById('login-email');
-    if (emailLoginInput) {
-      emailLoginInput.value = email;
-    }
-    showLogin();
-    showError('Registro exitoso. Inicia sesión.');
+    if (emailLoginInput) emailLoginInput.value = email;
+    hideAllAuthForms();
+    document.getElementById('login-form').classList.remove('hidden');
+    setAuthNotice(res?.message || 'Registro recibido. Revisa tu correo para verificar la cuenta.', 'ok');
   } catch (err) {
     showError(err.message || 'Error al registrar usuario. Verifica la conexión con el servidor.');
   } finally {
-    if (regBtn) {
-      regBtn.disabled = false;
-      regBtn.innerHTML = originalBtnText;
-    }
+    restore();
   }
 }
 
-function handleReset() {
-  const email = document.getElementById('reset-email').value.trim();
-  if (!email) { alert('Ingresa tu correo'); return; }
-  alert('Si el correo existe, se ha enviado un enlace de restablecimiento a ' + email);
-  showLogin();
+async function handleResendVerification() {
+  const email = document.getElementById('login-email')?.value.trim();
+  if (!email) {
+    showError('Escribe tu correo para reenviar la verificación.');
+    return;
+  }
+
+  try {
+    const res = await apiFetch('/auth/reenviar-verificacion', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+      skipAuthRedirect: true,
+    });
+    setAuthNotice(res?.message || 'Si el correo está pendiente, enviamos un nuevo enlace.', 'ok');
+  } catch (err) {
+    showError(err.message || 'No se pudo reenviar la verificación.');
+  }
 }
 
-function handleLogout() {
-  if (confirm('¿Deseas cerrar sesión?')) {
+async function handleVerifyToken(token) {
+  if (!token) return;
+  try {
+    const res = await apiFetch('/auth/verificar-email', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+      skipAuthRedirect: true,
+    });
+    if (!isLoggedIn) {
+      showLogin();
+      setAuthNotice(res?.message || 'Correo verificado. Ya puedes iniciar sesión.', 'ok');
+    } else {
+      showToast('Correo verificado', 'ok');
+    }
+  } catch (err) {
+    if (!isLoggedIn) showLogin();
+    showError(err.message || 'El enlace de verificación no es válido o expiró.');
+  }
+}
+
+async function handleReset() {
+  const email = document.getElementById('reset-email')?.value.trim();
+  if (!email) {
+    showError('Ingresa tu correo');
+    return;
+  }
+
+  const restore = setLoginBusy(
+    document.querySelector('#reset-form .btn-primary'),
+    true,
+    'Enviando...'
+  );
+
+  try {
+    const res = await apiFetch('/auth/solicitar-recuperacion', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+      skipAuthRedirect: true,
+    });
+    setAuthNotice(res?.message || 'Si el correo está registrado, recibirás las instrucciones.', 'ok');
+  } catch (err) {
+    showError(err.message || 'No se pudo enviar la solicitud.');
+  } finally {
+    restore();
+  }
+}
+
+async function handleResetPassword() {
+  const password = document.getElementById('rp-password')?.value || '';
+  const confirm = document.getElementById('rp-confirm')?.value || '';
+
+  if (!resetToken) {
+    showReset();
+    showError('El enlace no es válido o expiró. Solicita uno nuevo.');
+    return;
+  }
+
+  const passwordError = validatePasswordLocally(password, confirm);
+  if (passwordError) {
+    showError(passwordError);
+    return;
+  }
+
+  const restore = setLoginBusy(
+    document.querySelector('#reset-password-form .btn-primary'),
+    true,
+    'Guardando...'
+  );
+
+  try {
+    const res = await apiFetch('/auth/restablecer-password', {
+      method: 'POST',
+      body: JSON.stringify({ token: resetToken, password }),
+      skipAuthRedirect: true,
+    });
+    resetToken = null;
+    isLoggedIn = false;
+    currentUser = null;
+    document.getElementById('main-app')?.classList.add('hidden');
+    document.getElementById('auth-screen')?.classList.remove('hidden');
+    showLogin();
+    setAuthNotice(res?.message || 'Contraseña actualizada. Inicia sesión con tu nueva contraseña.', 'ok');
+  } catch (err) {
+    showError(err.message || 'No se pudo restablecer la contraseña.');
+  } finally {
+    restore();
+  }
+}
+
+async function handleLogout() {
+  if (!confirm('¿Deseas cerrar sesión?')) return;
+
+  try {
+    await apiFetch('/auth/logout', { method: 'POST', skipAuthRedirect: true });
+  } catch (error) {
+    console.warn('[auth] logout:', error.message);
+  } finally {
+    isLoggedIn = false;
+    currentUser = null;
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    isLoggedIn = false;
-    document.getElementById('main-app').classList.add('hidden');
-    document.getElementById('auth-screen').classList.remove('hidden');
+
+    document.getElementById('main-app')?.classList.add('hidden');
+    document.getElementById('auth-screen')?.classList.remove('hidden');
+    document.querySelectorAll('.full-screen-view.active').forEach((v) => v.classList.remove('active'));
     showLogin();
+    setAuthNotice('Sesión cerrada correctamente.', 'ok');
+  }
+}
+
+// Acciones que llegan por enlace de correo (?verify=... / ?reset=...)
+function processAuthUrlActions() {
+  const params = new URLSearchParams(window.location.search);
+  const verify = params.get('verify');
+  const reset = params.get('reset');
+  if (!verify && !reset) return;
+
+  window.history.replaceState({}, document.title, window.location.pathname);
+
+  if (verify) {
+    handleVerifyToken(verify);
+  } else if (reset) {
+    // El enlace de recuperación invalida la sesión vigente en el servidor.
+    isLoggedIn = false;
+    currentUser = null;
+    document.getElementById('main-app')?.classList.add('hidden');
+    document.getElementById('auth-screen')?.classList.remove('hidden');
+    showResetPassword(reset);
   }
 }
 
@@ -389,6 +712,40 @@ function openSettings() {
   openView('view-settings');
   const sel = document.getElementById('settings-currency');
   if (sel) sel.value = localStorage.getItem('PQ_CUR_MODE') || 'dual';
+  const apiInput = document.getElementById('settings-api-url');
+  if (apiInput) apiInput.value = localStorage.getItem('API_BASE') || '';
+  const status = document.getElementById('settings-api-status');
+  if (status) status.textContent = '';
+}
+
+function testApiConnection() {
+  const input = document.getElementById('settings-api-url');
+  const status = document.getElementById('settings-api-status');
+  const url = (input?.value || '').trim();
+  if (!url) { if (status) status.textContent = 'Ingresa una URL'; return; }
+  const base = url.replace(/\/+$/, '');
+  if (status) status.textContent = 'Probando…';
+  fetch(`${base}/health`, { method: 'GET' })
+    .then((r) => {
+      if (status) status.textContent = r.ok ? '✓ Conectado' : `✗ Error ${r.status}`;
+    })
+    .catch(() => {
+      if (status) status.textContent = '✗ Sin conexión';
+    });
+}
+
+function saveSettings() {
+  const input = document.getElementById('settings-api-url');
+  const url = (input?.value || '').trim();
+  if (url) {
+    localStorage.setItem('API_BASE', url.replace(/\/+$/, ''));
+    showToast('URL de API actualizada. Recargando datos…', 'ok');
+    // La próxima petición usa la nueva API_BASE al recargar.
+  } else {
+    localStorage.removeItem('API_BASE');
+  }
+  closeView('view-settings');
+  showToast('Configuración guardada ✓', 'ok');
 }
 async function openEditProfile() {
   openView('view-edit-profile');
@@ -405,8 +762,123 @@ async function openEditProfile() {
   }
 }
 
-function openSecurity() { openModal('Seguridad', 'Gestión de contraseña y autenticación de dos factores.'); }
+function openSecurity() {
+  openView('view-security');
+  loadSecurityOverview();
+}
 function openHelp() { openModal('Ayuda & Soporte', 'Contacto con soporte técnico: soporte@panqueo.com'); }
+
+// ========== PANEL DE ADMINISTRACIÓN: usuarios y roles ==========
+const ADMIN_ROLES = ['admin', 'desarrollador', 'cocinero', 'vendedor'];
+
+const ADMIN_ROL_LABELS = {
+  admin: 'Administrador',
+  desarrollador: 'Desarrollador',
+  cocinero: 'Cocinero',
+  vendedor: 'Vendedor',
+};
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+function esAdminODev() {
+  return Boolean(currentUser && (currentUser.rol === 'admin' || currentUser.rol === 'desarrollador'));
+}
+
+function updateAdminVisibility() {
+  const visible = esAdminODev();
+  document.querySelectorAll('[data-admin-only]').forEach((el) => {
+    el.classList.toggle('hidden', !visible);
+  });
+}
+
+function openAdminUsers() {
+  if (!esAdminODev()) {
+    showToast('No tienes permisos para gestionar usuarios.', 'error');
+    return;
+  }
+  openView('view-admin-users');
+  renderAdminUsers();
+}
+
+async function renderAdminUsers() {
+  const list = document.getElementById('admin-users-list');
+  if (!list) return;
+  list.innerHTML = `<div class="p-6 text-center"><div class="loader-ring"></div></div>`;
+  try {
+    const res = await apiFetch('/admin/usuarios');
+    const usuarios = res?.data || [];
+    if (!usuarios.length) {
+      list.innerHTML = `<p class="text-center text-sm text-secondary py-6">No hay usuarios registrados.</p>`;
+      return;
+    }
+    list.innerHTML = usuarios.map(renderAdminUserCard).join('');
+  } catch (err) {
+    list.innerHTML = getErrorHTML('No se pudo cargar la lista de usuarios.', 'renderAdminUsers()');
+    if (err.status === 403) showToast('No tienes permisos para ver los usuarios.', 'error');
+  }
+}
+
+function renderAdminUserCard(u) {
+  const esYo = Boolean(currentUser && currentUser.id === u.id);
+  const rolOptions = ADMIN_ROLES.map((r) =>
+    `<option value="${r}"${r === u.rol ? ' selected' : ''}>${ADMIN_ROL_LABELS[r]}</option>`
+  ).join('');
+  const verificado = u.email_verificado ? '✓' : '✗';
+  const mfa = u.mfa_habilitado ? ' · MFA' : '';
+  const desactivado = u.activo ? '' : '<p class="sec-hint text-error mt-1">Cuenta desactivada: no puede iniciar sesión.</p>';
+  return `
+    <div class="sec-card" data-user-id="${u.id}">
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <div class="font-semibold text-sm truncate">${escapeHtml(u.nombre)} ${escapeHtml(u.apellido)}${esYo ? ' <span class="text-secondary">(tú)</span>' : ''}</div>
+          <div class="text-xs text-secondary truncate">${escapeHtml(u.email)}</div>
+          <div class="text-xs text-secondary mt-1">Verificado: ${verificado}${mfa}</div>
+        </div>
+        <button type="button" class="${u.activo ? 'sec-danger-btn' : 'btn btn-primary btn-sm'}" ${esYo ? 'disabled title="No puedes desactivar tu propia cuenta"' : ''} onclick="toggleUserEstado(${u.id}, ${!u.activo})">
+          ${u.activo ? 'Desactivar' : 'Activar'}
+        </button>
+      </div>
+      <div class="flex items-center gap-2 mt-3">
+        <label class="sec-label" for="role-${u.id}">Rol</label>
+        <select id="role-${u.id}" class="pq-input flex-1" ${esYo ? 'disabled title="No puedes cambiarte el rol a ti mismo"' : ''} onchange="changeUserRole(${u.id}, this.value)">
+          ${rolOptions}
+        </select>
+      </div>
+      ${desactivado}
+    </div>`;
+}
+
+async function changeUserRole(id, rol) {
+  try {
+    const res = await apiFetch(`/admin/usuarios/${id}/rol`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rol }),
+    });
+    const nombre = res?.data?.nombre || 'usuario';
+    showToast(`Rol de ${nombre} actualizado a ${ADMIN_ROL_LABELS[rol] || rol}`, 'ok');
+  } catch (err) {
+    showToast(err.message || 'No se pudo cambiar el rol', 'error');
+    renderAdminUsers();
+  }
+}
+
+async function toggleUserEstado(id, activo) {
+  try {
+    await apiFetch(`/admin/usuarios/${id}/estado`, {
+      method: 'PATCH',
+      body: JSON.stringify({ activo }),
+    });
+    showToast(activo ? 'Cuenta activada' : 'Cuenta desactivada', 'ok');
+    renderAdminUsers();
+  } catch (err) {
+    showToast(err.message || 'No se pudo actualizar el estado', 'error');
+  }
+}
+
 function openNotifs() { openAlertsSheet(); }
 
 // Modal Helpers
@@ -469,56 +941,192 @@ function toggleTheme(persist) {
   }
 }
 
-// ---------- BIMONEDA (tasa BCV real) ----------
+// ---------- BIMONEDA (tasas BCV USD + EUR, automáticas) ----------
 const PQ_CURRENCY = {
   order: ['dual', 'usd', 'bs'],
   modeLabels: { dual: 'DUAL $ / Bs.', usd: 'SOLO USD', bs: 'SOLO Bs.' },
-  mode: localStorage.getItem('PQ_CUR_MODE') || 'dual',
+  mode: ['dual', 'usd', 'bs'].includes(localStorage.getItem('PQ_CUR_MODE'))
+    ? localStorage.getItem('PQ_CUR_MODE')
+    : 'dual',
   rate: parseFloat(localStorage.getItem('PQ_RATE')) || null,
+  rateEur: parseFloat(localStorage.getItem('PQ_RATE_EUR')) || null,
+  // Tasa con la que se calculan los bolívares: 'usd' o 'eur'
+  tasaBase: localStorage.getItem('PQ_TASA_BASE') === 'eur' ? 'eur' : 'usd',
+  meta: {
+    fuente: localStorage.getItem('PQ_RATE_FUENTE') || null,
+    fechaValor: localStorage.getItem('PQ_RATE_FECHA') || null,
+    sincronizadoEn: localStorage.getItem('PQ_RATE_SYNC') || null,
+  },
   rateFetched: false,
 };
+
+/** Tasa activa para convertir a bolívares (según la moneda de trabajo). */
+function tasaTrabajo() {
+  return PQ_CURRENCY.tasaBase === 'eur' ? PQ_CURRENCY.rateEur : PQ_CURRENCY.rate;
+}
+
+/** 'USD' o 'EUR', según la tasa de trabajo elegida. */
+function monedaTrabajo() {
+  return PQ_CURRENCY.tasaBase === 'eur' ? 'EUR' : 'USD';
+}
+
+/** Selecciona la tasa con la que se calculan los bolívares. */
+function setTasaBase(base) {
+  if (base !== 'usd' && base !== 'eur') return;
+  const tasa = base === 'eur' ? PQ_CURRENCY.rateEur : PQ_CURRENCY.rate;
+  if (!Number.isFinite(parseFloat(tasa))) {
+    showToast(`La tasa del ${base === 'eur' ? 'euro' : 'dólar'} todavía no está disponible`, 'error');
+    return;
+  }
+  if (PQ_CURRENCY.tasaBase === base) {
+    renderRatePill();
+    updateTasaSheet();
+    return;
+  }
+  PQ_CURRENCY.tasaBase = base;
+  localStorage.setItem('PQ_TASA_BASE', base);
+  renderRatePill();
+  updateTasaSheet();
+  renderAll();
+  showToast(
+    `Ahora los Bs. se calculan con la tasa del ${base === 'eur' ? 'euro' : 'dólar'}: ${fmtRate(tasa)} Bs.`,
+    'success',
+    'currency_exchange',
+  );
+}
+
+/** Click en el chip de la pastilla: no debe alternar el modo de vista. */
+function seleccionarTasa(event, base) {
+  if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+  setTasaBase(base);
+}
+
+/** Formatea una tasa (Bs por divisa) con 2 decimales. */
+function fmtRate(valor) {
+  const numero = parseFloat(valor);
+  if (!Number.isFinite(numero)) return '—';
+  return numero.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Guarda en memoria + localStorage las tasas y su metadata. */
+function aplicarTasas(datos) {
+  if (!datos) return;
+  if (datos.valor_bs_por_usd !== undefined && datos.valor_bs_por_usd !== null) {
+    PQ_CURRENCY.rate = parseFloat(datos.valor_bs_por_usd);
+    localStorage.setItem('PQ_RATE', String(PQ_CURRENCY.rate));
+  }
+  if (datos.valor_bs_por_eur !== undefined && datos.valor_bs_por_eur !== null) {
+    PQ_CURRENCY.rateEur = parseFloat(datos.valor_bs_por_eur);
+    localStorage.setItem('PQ_RATE_EUR', String(PQ_CURRENCY.rateEur));
+  }
+  if (datos.fuente_referencia) {
+    PQ_CURRENCY.meta.fuente = datos.fuente_referencia;
+    localStorage.setItem('PQ_RATE_FUENTE', datos.fuente_referencia);
+  }
+  if (datos.fecha_valor) {
+    PQ_CURRENCY.meta.fechaValor = datos.fecha_valor;
+    localStorage.setItem('PQ_RATE_FECHA', datos.fecha_valor);
+  }
+  if (datos.sincronizado_en) {
+    PQ_CURRENCY.meta.sincronizadoEn = datos.sincronizado_en;
+    localStorage.setItem('PQ_RATE_SYNC', datos.sincronizado_en);
+  }
+
+  // Si la tasa elegida deja de existir (p. ej. solo se cargó la otra), se usa la disponible.
+  if (PQ_CURRENCY.tasaBase === 'eur' && !PQ_CURRENCY.rateEur && PQ_CURRENCY.rate) {
+    PQ_CURRENCY.tasaBase = 'usd';
+    localStorage.setItem('PQ_TASA_BASE', 'usd');
+  } else if (PQ_CURRENCY.tasaBase === 'usd' && !PQ_CURRENCY.rate && PQ_CURRENCY.rateEur) {
+    PQ_CURRENCY.tasaBase = 'eur';
+    localStorage.setItem('PQ_TASA_BASE', 'eur');
+  }
+}
 
 function loadTasa() {
   if (!isLoggedIn) return Promise.resolve(null);
   return apiFetch('/finanzas/tasas/actual')
     .then(res => {
-      const valor = res?.data?.valor_bs_por_usd;
-      if (valor) {
-        PQ_CURRENCY.rate = parseFloat(valor);
-        localStorage.setItem('PQ_RATE', String(PQ_CURRENCY.rate));
-      }
+      aplicarTasas(res?.data);
       PQ_CURRENCY.rateFetched = true;
       renderRatePill();
-      return PQ_CURRENCY.rate;
+      updateTasaSheet();
+      return tasaTrabajo();
     })
     .catch(() => null);
 }
 
 function renderRatePill() {
   const rateEl = document.getElementById('rate-label');
+  const eurEl = document.getElementById('rate-label-eur');
   const modeEl = document.getElementById('currency-mode-label');
-  if (rateEl) rateEl.textContent = PQ_CURRENCY.rate ? `${PQ_CURRENCY.rate} Bs/$` : 'Sin tasa';
+  if (rateEl) rateEl.textContent = PQ_CURRENCY.rate ? fmtRate(PQ_CURRENCY.rate) : 'Sin tasa';
+  if (eurEl) eurEl.textContent = PQ_CURRENCY.rateEur ? fmtRate(PQ_CURRENCY.rateEur) : '—';
   if (modeEl) modeEl.textContent = PQ_CURRENCY.modeLabels[PQ_CURRENCY.mode];
+
+  // Chip activo = tasa con la que se calculan los bolívares
+  const chipUsd = document.getElementById('rate-chip-usd');
+  const chipEur = document.getElementById('rate-chip-eur');
+  if (chipUsd) {
+    chipUsd.classList.toggle('active', PQ_CURRENCY.tasaBase === 'usd');
+    chipUsd.setAttribute('aria-pressed', String(PQ_CURRENCY.tasaBase === 'usd'));
+    chipUsd.title = PQ_CURRENCY.tasaBase === 'usd'
+      ? 'Tasa de trabajo actual: dólar'
+      : 'Usar la tasa del dólar para calcular los bolívares';
+  }
+  if (chipEur) {
+    chipEur.classList.toggle('active', PQ_CURRENCY.tasaBase === 'eur');
+    chipEur.setAttribute('aria-pressed', String(PQ_CURRENCY.tasaBase === 'eur'));
+    chipEur.title = PQ_CURRENCY.tasaBase === 'eur'
+      ? 'Tasa de trabajo actual: euro'
+      : 'Usar la tasa del euro para calcular los bolívares';
+  }
+
+  const dot = document.getElementById('rate-sync-dot');
+  if (dot) {
+    const sync = PQ_CURRENCY.meta.sincronizadoEn ? new Date(PQ_CURRENCY.meta.sincronizadoEn).getTime() : 0;
+    const fresca = sync && (Date.now() - sync) < 26 * 60 * 60 * 1000;
+    dot.classList.toggle('off', !fresca);
+    const trabajo = `Tasa de trabajo: ${monedaTrabajo()} (${fmtRate(tasaTrabajo())} Bs.)`;
+    if (sync) {
+      dot.title = `${trabajo} · Automático BCV · última sincronización: ${new Date(sync).toLocaleString('es-VE')}`;
+    } else {
+      dot.title = `${trabajo} · Tasa manual (sin sincronización automática)`;
+    }
+  }
+}
+
+/** Cambia el modo de vista de montos desde el sheet (Dual / Solo USD / Solo Bs). */
+function setCurrencyMode(mode) {
+  if (!PQ_CURRENCY.order.includes(mode)) return;
+  PQ_CURRENCY.mode = mode;
+  localStorage.setItem('PQ_CUR_MODE', mode);
+  renderRatePill();
+  updateTasaSheet();
+  renderAll();
+  showToast(`Vista de montos: ${PQ_CURRENCY.modeLabels[mode]}`, 'info', 'payments');
 }
 
 function cycleCurrencyMode() {
   const i = PQ_CURRENCY.order.indexOf(PQ_CURRENCY.mode);
-  PQ_CURRENCY.mode = PQ_CURRENCY.order[(i + 1) % PQ_CURRENCY.order.length];
-  localStorage.setItem('PQ_CUR_MODE', PQ_CURRENCY.mode);
-  renderRatePill();
-  renderAll();
-  showToast(`Vista de montos: ${PQ_CURRENCY.modeLabels[PQ_CURRENCY.mode]}`, 'info', 'payments');
+  const next = PQ_CURRENCY.order[(i + 1) % PQ_CURRENCY.order.length];
+  setCurrencyMode(next);
 }
 
 function fmtBs(usd) {
-  return `${(parseFloat(usd || 0) * (PQ_CURRENCY.rate || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.`;
+  const usdNum = parseFloat(usd || 0);
+  const tasa = tasaTrabajo();
+  if (!Number.isFinite(parseFloat(tasa)) || parseFloat(tasa) <= 0) {
+    return `$ ${usdNum.toFixed(2)} (sin tasa)`;
+  }
+  const bs = usdNum * parseFloat(tasa);
+  return `${bs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.`;
 }
 
 /** Formatea un monto USD según el modo bimoneda activo. */
 function fmtMoney(usd) {
   const usdNum = parseFloat(usd || 0);
   if (PQ_CURRENCY.mode === 'bs') {
-    return PQ_CURRENCY.rate ? fmtBs(usdNum) : `$ ${usdNum.toFixed(2)} (sin tasa)`;
+    return tasaTrabajo() ? fmtBs(usdNum) : `$ ${usdNum.toFixed(2)} (sin tasa)`;
   }
   return `$ ${usdNum.toFixed(2)}`;
 }
@@ -529,7 +1137,7 @@ function fmtMoneyHTML(usd) {
   if (PQ_CURRENCY.mode === 'usd') {
     return `<span>$ ${usdNum.toFixed(2)}</span>`;
   }
-  if (!PQ_CURRENCY.rate) {
+  if (!tasaTrabajo()) {
     return `<span>$ ${usdNum.toFixed(2)}</span>`;
   }
   if (PQ_CURRENCY.mode === 'bs') {
@@ -553,33 +1161,125 @@ function closeSheets() {
   if (overlay) overlay.classList.remove('open');
 }
 
-// ---------- TASA BCV (sheet) ----------
+// ---------- TASAS BCV (sheet) ----------
+function updateTasaSheet() {
+  const usdEl = document.getElementById('pq-tasa-usd');
+  const eurEl = document.getElementById('pq-tasa-eur');
+  const statusEl = document.getElementById('pq-tasa-status');
+  if (usdEl) usdEl.textContent = PQ_CURRENCY.rate ? fmtRate(PQ_CURRENCY.rate) : '—';
+  if (eurEl) eurEl.textContent = PQ_CURRENCY.rateEur ? fmtRate(PQ_CURRENCY.rateEur) : '—';
+
+  // Tarjetas seleccionables: la activa es la tasa de trabajo
+  const cardUsd = document.getElementById('pq-tasa-card-usd');
+  const cardEur = document.getElementById('pq-tasa-card-eur');
+  if (cardUsd) {
+    cardUsd.classList.toggle('active', PQ_CURRENCY.tasaBase === 'usd');
+    cardUsd.setAttribute('aria-pressed', String(PQ_CURRENCY.tasaBase === 'usd'));
+  }
+  if (cardEur) {
+    cardEur.classList.toggle('active', PQ_CURRENCY.tasaBase === 'eur');
+    cardEur.setAttribute('aria-pressed', String(PQ_CURRENCY.tasaBase === 'eur'));
+  }
+
+  const hintEl = document.getElementById('pq-tasa-hint');
+  if (hintEl) {
+    const activa = tasaTrabajo();
+    hintEl.innerHTML = `Trabajando con la tasa del <strong>${PQ_CURRENCY.tasaBase === 'eur' ? 'euro' : 'dólar'}</strong>${activa ? `: 1 ${monedaTrabajo()} = ${fmtRate(activa)} Bs.` : ''} · los montos en bolívares usan esta tasa.`;
+  }
+
+  // Chips de modo de vista: el activo define cómo se muestran los montos.
+  ['dual', 'usd', 'bs'].forEach((key) => {
+    const chip = document.getElementById(`pq-mode-${key}`);
+    if (!chip) return;
+    const activo = PQ_CURRENCY.mode === key;
+    chip.classList.toggle('active', activo);
+    chip.setAttribute('aria-pressed', String(activo));
+  });
+
+  if (statusEl) {
+    const { fuente, fechaValor, sincronizadoEn } = PQ_CURRENCY.meta;
+    if (sincronizadoEn) {
+      const fecha = new Date(sincronizadoEn).toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short' });
+      const valor = fechaValor ? ` · fecha valor ${fechaValor}` : '';
+      statusEl.innerHTML = `<span class="material-symbols-outlined" style="font-size:15px;">verified</span> Automático · ${fuente || 'BCV'}${valor}<br>Última sincronización: ${fecha}`;
+    } else if (PQ_CURRENCY.rate || PQ_CURRENCY.rateEur) {
+      statusEl.innerHTML = `<span class="material-symbols-outlined" style="font-size:15px;">edit</span> Tasa manual${fuente ? ` (${fuente})` : ''}. Sincroniza para volver al valor oficial.`;
+    } else {
+      statusEl.textContent = 'Sin tasa registrada. Sincroniza con el BCV para empezar.';
+    }
+  }
+
+  const inputUsd = document.getElementById('pq-tasa-input');
+  const inputEur = document.getElementById('pq-tasa-input-eur');
+  if (inputUsd) inputUsd.value = PQ_CURRENCY.rate || '';
+  if (inputEur) inputEur.value = PQ_CURRENCY.rateEur || '';
+}
+
 function openTasaSheet() {
-  const current = document.getElementById('pq-tasa-current');
-  if (current) current.textContent = PQ_CURRENCY.rate ? `${PQ_CURRENCY.rate} Bs. / 1 USD` : 'Sin tasa registrada';
-  const input = document.getElementById('pq-tasa-input');
-  if (input) input.value = PQ_CURRENCY.rate || '';
+  updateTasaSheet();
   openSheet('sheet-tasa');
 }
 
+async function sincronizarTasaBCV() {
+  const btn = document.getElementById('btn-sync-tasa');
+  const statusEl = document.getElementById('pq-tasa-status');
+  if (btn) btn.disabled = true;
+  if (statusEl) statusEl.textContent = 'Consultando bcv.org.ve…';
+  try {
+    const res = await apiFetch('/finanzas/tasas/sincronizar', {
+      method: 'POST',
+      body: JSON.stringify({ forzar: true }),
+    });
+    aplicarTasas(res?.data);
+    if (!PQ_CURRENCY.meta.sincronizadoEn) {
+      // El backend normalmente ya devuelve `sincronizado_en`; esto es solo un respaldo
+      PQ_CURRENCY.meta.sincronizadoEn = new Date().toISOString();
+    }
+    renderRatePill();
+    updateTasaSheet();
+    renderAll();
+    const respaldo = res?.meta?.respaldo ? ' (fuente de respaldo)' : '';
+    showToast(`Tasas actualizadas${respaldo}: $ ${fmtRate(PQ_CURRENCY.rate)} · € ${fmtRate(PQ_CURRENCY.rateEur)} Bs.`, 'success', 'currency_exchange');
+  } catch (err) {
+    showToast(err.message || 'No se pudo sincronizar con el BCV', 'error');
+    updateTasaSheet();
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 async function saveTasa() {
-  const input = document.getElementById('pq-tasa-input');
-  const valor = parseFloat(input ? input.value : '');
-  if (!valor || valor <= 0) {
-    showToast('Ingresa una tasa válida (mayor a 0)', 'error');
+  const inputUsd = document.getElementById('pq-tasa-input');
+  const inputEur = document.getElementById('pq-tasa-input-eur');
+  const usd = parseFloat(inputUsd ? inputUsd.value : '');
+  const eur = inputEur && inputEur.value !== '' ? parseFloat(inputEur.value) : null;
+
+  if (!usd || usd <= 0) {
+    showToast('Ingresa una tasa USD válida (mayor a 0)', 'error');
     return;
   }
+  if (eur !== null && (!eur || eur <= 0)) {
+    showToast('La tasa EUR debe ser mayor a 0 (o déjala vacía)', 'error');
+    return;
+  }
+
   try {
-    await apiFetch('/finanzas/tasas', {
+    const res = await apiFetch('/finanzas/tasas', {
       method: 'POST',
-      body: JSON.stringify({ valor_bs_por_usd: valor, fuente_referencia: 'Manual' }),
+      body: JSON.stringify({
+        valor_bs_por_usd: usd,
+        valor_bs_por_eur: eur,
+        fuente_referencia: 'Manual',
+      }),
     });
-    PQ_CURRENCY.rate = valor;
-    localStorage.setItem('PQ_RATE', String(valor));
+    aplicarTasas(res?.data || { valor_bs_por_usd: usd, valor_bs_por_eur: eur, fuente_referencia: 'Manual' });
+    // Un ajuste manual deja de estar sincronizado con el BCV
+    PQ_CURRENCY.meta.sincronizadoEn = null;
+    localStorage.removeItem('PQ_RATE_SYNC');
     closeSheets();
     renderRatePill();
     renderAll();
-    showToast(`Tasa actualizada: ${valor} Bs/$ (Regla 4 aplicada a la bimoneda)`, 'success');
+    showToast(`Tasas manuales guardadas: $ ${fmtRate(PQ_CURRENCY.rate)} · € ${fmtRate(PQ_CURRENCY.rateEur)} Bs.`, 'success');
   } catch (err) {
     showToast(err.message || 'No se pudo registrar la tasa', 'error');
   }
@@ -653,32 +1353,40 @@ async function openAuthedModule(name) {
       if (sub) sub.textContent = 'Catálogo de recetas con sus requerimientos de ingredientes.';
       const res = await apiFetch('/recetas?limit=50');
       const recetas = Array.isArray(res?.data) ? res.data : (res?.data?.recetas || res?.data?.items || []);
+      const nuevaBtn = `
+        <button onclick="openNuevaReceta()" style="width:100%;margin-bottom:12px;padding:11px;border:0;border-radius:12px;background:#785900;color:#fff;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:18px;">add</span> Nueva Receta
+        </button>`;
       if (recetas.length === 0) {
-        body.innerHTML = getEmptyHTML('No hay recetas registradas todavía.');
+        body.innerHTML = nuevaBtn + getEmptyHTML('No hay recetas registradas todavía.');
         return;
       }
-      body.innerHTML = recetas.map(r => `
+      body.innerHTML = nuevaBtn + recetas.map(r => `
         <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--pq-surface-1);margin-bottom:6px;">
           <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,193,7,.2);display:flex;align-items:center;justify-content:center;">
             <span class="material-symbols-outlined" style="color:#785900;">bakery_dining</span>
           </div>
           <div style="flex:1;min-width:0;">
-            <div style="font-weight:600;font-size:13px;">${r.nombre_receta}</div>
-            <div style="font-size:11px;color:var(--pq-on-surface-muted);">${r.Descripcion || r.descripcion || ''}</div>
+            <div style="font-weight:600;font-size:13px;">${escapeHtml(r.nombre_receta)}</div>
+            <div style="font-size:11px;color:var(--pq-on-surface-muted);">${escapeHtml(r.instrucciones || '')}</div>
           </div>
           <button class="material-symbols-outlined" style="border:0;background:none;color:#785900;cursor:pointer;" onclick="openRecetaDetalle(${r.id_receta})" title="Ver detalle / costo">visibility</button>
         </div>
       `).join('');
     } else if (name === 'compras') {
       if (title) title.textContent = 'Listas de Compra';
-      if (sub) sub.textContent = 'Sugeridas por la predicción de compras; se convierten en lotes al completarse (RF-02).';
+      if (sub) sub.textContent = 'Arma tu lista, marca lo comprado y conviértela en lotes (RF-02).';
       const res = await apiFetch('/compras/listas?limit=20');
       const listas = Array.isArray(res?.data) ? res.data : (res?.data?.listas || res?.data?.items || []);
+      const nuevaBtn = `
+        <button onclick="openListaCompras()" style="width:100%;margin-bottom:12px;padding:11px;border:0;border-radius:12px;background:#785900;color:#fff;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:18px;">add</span> Nueva Lista de Compra
+        </button>`;
       if (listas.length === 0) {
-        body.innerHTML = getEmptyHTML('No hay listas de compra registradas.');
+        body.innerHTML = nuevaBtn + getEmptyHTML('No hay listas de compra registradas.');
         return;
       }
-      body.innerHTML = listas.map(l => {
+      body.innerHTML = nuevaBtn + listas.map(l => {
         const estado = l.estado_lista || 'Borrador';
         const color = estado === 'Completada' ? '#2e7d32' : '#b26a00';
         const bg = estado === 'Completada' ? 'rgba(76,175,80,.12)' : 'rgba(255,193,7,.15)';
@@ -690,16 +1398,382 @@ async function openAuthedModule(name) {
           </div>
           ${(l.DetalleListaCompras || []).map(d => `
             <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--pq-on-surface-muted);padding:2px 0;">
-              <span>${d.Ingrediente?.nombre_ing || `Ingrediente #${d.id_ingrediente}`}</span>
+              <span>${escapeHtml(d.Ingrediente?.nombre_ing || `Ingrediente #${d.id_ingrediente}`)}</span>
               <span>sugerido ${parseFloat(d.cantidad_sugerida || 0)}${d.cantidad_comprada ? ` · comprado ${parseFloat(d.cantidad_comprada)}` : ''}</span>
             </div>`).join('')}
           ${estado !== 'Completada' ? `
-          <button onclick="completarLista(${l.id_lista})" style="margin-top:8px;padding:8px 12px;border:0;border-radius:10px;background:#785900;color:#fff;font-weight:600;font-size:12px;cursor:pointer;width:100%;">Completar lista (genera lotes)</button>` : ''}
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <button onclick="openListaCompras(${l.id_lista})" style="flex:1;padding:8px 12px;border:0;border-radius:10px;background:#fff8e1;color:#785900;font-weight:600;font-size:12px;cursor:pointer;">Editar</button>
+            <button onclick="completarLista(${l.id_lista})" style="flex:1;padding:8px 12px;border:0;border-radius:10px;background:#785900;color:#fff;font-weight:600;font-size:12px;cursor:pointer;">Completar</button>
+          </div>` : ''}
         </div>`;
       }).join('');
     }
   } catch (err) {
     body.innerHTML = getErrorHTML('No se pudo cargar el módulo.', `openAuthedModule('${name}')`);
+  }
+}
+
+// ---------- NUEVA RECETA (alta en "Recetas y Producción") ----------
+const PQ_NUEVA_RECETA = { ingredientes: [] };
+
+function openNuevaReceta() {
+  // Cierra el sheet de "Recetas y Producción" para que solo quede el formulario.
+  closeSheets();
+  PQ_NUEVA_RECETA.ingredientes = [];
+  const nombre = document.getElementById('nr-nombre');
+  const instrucciones = document.getElementById('nr-instrucciones');
+  const cantidad = document.getElementById('nr-cantidad');
+  const rendimiento = document.getElementById('nr-rendimiento');
+  if (nombre) nombre.value = '';
+  if (instrucciones) instrucciones.value = '';
+  if (cantidad) cantidad.value = '';
+  if (rendimiento) rendimiento.value = '1';
+  nrRenderIngredientes();
+  cargarIngredientesParaReceta();
+  openView('view-nueva-receta');
+}
+
+async function cargarIngredientesParaReceta() {
+  const select = document.getElementById('nr-ingrediente');
+  if (!select) return;
+  select.innerHTML = '<option value="">Cargando…</option>';
+  try {
+    const res = await apiFetch('/inventario/ingredientes?limit=100');
+    const items = Array.isArray(res?.data) ? res.data : [];
+    if (items.length === 0) {
+      select.innerHTML = '<option value="">Primero registra un ingrediente</option>';
+      return;
+    }
+    select.innerHTML = '<option value="">Selecciona…</option>' + items.map((i) =>
+      `<option value="${i.id_ingrediente}" data-unidad="${escapeHtml(i.unidad_medida || '')}">${escapeHtml(i.nombre_ing)}</option>`
+    ).join('');
+    select.onchange = () => {
+      const opt = select.selectedOptions[0];
+      const unitEl = document.getElementById('nr-unidad');
+      if (unitEl) unitEl.textContent = opt?.dataset.unidad || '';
+    };
+  } catch (err) {
+    select.innerHTML = '<option value="">Error al cargar ingredientes</option>';
+  }
+}
+
+function nrAgregarIngrediente() {
+  const select = document.getElementById('nr-ingrediente');
+  const id = Number(select?.value);
+  const cantidad = parseFloat(document.getElementById('nr-cantidad')?.value);
+  const opt = select?.selectedOptions?.[0];
+  const unidad = opt?.dataset.unidad || '';
+  const nombre = opt?.textContent || '';
+
+  if (!id) { showToast('Selecciona un ingrediente', 'error'); return; }
+  if (!cantidad || cantidad <= 0) { showToast('Cantidad inválida', 'error'); return; }
+  if (PQ_NUEVA_RECETA.ingredientes.some((i) => i.id_ingrediente === id)) {
+    showToast('Ese ingrediente ya está en la receta', 'error');
+    return;
+  }
+
+  PQ_NUEVA_RECETA.ingredientes.push({ id_ingrediente: id, nombre_ing: nombre, unidad_medida: unidad, cantidad_requerida: cantidad });
+  select.value = '';
+  document.getElementById('nr-cantidad').value = '';
+  const unitEl = document.getElementById('nr-unidad');
+  if (unitEl) unitEl.textContent = '';
+  nrRenderIngredientes();
+}
+
+function nrQuitarIngrediente(id) {
+  PQ_NUEVA_RECETA.ingredientes = PQ_NUEVA_RECETA.ingredientes.filter((i) => i.id_ingrediente !== id);
+  nrRenderIngredientes();
+}
+
+function nrRenderIngredientes() {
+  const list = document.getElementById('nr-ingredientes-list');
+  if (!list) return;
+  if (PQ_NUEVA_RECETA.ingredientes.length === 0) {
+    list.innerHTML = '<p class="text-xs text-secondary">Aún no has añadido ingredientes.</p>';
+    return;
+  }
+  list.innerHTML = PQ_NUEVA_RECETA.ingredientes.map((i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:10px;background:#f6f3f2;">
+      <div><span class="font-semibold text-sm">${escapeHtml(i.nombre_ing)}</span> <span class="text-xs text-secondary">· ${i.cantidad_requerida} ${escapeHtml(i.unidad_medida)}</span></div>
+      <button class="material-symbols-outlined" style="border:0;background:none;color:#ba1a1a;cursor:pointer;" onclick="nrQuitarIngrediente(${i.id_ingrediente})" title="Quitar">close</button>
+    </div>
+  `).join('');
+}
+
+async function saveNuevaReceta() {
+  const nombre = document.getElementById('nr-nombre')?.value.trim();
+  const instrucciones = document.getElementById('nr-instrucciones')?.value.trim();
+  const rendimiento = document.getElementById('nr-rendimiento')?.value.trim() || '1';
+
+  if (!nombre) { showToast('El nombre de la receta es obligatorio', 'error'); return; }
+  if (PQ_NUEVA_RECETA.ingredientes.length === 0) {
+    showToast('Agrega al menos un ingrediente', 'error');
+    return;
+  }
+
+  try {
+    await apiFetch('/recetas', {
+      method: 'POST',
+      body: JSON.stringify({
+        nombre_receta: nombre,
+        instrucciones,
+        rendimiento,
+        ingredientes: PQ_NUEVA_RECETA.ingredientes.map((i) => ({
+          id_ingrediente: i.id_ingrediente,
+          cantidad_requerida: i.cantidad_requerida,
+        })),
+      }),
+    });
+    closeView('view-nueva-receta');
+    showToast('Receta guardada ✓', 'ok');
+    openAuthedModule('recetas');
+  } catch (err) {
+    showToast(err.message || 'Error al guardar la receta', 'error');
+  }
+}
+
+function cerrarNuevaReceta() {
+  closeView('view-nueva-receta');
+  openAuthedModule('recetas');
+}
+
+// ---------- LISTA DE COMPRA (editor, paridad con la app móvil) ----------
+const PQ_LISTA_COMPRA = { id: null, items: [] };
+
+const lcMapDetalle = (d) => ({
+  id_detalle_lista: d.id_detalle_lista,
+  id_ingrediente: d.id_ingrediente,
+  nombre_ing: d.Ingrediente?.nombre_ing || `Ingrediente #${d.id_ingrediente}`,
+  unidad_medida: d.Ingrediente?.unidad_medida || '',
+  cantidad_sugerida: parseFloat(d.cantidad_sugerida || 0),
+  precio_estimado_unitario: parseFloat(d.precio_estimado_unitario || 0),
+  comprado: parseFloat(d.cantidad_comprada || 0) > 0,
+  cantidad_comprada: parseFloat(d.cantidad_comprada || 0),
+});
+
+async function openListaCompras(id = null) {
+  closeSheets();
+  PQ_LISTA_COMPRA.id = id ? Number(id) : null;
+  PQ_LISTA_COMPRA.items = [];
+
+  if (PQ_LISTA_COMPRA.id) {
+    try {
+      const res = await apiFetch('/compras/listas?limit=50');
+      const listas = Array.isArray(res?.data) ? res.data : [];
+      const lista = listas.find((l) => l.id_lista === PQ_LISTA_COMPRA.id);
+      if (lista) {
+        PQ_LISTA_COMPRA.items = (lista.DetalleListaCompras || []).map(lcMapDetalle);
+      }
+    } catch (e) { /* continúa con lista vacía */ }
+  }
+
+  lcRender();
+  cargarIngredientesParaLista();
+  openView('view-lista-compras');
+}
+
+async function cargarIngredientesParaLista() {
+  const select = document.getElementById('lc-ingrediente');
+  if (!select) return;
+  select.innerHTML = '<option value="">Cargando…</option>';
+  try {
+    const res = await apiFetch('/inventario/ingredientes?limit=100');
+    const items = Array.isArray(res?.data) ? res.data : [];
+    if (items.length === 0) {
+      select.innerHTML = '<option value="">Primero registra un ingrediente</option>';
+      return;
+    }
+    select.innerHTML = '<option value="">Selecciona…</option>' + items.map((i) =>
+      `<option value="${i.id_ingrediente}" data-unidad="${escapeHtml(i.unidad_medida || '')}">${escapeHtml(i.nombre_ing)}</option>`
+    ).join('');
+  } catch (err) {
+    select.innerHTML = '<option value="">Error al cargar ingredientes</option>';
+  }
+}
+
+function lcAgregarItem() {
+  const select = document.getElementById('lc-ingrediente');
+  const id = Number(select?.value);
+  const cantidad = parseFloat(document.getElementById('lc-cantidad')?.value);
+  const precio = parseFloat(document.getElementById('lc-precio')?.value) || 0;
+  const opt = select?.selectedOptions?.[0];
+  const unidad = opt?.dataset.unidad || '';
+  const nombre = opt?.textContent || '';
+
+  if (!id) { showToast('Selecciona un ingrediente', 'error'); return; }
+  if (!cantidad || cantidad <= 0) { showToast('Cantidad inválida', 'error'); return; }
+  if (PQ_LISTA_COMPRA.items.some((i) => i.id_ingrediente === id)) {
+    showToast('Ese ingrediente ya está en la lista', 'error');
+    return;
+  }
+
+  PQ_LISTA_COMPRA.items.push({
+    id_detalle_lista: null,
+    id_ingrediente: id,
+    nombre_ing: nombre,
+    unidad_medida: unidad,
+    cantidad_sugerida: cantidad,
+    precio_estimado_unitario: precio,
+    comprado: false,
+    cantidad_comprada: 0,
+  });
+  select.value = '';
+  document.getElementById('lc-cantidad').value = '';
+  document.getElementById('lc-precio').value = '';
+  lcRender();
+}
+
+function lcQuitarItem(idIng) {
+  PQ_LISTA_COMPRA.items = PQ_LISTA_COMPRA.items.filter((i) => i.id_ingrediente !== idIng);
+  lcRender();
+}
+
+function lcToggleComprado(idIng) {
+  const item = PQ_LISTA_COMPRA.items.find((i) => i.id_ingrediente === idIng);
+  if (!item) return;
+  item.comprado = !item.comprado;
+  item.cantidad_comprada = item.comprado ? item.cantidad_sugerida : 0;
+  lcRender();
+}
+
+function lcRender() {
+  const resumen = document.getElementById('lc-resumen');
+  const list = document.getElementById('lc-items');
+  const pendientes = PQ_LISTA_COMPRA.items.filter((i) => !i.comprado).length;
+  const comprados = PQ_LISTA_COMPRA.items.filter((i) => i.comprado).length;
+  const totalEst = PQ_LISTA_COMPRA.items.reduce((s, i) => s + i.cantidad_sugerida * i.precio_estimado_unitario, 0);
+
+  if (resumen) {
+    resumen.innerHTML = `
+      <div style="flex:1;padding:10px;border-radius:12px;background:var(--pq-surface-1);text-align:center;">
+        <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:18px;">${pendientes}</div>
+        <div style="font-size:11px;color:var(--pq-on-surface-muted);">Pendientes</div>
+      </div>
+      <div style="flex:1;padding:10px;border-radius:12px;background:var(--pq-surface-1);text-align:center;">
+        <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:18px;color:#2e7d32;">${comprados}</div>
+        <div style="font-size:11px;color:var(--pq-on-surface-muted);">Comprados</div>
+      </div>
+      <div style="flex:1;padding:10px;border-radius:12px;background:var(--pq-surface-1);text-align:center;">
+        <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:18px;">${fmtMoneyHTML(totalEst)}</div>
+        <div style="font-size:11px;color:var(--pq-on-surface-muted);">Total est.</div>
+      </div>`;
+  }
+
+  if (list) {
+    if (PQ_LISTA_COMPRA.items.length === 0) {
+      list.innerHTML = '<p class="text-xs text-secondary">Aún no has añadido ítems a la lista.</p>';
+    } else {
+      list.innerHTML = PQ_LISTA_COMPRA.items.map((i) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--pq-surface-1);${i.comprado ? 'opacity:.65;' : ''}">
+          <button onclick="lcToggleComprado(${i.id_ingrediente})" style="width:26px;height:26px;border-radius:8px;border:2px solid ${i.comprado ? '#7ce17b' : 'var(--pq-outline)'};background:${i.comprado ? '#7ce17b' : 'transparent'};cursor:pointer;display:flex;align-items:center;justify-content:center;color:#005313;font-size:16px;font-weight:700;flex-shrink:0;">${i.comprado ? '✓' : ''}</button>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:13px;${i.comprado ? 'text-decoration:line-through;color:var(--pq-on-surface-muted);' : ''}">${escapeHtml(i.nombre_ing)}</div>
+            <div style="font-size:11px;color:var(--pq-on-surface-muted);">${i.cantidad_sugerida} ${escapeHtml(i.unidad_medida)}${i.precio_estimado_unitario ? ` · $${i.precio_estimado_unitario}` : ''}</div>
+          </div>
+          <button class="material-symbols-outlined" style="border:0;background:none;color:#ba1a1a;cursor:pointer;" onclick="lcQuitarItem(${i.id_ingrediente})" title="Quitar">close</button>
+        </div>`).join('');
+    }
+  }
+}
+
+const lcDetalles = () => PQ_LISTA_COMPRA.items.map((i) => ({
+  id_ingrediente: i.id_ingrediente,
+  cantidad_sugerida: i.cantidad_sugerida,
+  cantidad_comprada: i.comprado ? (i.cantidad_comprada || i.cantidad_sugerida) : 0,
+  precio_estimado_unitario: i.precio_estimado_unitario || null,
+}));
+
+async function lcGuardarBackend() {
+  const detalles = lcDetalles();
+  if (PQ_LISTA_COMPRA.id) {
+    const res = await apiFetch(`/compras/listas/${PQ_LISTA_COMPRA.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ estado_lista: 'Borrador', detalles }),
+    });
+    return res?.data;
+  }
+  const res = await apiFetch('/compras/listas', {
+    method: 'POST',
+    body: JSON.stringify({ estado_lista: 'Borrador', detalles }),
+  });
+  PQ_LISTA_COMPRA.id = res?.data?.id_lista;
+  return res?.data;
+}
+
+async function saveListaCompra() {
+  if (PQ_LISTA_COMPRA.items.length === 0) { showToast('Agrega al menos un ítem', 'error'); return; }
+  try {
+    const data = await lcGuardarBackend();
+    if (data?.DetalleListaCompras) {
+      PQ_LISTA_COMPRA.items = data.DetalleListaCompras.map(lcMapDetalle);
+      lcRender();
+    }
+    showToast('Lista guardada como borrador ✓', 'ok');
+  } catch (err) {
+    showToast(err.message || 'Error al guardar la lista', 'error');
+  }
+}
+
+async function finalizarListaCompra() {
+  if (PQ_LISTA_COMPRA.items.length === 0) { showToast('Agrega al menos un ítem', 'error'); return; }
+  if (!PQ_LISTA_COMPRA.items.some((i) => i.comprado)) {
+    showToast('Marca al menos un ítem como comprado', 'error');
+    return;
+  }
+  try {
+    await lcGuardarBackend();
+    if (!PQ_LISTA_COMPRA.id) { showToast('No se pudo guardar la lista', 'error'); return; }
+    await apiFetch(`/compras/listas/${PQ_LISTA_COMPRA.id}/completar`, { method: 'PATCH', body: JSON.stringify({}) });
+    showToast('Compra finalizada ✓ lotes creados', 'ok');
+    cerrarListaCompras();
+    renderInventory();
+    checkAlertBadgesOnLoad();
+  } catch (err) {
+    showToast(err.message || 'Error al finalizar la compra', 'error');
+  }
+}
+
+function cerrarListaCompras() {
+  closeView('view-lista-compras');
+  openAuthedModule('compras');
+}
+
+// ---------- NUEVO INGREDIENTE (paridad con la app móvil) ----------
+function openNuevoIngrediente() {
+  const nombre = document.getElementById('ni-nombre');
+  const unidad = document.getElementById('ni-unidad');
+  const minimo = document.getElementById('ni-minimo');
+  const categoria = document.getElementById('ni-categoria');
+  if (nombre) nombre.value = '';
+  if (unidad) unidad.value = '';
+  if (minimo) minimo.value = '';
+  if (categoria) categoria.value = '';
+  openView('view-nuevo-ingrediente');
+}
+
+async function saveNuevoIngrediente() {
+  const nombre = document.getElementById('ni-nombre')?.value.trim();
+  const unidad = document.getElementById('ni-unidad')?.value.trim();
+  const minimo = parseFloat(document.getElementById('ni-minimo')?.value) || 0;
+  const categoria = document.getElementById('ni-categoria')?.value.trim() || null;
+
+  if (!nombre || !unidad) {
+    showToast('El nombre y la unidad de medida son obligatorios', 'error');
+    return;
+  }
+
+  try {
+    await apiFetch('/inventario/ingredientes', {
+      method: 'POST',
+      body: JSON.stringify({ nombre_ing: nombre, unidad_medida: unidad, stock_minimo: minimo, categoria }),
+    });
+    closeView('view-nuevo-ingrediente');
+    showToast('Ingrediente creado ✓', 'ok');
+    renderInventory();
+    checkAlertBadgesOnLoad();
+  } catch (err) {
+    showToast(err.message || 'Error al crear el ingrediente', 'error');
   }
 }
 
@@ -735,19 +1809,21 @@ async function openRecetaDetalle(id) {
 }
 
 // ---------- REPORTES (producción / mermas / trazabilidad FEFO) ----------
-let PQ_REP = { tab: 'produccion', produccion: null, mermas: null, trazabilidad: null };
+let PQ_REP = { tab: 'produccion', produccion: null, mermas: null, trazabilidad: null, balance: null };
 
 async function openAuthedModuleReportes() {
   const body = document.getElementById('pq-rep-body');
   body.innerHTML = getLoadingHTML();
-  const [prod, merm, traz] = await Promise.allSettled([
+  const [prod, merm, traz, bal] = await Promise.allSettled([
     apiFetch('/reportes/produccion'),
     apiFetch('/reportes/mermas'),
     apiFetch('/reportes/trazabilidad?limit=50'),
+    apiFetch('/reportes/balance-pedidos'),
   ]);
   PQ_REP.produccion = prod.status === 'fulfilled' ? (prod.value?.data || prod.value) : null;
   PQ_REP.mermas = merm.status === 'fulfilled' ? (merm.value?.data || merm.value) : null;
   PQ_REP.trazabilidad = traz.status === 'fulfilled' ? (traz.value?.data || traz.value) : null;
+  PQ_REP.balance = bal.status === 'fulfilled' ? (bal.value?.data || bal.value) : null;
   body.innerHTML = '';
   renderReporteTab('produccion');
 }
@@ -805,7 +1881,7 @@ function renderReporteTab(tab) {
           <div style="font-weight:700;white-space:nowrap;">${parseFloat(l.cantidad_actual)} ${l.Ingrediente?.unidad_medida || ''}</div>
         </div>`).join('')}
     `;
-  } else {
+  } else if (tab === 'trazabilidad') {
     const d = PQ_REP.trazabilidad;
     if (!d) return void (body.innerHTML = getErrorHTML('No se pudo cargar la trazabilidad FEFO.', "renderReporteTab('trazabilidad')"));
     const regs = Array.isArray(d.registros) ? d.registros : [];
@@ -828,6 +1904,21 @@ function renderReporteTab(tab) {
           </div>
           ${r.fefo ? '' : `<div style="font-size:10px;color:#ff8a80;margin-top:3px;">No FEFO: se omitieron lotes más antiguos (#${r.lotes_mas_antiguos_omitidos.map(l => l.id_lote || l).join(', ')})</div>`}
         </div>`).join('')}
+    `;
+  } else {
+    const d = PQ_REP.balance;
+    if (!d) return void (body.innerHTML = getErrorHTML('No se pudo cargar el balance de pedidos.', "renderReporteTab('balance')"));
+    body.innerHTML = `
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        ${box('Ventas totales', fmtMoneyHTML(d.totalVentas), `${d.totalPedidos ?? 0} pedidos`)}
+        ${box('Cobrado', fmtMoneyHTML(d.totalAbonado))}
+        ${box('Pendiente por cobrar', `<span style="color:#ff8a80;">${fmtMoneyHTML(d.balancePendiente)}</span>`)}
+      </div>
+      <div style="display:flex;gap:8px;">
+        ${box('Pagados', d.pagados ?? '—', 'estado_pago = Pagado')}
+        ${box('Abonados', d.abonados ?? '—', 'estado_pago = Abonado')}
+        ${box('Pendientes', d.pendientes ?? '—', 'estado_pago = Pendiente')}
+      </div>
     `;
   }
 }
@@ -945,7 +2036,7 @@ function renderCalcResult() {
       ${row('Ganancia estimada por porción', precioU - costoU)}
     </div>
     <div style="font-size:10px;color:var(--pq-on-surface-muted);margin-top:6px;">
-      Basado en los precios de compra de los lotes más recientes. Tasa BCV usada: ${c.tasaCambioUsada || PQ_CURRENCY.rate || '—'} Bs/USD.
+      Basado en los precios de compra de los lotes más recientes. Tasa BCV usada para bolívares: ${fmtRate(tasaTrabajo())} Bs/${monedaTrabajo()} (${PQ_CURRENCY.tasaBase === 'eur' ? 'euro' : 'dólar'}).
     </div>
   `;
 }
@@ -973,8 +2064,13 @@ function onSessionReady() {
   initTheme();
   loadTasa();
   checkAlertBadgesOnLoad();
+  // Refresco periódico en el cliente; el backend sincroniza con el BCV cada hora
+  if (!window.__pqTasaTimer) {
+    window.__pqTasaTimer = setInterval(() => loadTasa(), 10 * 60 * 1000);
+  }
   // Con sesión persistida (recarga de página) el MVP no re-renderizaba nada
   renderAll();
+  updateAdminVisibility();
 }
 
 async function checkAlertBadgesOnLoad() {
@@ -1038,7 +2134,7 @@ async function renderDashboard() {
     const pedidos = pedRes?.data?.pedidos || [];
 
     // KPIs reales
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = fechaLocalYMD();
     const porCobrar = pedidos
       .filter(p => p.estado_pago !== 'Pagado')
       .reduce((sum, p) => sum + (parseFloat(p.costo_total) - parseFloat(p.monto_abonado || 0)), 0);
@@ -1050,7 +2146,7 @@ async function renderDashboard() {
     const setKpi = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val; };
     setKpi('kpi-pedidos', pedidos.length);
     setKpi('kpi-stock', stockBajo === null ? '—' : stockBajo);
-    setKpi('kpi-porcobrar', fmtMoney(porCobrar));
+    setKpi('kpi-porcobrar', fmtMoneyHTML(porCobrar));
     setKpi('kpi-entrega', entregaHoy);
     const badgeCocina = document.getElementById('kpi-cocina-badge');
     if (badgeCocina) badgeCocina.textContent = `${enCocina} en cocina`;
@@ -1181,7 +2277,7 @@ async function cargarIngredientesParaLote() {
       if (unitEl) unitEl.textContent = opt?.dataset.unidad || '';
     };
     select.onchange();
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = fechaLocalYMD();
     const entryEl = document.getElementById('lot-entry');
     if (entryEl && !entryEl.value) entryEl.value = hoy;
   } catch (err) {
@@ -1498,7 +2594,7 @@ async function showOrderDetailBackend(orderId) {
           <div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container"><span class="material-symbols-outlined text-sm">person</span></div>
           <div><p class="font-label-bold text-xs text-on-surface-variant">Cliente</p><p class="font-body-md text-sm font-semibold">${clientName}</p><p class="font-body-sm text-xs text-on-surface-variant">${client.cedula || ''}</p></div></div>
           <div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed"><span class="material-symbols-outlined text-sm">payments</span></div>
-          <div><p class="font-label-bold text-xs text-on-surface-variant">Estado de pago</p><p class="font-body-md text-sm font-semibold ${esPagado ? 'text-tertiary' : 'text-error'}">${o.estado_pago}</p><p class="font-body-sm text-xs text-on-surface-variant">Abonado: ${fmtMoney(o.monto_abonado)}</p></div></div>
+          <div><p class="font-label-bold text-xs text-on-surface-variant">Estado de pago</p><p class="font-body-md text-sm font-semibold ${esPagado ? 'text-tertiary' : 'text-error'}">${o.estado_pago}</p><p class="font-body-sm text-xs text-on-surface-variant">Abonado: ${fmtMoneyHTML(o.monto_abonado)}</p></div></div>
         </div>
       </div>
       <div class="bg-surface-container-lowest rounded-xl card-shadow overflow-hidden">
@@ -1509,7 +2605,7 @@ async function showOrderDetailBackend(orderId) {
         </table></div>
         <div class="p-4 pt-2 border-t border-surface-variant flex justify-between items-center">
           <span class="font-title-sm text-sm">Total</span>
-          <span class="font-display-lg text-lg text-[#FFC107] font-bold">${fmtMoney(o.costo_total)}</span>
+          <span class="font-display-lg text-lg text-[#FFC107] font-bold">${fmtMoneyHTML(o.costo_total)}</span>
         </div>
       </div>
       <div class="flex flex-wrap gap-2">
@@ -1605,7 +2701,7 @@ async function cargarRecetasPedido() {
     ));
 
     // fecha de entrega por defecto: mañana
-    const manana = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const manana = fechaLocalYMD(new Date(Date.now() + 86400000));
     const dateEl = document.getElementById('new-order-date');
     if (dateEl && !dateEl.value) dateEl.value = manana;
 
@@ -1619,7 +2715,7 @@ async function cargarRecetasPedido() {
           <h3 class="font-title-sm text-sm text-on-surface">${r.nombre_receta}</h3>
           <div class="flex items-center gap-1 mt-0.5">
             <span class="px-2 py-0.5 bg-surface-container rounded-full text-[11px] text-on-surface-variant ${r.RecetaIngredientes?.length === 0 ? 'text-error bg-error-container' : ''}" ${r.RecetaIngredientes?.length === 0 ? 'title="Receta sin ingredientes: no podrá pasar a En Cocina"' : ''}>${r.RecetaIngredientes?.length === 0 ? '⚠ sin ingredientes' : `${r.RecetaIngredientes.length} ingred.`}</span>
-            <span class="font-label-bold text-primary text-sm">${precio != null ? fmtMoney(precio) : 'precio libre'}</span>
+            <span class="font-label-bold text-primary text-sm">${precio != null ? fmtMoneyHTML(precio) : 'precio libre'}</span>
           </div>
           <input class="w-24 mt-1 bg-surface-container-low rounded px-2 py-0.5 text-xs border border-outline-variant" type="number" min="0" step="0.01" value="${precio != null ? precio : ''}" placeholder="0.00"
             id="lineaprecio-${r.id_receta}" oninput="lineaPrecioViva(${r.id_receta})" title="Precio unitario (editable)">
@@ -1833,9 +2929,8 @@ async function renderProfile() {
   const pedidosEl = document.getElementById('stat-pedidos');
   const ingEl = document.getElementById('stat-ingredientes');
 
-  // Datos base del token almacenado (instantáneo)
-  let user = null;
-  try { user = JSON.parse(localStorage.getItem('user')); } catch (e) {}
+  // Datos base de la sesión en memoria (instantáneo)
+  let user = currentUser;
 
   try {
     const res = await apiFetch('/auth/perfil');
@@ -1883,10 +2978,7 @@ async function handleUpdateProfile() {
       body: JSON.stringify({ nombre, apellido, telefono }),
     });
     const u = res?.data || {};
-    // sincronizar el usuario de la sesión local
-    let local = {};
-    try { local = JSON.parse(localStorage.getItem('user')) || {}; } catch (e) {}
-    localStorage.setItem('user', JSON.stringify({ ...local, ...u }));
+    currentUser = { ...(currentUser || {}), ...u };
 
     closeView('view-edit-profile');
     showToast('Perfil actualizado ✓', 'ok');
@@ -1965,4 +3057,351 @@ function setPQCurrencyMode(mode) {
   localStorage.setItem('PQ_CUR_MODE', mode);
   renderRatePill();
   renderAll();
+}
+
+// ========== SEGURIDAD (contraseña, MFA, sesiones y auditoría) ==========
+let securityMfaState = { habilitado: false, pendiente: false, codigos_restantes: 0 };
+
+function formatFechaHora(valor) {
+  if (!valor) return '—';
+  try {
+    return new Date(valor).toLocaleString('es-VE', {
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+  } catch {
+    return String(valor);
+  }
+}
+
+function describirDispositivo(userAgent) {
+  const ua = String(userAgent || '');
+  if (!ua) return 'Dispositivo desconocido';
+  const navegador = /Edg\//.test(ua) ? 'Edge'
+    : /OPR\//.test(ua) ? 'Opera'
+      : /Chrome\//.test(ua) ? 'Chrome'
+        : /Firefox\//.test(ua) ? 'Firefox'
+          : /Safari\//.test(ua) ? 'Safari'
+            : 'Navegador';
+  const sistema = /Windows/.test(ua) ? 'Windows'
+    : /Android/.test(ua) ? 'Android'
+      : /iPhone|iPad|iOS/.test(ua) ? 'iOS'
+        : /Mac OS X/.test(ua) ? 'macOS'
+          : /Linux/.test(ua) ? 'Linux'
+            : '';
+  return sistema ? `${navegador} · ${sistema}` : navegador;
+}
+
+async function loadSecurityOverview() {
+  await Promise.allSettled([loadMfaState(), loadSessions(), loadAuthEvents()]);
+}
+
+async function loadMfaState() {
+  try {
+    const res = await apiFetch('/auth/mfa/estado');
+    securityMfaState = res?.data || securityMfaState;
+    renderMfaState();
+  } catch (error) {
+    showToast('No se pudo consultar el estado de MFA', 'error');
+  }
+}
+
+function renderMfaState() {
+  const { habilitado, pendiente, codigos_restantes: codigos } = securityMfaState;
+
+  const status = document.getElementById('sec-mfa-status');
+  if (status) {
+    status.textContent = habilitado
+      ? `Activa · ${codigos} código${codigos === 1 ? '' : 's'} de recuperación disponible${codigos === 1 ? '' : 's'}`
+      : 'Desactivada';
+    status.classList.toggle('is-on', Boolean(habilitado));
+  }
+
+  document.getElementById('sec-mfa-enabled-actions')?.classList.toggle('hidden', !habilitado);
+  document.getElementById('sec-mfa-setup')?.classList.toggle('hidden', Boolean(habilitado));
+  document.getElementById('sec-mfa-pending')?.classList.toggle('hidden', !(pendiente && !habilitado));
+  document.getElementById('sec-mfa-hint')?.classList.toggle('hidden', Boolean(habilitado));
+}
+
+async function startMfaSetup() {
+  const input = document.getElementById('sec-mfa-setup-password');
+  const password = input?.value || '';
+  if (!password) {
+    showToast('Confirma tu contraseña para activar MFA', 'error');
+    return;
+  }
+
+  try {
+    const res = await apiFetch('/auth/mfa/iniciar', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    });
+    const data = res?.data || {};
+    const secreto = document.getElementById('sec-mfa-secret');
+    const uri = document.getElementById('sec-mfa-uri');
+    if (secreto) secreto.textContent = data.secreto || '';
+    if (uri) uri.value = data.otpauth_uri || '';
+    document.getElementById('sec-mfa-pending')?.classList.remove('hidden');
+    if (input) input.value = '';
+    showToast('Escanea o copia el secreto en tu autenticador', 'ok');
+  } catch (error) {
+    showToast(error.message || 'No se pudo iniciar MFA', 'error');
+  }
+}
+
+async function confirmMfaSetup() {
+  const code = document.getElementById('sec-mfa-code')?.value.trim();
+  if (!code) {
+    showToast('Ingresa el código de 6 dígitos', 'error');
+    return;
+  }
+
+  try {
+    const res = await apiFetch('/auth/mfa/activar', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+    const codigos = res?.data?.codigos_recuperacion || [];
+    renderRecoveryCodes(codigos);
+    document.getElementById('sec-mfa-pending')?.classList.add('hidden');
+    showToast('Verificación en dos pasos activada', 'ok');
+    await loadMfaState();
+  } catch (error) {
+    showToast(error.message || 'No se pudo activar MFA', 'error');
+  }
+}
+
+function renderRecoveryCodes(codigos) {
+  const cont = document.getElementById('sec-mfa-recovery');
+  if (!cont) return;
+  cont.textContent = '';
+  if (!codigos.length) return;
+
+  const titulo = document.createElement('p');
+  titulo.className = 'sec-hint';
+  titulo.textContent = 'Guarda estos códigos de recuperación. Cada uno sirve una sola vez.';
+  cont.appendChild(titulo);
+
+  const lista = document.createElement('div');
+  lista.className = 'sec-recovery-grid';
+  codigos.forEach((codigo) => {
+    const item = document.createElement('code');
+    item.textContent = codigo;
+    lista.appendChild(item);
+  });
+  cont.appendChild(lista);
+  cont.classList.remove('hidden');
+}
+
+async function disableMfa() {
+  const password = document.getElementById('sec-mfa-disable-password')?.value || '';
+  const code = document.getElementById('sec-mfa-disable-code')?.value.trim();
+  if (!password || !code) {
+    showToast('Confirma tu contraseña e ingresa un código', 'error');
+    return;
+  }
+
+  try {
+    await apiFetch('/auth/mfa/desactivar', {
+      method: 'POST',
+      body: JSON.stringify({ password, code }),
+    });
+    document.getElementById('sec-mfa-disable-password').value = '';
+    document.getElementById('sec-mfa-disable-code').value = '';
+    showToast('Verificación en dos pasos desactivada', 'ok');
+    await loadMfaState();
+    await loadAuthEvents();
+  } catch (error) {
+    showToast(error.message || 'No se pudo desactivar MFA', 'error');
+  }
+}
+
+async function handleChangePassword() {
+  const actual = document.getElementById('sec-pass-actual')?.value || '';
+  const nueva = document.getElementById('sec-pass-nueva')?.value || '';
+  const confirmar = document.getElementById('sec-pass-confirm')?.value || '';
+
+  if (!actual || !nueva) {
+    showToast('Completa los campos de contraseña', 'error');
+    return;
+  }
+
+  const errorPolitica = validatePasswordLocally(nueva, confirmar);
+  if (errorPolitica) {
+    showToast(errorPolitica, 'error');
+    return;
+  }
+
+  try {
+    const res = await apiFetch('/auth/cambiar-password', {
+      method: 'POST',
+      body: JSON.stringify({ password_actual: actual, password_nueva: nueva }),
+    });
+    ['sec-pass-actual', 'sec-pass-nueva', 'sec-pass-confirm'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    showToast(res?.message || 'Contraseña actualizada', 'ok');
+    await loadSessions();
+    await loadAuthEvents();
+  } catch (error) {
+    showToast(error.message || 'No se pudo cambiar la contraseña', 'error');
+  }
+}
+
+async function loadSessions() {
+  const cont = document.getElementById('sec-sessions-list');
+  if (!cont) return;
+
+  try {
+    const res = await apiFetch('/auth/sesiones');
+    const sesiones = res?.data || [];
+    cont.textContent = '';
+
+    if (!sesiones.length) {
+      cont.innerHTML = '<p class="sec-hint">No hay sesiones activas.</p>';
+      return;
+    }
+
+    sesiones.forEach((sesion) => {
+      const row = document.createElement('div');
+      row.className = 'sec-session';
+
+      const info = document.createElement('div');
+      info.className = 'sec-session-info';
+
+      const titulo = document.createElement('strong');
+      titulo.textContent = describirDispositivo(sesion.user_agent);
+      info.appendChild(titulo);
+
+      const meta = document.createElement('span');
+      meta.textContent = `IP ${sesion.ip || 'desconocida'} · Inicio ${formatFechaHora(sesion.creada_at)} · Expira ${formatFechaHora(sesion.expira_at)}`;
+      info.appendChild(meta);
+
+      if (sesion.actual) {
+        const badge = document.createElement('span');
+        badge.className = 'sec-badge';
+        badge.textContent = 'Esta sesión';
+        info.appendChild(badge);
+      }
+
+      row.appendChild(info);
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sec-link-btn';
+      btn.textContent = sesion.actual ? 'Cerrar' : 'Revocar';
+      btn.onclick = () => revokeSession(sesion.id, sesion.actual);
+      row.appendChild(btn);
+
+      cont.appendChild(row);
+    });
+  } catch (error) {
+    cont.innerHTML = '<p class="sec-hint">No se pudieron cargar las sesiones.</p>';
+  }
+}
+
+async function revokeSession(id, esActual) {
+  if (!confirm(esActual ? '¿Cerrar esta sesión ahora?' : '¿Revocar esta sesión?')) return;
+
+  try {
+    await apiFetch(`/auth/sesiones/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (esActual) {
+      isLoggedIn = false;
+      currentUser = null;
+      document.getElementById('main-app')?.classList.add('hidden');
+      document.getElementById('auth-screen')?.classList.remove('hidden');
+      closeView('view-security');
+      showLogin();
+      setAuthNotice('Sesión cerrada.', 'ok');
+      return;
+    }
+    showToast('Sesión revocada', 'ok');
+    await loadSessions();
+    await loadAuthEvents();
+  } catch (error) {
+    showToast(error.message || 'No se pudo revocar la sesión', 'error');
+  }
+}
+
+async function handleLogoutAll() {
+  if (!confirm('¿Cerrar todas tus sesiones, incluida esta?')) return;
+
+  try {
+    await apiFetch('/auth/logout-todos', { method: 'POST' });
+  } catch (error) {
+    console.warn('[auth] logout-todos:', error.message);
+  } finally {
+    isLoggedIn = false;
+    currentUser = null;
+    document.getElementById('main-app')?.classList.add('hidden');
+    document.getElementById('auth-screen')?.classList.remove('hidden');
+    document.querySelectorAll('.full-screen-view.active').forEach((v) => v.classList.remove('active'));
+    showLogin();
+    setAuthNotice('Cerramos todas tus sesiones.', 'ok');
+  }
+}
+
+const ETIQUETAS_EVENTO = {
+  login_exitoso: 'Inicio de sesión',
+  login_fallido: 'Intento fallido',
+  login_bloqueado: 'Cuenta bloqueada',
+  login_rechazado: 'Inicio rechazado',
+  logout: 'Cierre de sesión',
+  logout_global: 'Cierre de todas las sesiones',
+  registro: 'Registro',
+  registro_duplicado: 'Registro duplicado',
+  email_verificado: 'Correo verificado',
+  verificacion_reenviada: 'Verificación reenviada',
+  recuperacion_solicitada: 'Recuperación solicitada',
+  password_restablecida: 'Contraseña restablecida',
+  password_cambiada: 'Contraseña cambiada',
+  cambio_password_rechazado: 'Cambio de contraseña rechazado',
+  email_cambiado: 'Correo cambiado',
+  mfa_reto: 'Reto MFA',
+  mfa_fallido: 'Código MFA inválido',
+  mfa_activado: 'MFA activada',
+  mfa_desactivado: 'MFA desactivada',
+  mfa_recuperacion_usada: 'Código de recuperación usado',
+  sesion_revocada: 'Sesión revocada',
+};
+
+async function loadAuthEvents() {
+  const cont = document.getElementById('sec-events-list');
+  if (!cont) return;
+
+  try {
+    const res = await apiFetch('/auth/eventos?limit=15');
+    const eventos = res?.data || [];
+    cont.textContent = '';
+
+    if (!eventos.length) {
+      cont.innerHTML = '<p class="sec-hint">Todavía no hay actividad registrada.</p>';
+      return;
+    }
+
+    eventos.forEach((evento) => {
+      const row = document.createElement('div');
+      row.className = 'sec-event';
+
+      const punto = document.createElement('span');
+      punto.className = `sec-event-dot${evento.exito ? '' : ' is-error'}`;
+      row.appendChild(punto);
+
+      const info = document.createElement('div');
+      info.className = 'sec-event-info';
+
+      const titulo = document.createElement('strong');
+      titulo.textContent = ETIQUETAS_EVENTO[evento.tipo] || evento.tipo;
+      info.appendChild(titulo);
+
+      const meta = document.createElement('span');
+      meta.textContent = `${formatFechaHora(evento.created_at)}${evento.ip ? ` · IP ${evento.ip}` : ''}`;
+      info.appendChild(meta);
+
+      row.appendChild(info);
+      cont.appendChild(row);
+    });
+  } catch (error) {
+    cont.innerHTML = '<p class="sec-hint">No se pudo cargar la actividad.</p>';
+  }
 }

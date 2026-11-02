@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TextInput,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { ScreenWrapper } from "../../components/navigation/ScreenWrapper";
 import { Button } from "../../components/ui";
 import {
@@ -25,6 +26,13 @@ export const ClientsScreen = ({ navigation }) => {
   const [showModal, setShowModal] = useState(false);
   const { data: rawClients, loading, refetch } = useClientes();
   const clients = Array.isArray(rawClients) ? rawClients : (rawClients?.clientes || []);
+
+  // Refresca al volver a la pantalla (nuevo cliente, etc.)
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
 
   const filtered = clients.filter((c) => {
     const q = search.toLowerCase();

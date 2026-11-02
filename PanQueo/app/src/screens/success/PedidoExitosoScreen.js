@@ -1,9 +1,12 @@
-import { View, Text, StyleSheet, TouchableOpacity, useEffect, useRef } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { ScreenWrapper } from '../../components/navigation/ScreenWrapper';
 import { Button } from '../../components/ui';
 import { colors, typography, spacing, borderRadius, shadows } from '../../lib/theme';
 
-export const PedidoExitosoScreen = ({ navigation }) => {
+export const PedidoExitosoScreen = ({ navigation, route }) => {
+  const pedido = route?.params?.pedido || {};
+  const detalles = Array.isArray(pedido.DetallePedidos) ? pedido.DetallePedidos : [];
+
   return (
     <ScreenWrapper>
       <View style={styles.container}>
@@ -13,35 +16,54 @@ export const PedidoExitosoScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <Text style={styles.title}>¡Pedido Procesado con Éxito!</Text>
-        <Text style={styles.subtitle}>El pedido #1045 ha pasado a producción y el inventario se ha actualizado correctamente.</Text>
+        <Text style={styles.title}>¡Pedido Registrado con Éxito!</Text>
+        <Text style={styles.subtitle}>
+          El pedido quedó registrado con estado "{pedido.estado_entrega || 'Por Preparar'}".
+        </Text>
 
         <View style={styles.summaryCard}>
           <View style={styles.orderHeader}>
-            <Text style={styles.orderId}>PEDIDO ID: #1045</Text>
+            <Text style={styles.orderId}>PEDIDO #{pedido.id_pedido ?? '—'}</Text>
             <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>En Cocina</Text>
+              <Text style={styles.statusText}>{pedido.estado_entrega || 'Por Preparar'}</Text>
             </View>
           </View>
-          <View style={styles.items}>
-            <View style={styles.itemRow}>
-              <Text style={styles.itemIcon}>🎂</Text>
-              <Text style={styles.itemName}>Pastel de Chocolate</Text>
+
+          {detalles.length > 0 && (
+            <View style={styles.items}>
+              {detalles.map((d, i) => (
+                <View key={d.id_detalle || i} style={styles.itemRow}>
+                  <Text style={styles.itemIcon}>🎂</Text>
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemName}>
+                      {d.Receta?.nombre_receta || `Receta #${d.id_receta}`}
+                    </Text>
+                    <Text style={styles.itemQty}>× {parseFloat(d.cantidad || 1)}</Text>
+                  </View>
+                </View>
+              ))}
             </View>
-            <View style={styles.itemRow}>
-              <Text style={styles.itemIcon}>🍩</Text>
-              <Text style={styles.itemName}>Donas de Chocolate</Text>
-            </View>
-          </View>
+          )}
+
           <View style={styles.fifoNotice}>
             <Text style={styles.fifoIcon}>📦</Text>
-            <Text style={styles.fifoText}>Se ha aplicado el descuento FIFO a los ingredientes.</Text>
+            <Text style={styles.fifoText}>
+              El descuento FIFO de ingredientes se aplicará al pasar el pedido a "En Cocina".
+            </Text>
           </View>
         </View>
 
         <View style={styles.actions}>
-          <Button title="Ver Lista de Pedidos" variant="primary" onPress={() => navigation.navigate('Pedidos')} />
-          <Button title="Ir al Dashboard" variant="outline" onPress={() => navigation.navigate('Dashboard')} />
+          <Button
+            title="Ver Lista de Pedidos"
+            variant="primary"
+            onPress={() => navigation.navigate('Tabs', { screen: 'Pedidos' })}
+          />
+          <Button
+            title="Ir al Dashboard"
+            variant="outline"
+            onPress={() => navigation.navigate('Tabs', { screen: 'Dashboard' })}
+          />
         </View>
       </View>
     </ScreenWrapper>
@@ -80,7 +102,9 @@ const styles = StyleSheet.create({
   items: { gap: spacing.sm },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   itemIcon: { fontSize: 20 },
+  itemInfo: { flex: 1 },
   itemName: { ...typography.bodyMd, color: colors.onSurface },
+  itemQty: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 11 },
   fifoNotice: {
     flexDirection: 'row',
     alignItems: 'center',

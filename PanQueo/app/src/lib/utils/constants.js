@@ -71,6 +71,8 @@ export const STORAGE_KEYS = {
   API_URL: "@panqueo/api_url",
   THEME_MODE: "@panqueo/theme_mode",
   LAST_BCV_RATE: "@panqueo/last_bcv_rate",
+  LAST_BCV_RATE_EUR: "@panqueo/last_bcv_rate_eur",
+  TASA_BASE: "@panqueo/tasa_base",
 };
 
 export const ALERTA_VENCIMIENTO_DIAS = 7;

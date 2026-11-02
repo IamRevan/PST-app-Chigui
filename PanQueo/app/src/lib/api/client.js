@@ -5,7 +5,12 @@ import { getItem } from "../utils/storage";
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: TIMEOUT,
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    // El backend identifica a la app nativa para devolver un Bearer en el cuerpo
+    // en lugar de intentar emitir cookies de sesión.
+    "X-Client-Type": "mobile",
+  },
 });
 
 apiClient.interceptors.request.use(

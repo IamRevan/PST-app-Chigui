@@ -1,26 +1,21 @@
 /**
- * Helper y Middleware para validación de complejidad de contraseña.
+ * Compatibilidad con la validación antigua.
+ * La política vigente vive en services/PasswordPolicy.js (longitud + filtraciones).
  */
+const { evaluarPolitica } = require('../services/PasswordPolicy');
 
-const isValidPassword = (password) => {
-  if (typeof password !== 'string') return false;
-  if (password.length < 8 || password.length > 72) return false;
-  if (!/[A-Z]/.test(password)) return false;
-  if (!/[a-z]/.test(password)) return false;
-  if (!/[0-9]/.test(password)) return false;
-  if (!/[^A-Za-z0-9]/.test(password)) return false;
-  return true;
-};
+const isValidPassword = (password) => evaluarPolitica(password).ok;
 
 const validatePasswordMiddleware = (req, res, next) => {
-  const { password } = req.body;
-  if (!isValidPassword(password)) {
+  const resultado = evaluarPolitica(req.body?.password);
+  if (!resultado.ok) {
     return res.status(400).json({
       status: 'error',
-      message: 'La contraseña debe tener entre 8 y 72 caracteres, e incluir al menos una mayúscula, una minúscula, un número y un carácter especial.',
+      code: resultado.codigo,
+      message: resultado.message,
     });
   }
-  next();
+  return next();
 };
 
 module.exports = {

@@ -15,6 +15,14 @@ export const Input = ({
   multiline,
   icon,
   style,
+  autoComplete,
+  textContentType,
+  autoCapitalize = 'none',
+  autoCorrect = false,
+  maxLength,
+  returnKeyType,
+  onSubmitEditing,
+  editable = true,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -33,7 +41,14 @@ export const Input = ({
           secureTextEntry={secureTextEntry && !showPassword}
           keyboardType={keyboardType}
           multiline={multiline}
-          autoCapitalize="none"
+          autoCapitalize={autoCapitalize}
+          autoCorrect={autoCorrect}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
+          maxLength={maxLength}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
+          editable={editable}
         />
         {secureTextEntry && (
           <TouchableOpacity

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/navigation/ScreenWrapper';
 import { Card, Badge, Button } from '../../components/ui';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   colors,
   typography,
@@ -21,6 +21,13 @@ export const RecipesScreen = () => {
   const { data: rawRecetas, loading, refetch } = useRecetas();
   const { format } = useCurrency();
   const recetas = Array.isArray(rawRecetas) ? rawRecetas : (rawRecetas?.recetas || []);
+
+  // Refresca al volver a la pantalla (nueva receta, etc.)
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
 
   const [selectedRecetaId, setSelectedRecetaId] = useState(null);
   const [showDetalle, setShowDetalle] = useState(false);

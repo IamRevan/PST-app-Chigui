@@ -1,15 +1,20 @@
-import { Modal as RNModal, View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
+import { Modal as RNModal, View, Text, StyleSheet, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../../lib/theme';
 
 export const SheetModal = ({ visible, onClose, title, children }) => (
   <RNModal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-    <Pressable style={styles.overlay} onPress={onClose}>
-      <Pressable style={styles.sheet} onPress={() => {}}>
-        <View style={styles.handle} />
-        {title && <Text style={styles.title}>{title}</Text>}
-        {children}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.avoid}
+    >
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={styles.sheet} onPress={() => {}}>
+          <View style={styles.handle} />
+          {title && <Text style={styles.title}>{title}</Text>}
+          {children}
+        </Pressable>
       </Pressable>
-    </Pressable>
+    </KeyboardAvoidingView>
   </RNModal>
 );
 
@@ -25,6 +30,7 @@ export const CenterModal = ({ visible, onClose, title, children }) => (
 );
 
 const styles = StyleSheet.create({
+  avoid: { flex: 1 },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

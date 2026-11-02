@@ -12,5 +12,6 @@ router.use('/finanzas', require('./finanzas'));
 router.use('/asistente', require('./asistente'));
 router.use('/proveedores', require('./proveedores'));
 router.use('/reportes', require('./reportes'));
+router.use('/admin', require('./admin'));
 
 module.exports = router;

@@ -10,6 +10,9 @@ const DetalleListaCompra = require('./DetalleListaCompra');
 const DetallePedido = require('./DetallePedido');
 const HistorialTasaCambio = require('./HistorialTasaCambio');
 const Usuario = require('./Usuario');
+const Sesion = require('./Sesion');
+const TokenAuth = require('./TokenAuth');
+const AuthEvento = require('./AuthEvento');
 const Proveedor = require('./Proveedor');
 const ConsumoLote = require('./ConsumoLote');
 
@@ -49,9 +52,22 @@ ConsumoLote.belongsTo(Ingrediente, { foreignKey: 'id_ingrediente' });
 Pedido.hasMany(ConsumoLote, { foreignKey: 'id_pedido' });
 ConsumoLote.belongsTo(Pedido, { foreignKey: 'id_pedido' });
 
+// Autenticación: sesiones, tokens de un solo uso y bitácora de eventos
+Usuario.hasMany(Sesion, { foreignKey: 'id_usuario', onDelete: 'CASCADE' });
+Sesion.belongsTo(Usuario, { foreignKey: 'id_usuario' });
+
+Usuario.hasMany(TokenAuth, { foreignKey: 'id_usuario', onDelete: 'CASCADE' });
+TokenAuth.belongsTo(Usuario, { foreignKey: 'id_usuario' });
+
+Usuario.hasMany(AuthEvento, { foreignKey: 'id_usuario', onDelete: 'SET NULL' });
+AuthEvento.belongsTo(Usuario, { foreignKey: 'id_usuario' });
+
 module.exports = {
   sequelize,
   Usuario,
+  Sesion,
+  TokenAuth,
+  AuthEvento,
   Cliente,
   Pedido,
   Ingrediente,

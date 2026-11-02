@@ -15,22 +15,120 @@ export const LoginScreen = ({ navigation }) => {
     { email: [required], password: [required] }
   );
   const [error, setError] = useState(null);
+  const [info, setInfo] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [mfaToken, setMfaToken] = useState(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [needsVerification, setNeedsVerification] = useState(false);
 
-  const handleLogin = async () => {
-    if (!validateAll()) return;
+  const completeLogin = async (response) => {
+    const token = response.data?.data?.token || response.data?.token;
+    const user = response.data?.data?.user || response.data?.user;
+    if (!token || !user) {
+      throw { message: 'Respuesta de autenticación no válida.' };
+    }
+    await login(token, user);
+  };
+
+  const verifyMfa = async () => {
+    const code = mfaCode.trim();
+    if (!code) {
+      setError('Ingresa el código de verificación.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.post('/api/auth/login', values);
-      const token = response.data?.data?.token || response.data?.token;
-      const user = response.data?.data?.user || response.data?.user;
-      await login(token, user);
+      const response = await apiClient.post('/api/auth/mfa/verificar', {
+        mfa_token: mfaToken,
+        code,
+      });
+      await completeLogin(response);
     } catch (err) {
-      setError(err.message || 'Error al iniciar sesión');
+      const code = err.data?.code;
+      if (code === 'MFA_TOKEN_INVALIDO') {
+        setMfaToken(null);
+        setMfaCode('');
+        setInfo(null);
+        setError('La verificación expiró. Inicia sesión de nuevo.');
+      } else if (code === 'MFA_INVALIDO') {
+        setError('Código inválido. Revisa la hora de tu dispositivo o usa un código de recuperación.');
+      } else {
+        setError(err.message || 'No se pudo verificar el código.');
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogin = async () => {
+    if (mfaToken) {
+      await verifyMfa();
+      return;
+    }
+    if (!validateAll()) return;
+
+    setLoading(true);
+    setError(null);
+    setInfo(null);
+    setNeedsVerification(false);
+    try {
+      const response = await apiClient.post('/api/auth/login', values);
+
+      if (response.data?.status === 'mfa_required' || response.data?.code === 'MFA_REQUERIDO') {
+        setMfaToken(response.data?.data?.mfa_token || null);
+        setMfaCode('');
+        setInfo('Ingresa el código de 6 dígitos de tu aplicación autenticadora o un código de recuperación.');
+        return;
+      }
+
+      await completeLogin(response);
+    } catch (err) {
+      const code = err.data?.code;
+      if (code === 'EMAIL_NO_VERIFICADO') {
+        setNeedsVerification(true);
+        setError('Debes verificar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada.');
+      } else if (code === 'CUENTA_BLOQUEADA') {
+        setError(err.message || 'Demasiados intentos fallidos. Intenta más tarde.');
+      } else if (code === 'CREDENCIALES_INVALIDAS') {
+        setError('Correo o contraseña incorrectos.');
+      } else {
+        setError(err.message || 'Error al iniciar sesión');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resendVerification = async () => {
+    if (!values.email.trim()) {
+      setError('Escribe tu correo para reenviar la verificación.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiClient.post('/api/auth/reenviar-verificacion', {
+        email: values.email.trim(),
+      });
+      setInfo(
+        response.data?.message ||
+        'Si el correo está pendiente, enviamos un nuevo enlace de verificación.'
+      );
+    } catch (err) {
+      setError(err.message || 'No se pudo reenviar la verificación.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const volverAlLogin = () => {
+    setMfaToken(null);
+    setMfaCode('');
+    setInfo(null);
+    setError(null);
   };
 
   return (
@@ -39,57 +137,99 @@ export const LoginScreen = ({ navigation }) => {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.logoArea}>
             <Text style={styles.logo}>🧁</Text>
             <Text style={styles.appName}>PanQueo</Text>
           </View>
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.title}>¡Bienvenido de vuelta!</Text>
-              <Text style={styles.subtitle}>Inicia sesión para gestionar tu negocio</Text>
+              <Text style={styles.title}>{mfaToken ? 'Verificación en dos pasos' : '¡Bienvenido de vuelta!'}</Text>
+              <Text style={styles.subtitle}>
+                {mfaToken
+                  ? 'Confirma tu identidad para continuar'
+                  : 'Inicia sesión para gestionar tu negocio'}
+              </Text>
             </View>
             <ErrorMessage message={error} />
-            <View style={styles.form}>
-              <View style={styles.inputGroup}>
-                <Input
-                  value={values.email}
-                  onChangeText={(v) => handleChange('email', v)}
-                  onBlur={() => handleBlur('email')}
-                  placeholder="tucorreo@ejemplo.com"
-                  error={touched.email && errors.email}
-                  keyboardType="email-address"
-                />
-              </View>
-              <View style={styles.inputGroup}>
-                <Input
-                  value={values.password}
-                  onChangeText={(v) => handleChange('password', v)}
-                  onBlur={() => handleBlur('password')}
-                  placeholder="••••••••"
-                  error={touched.password && errors.password}
-                  secureTextEntry
-                />
-              </View>
-              <View style={styles.utilities}>
-                <View style={styles.rememberRow}>
-                  <View style={styles.checkbox} />
-                  <Text style={styles.rememberText}>Recordarme</Text>
+            {info ? <Text style={styles.info}>{info}</Text> : null}
+            {needsVerification ? (
+              <Text style={styles.centerLink} onPress={resendVerification}>
+                Reenviar correo de verificación
+              </Text>
+            ) : null}
+
+            {mfaToken ? (
+              <View style={styles.form}>
+                <View style={styles.inputGroup}>
+                  <Input
+                    value={mfaCode}
+                    onChangeText={setMfaCode}
+                    placeholder="123 456"
+                    keyboardType="number-pad"
+                    maxLength={11}
+                    autoComplete="one-time-code"
+                    textContentType="oneTimeCode"
+                    returnKeyType="done"
+                    onSubmitEditing={handleLogin}
+                  />
                 </View>
-                <Text
-                  style={styles.forgotLink}
-                  onPress={() => navigation?.navigate('ResetPassword')}
-                >
-                  ¿Olvidaste tu contraseña?
+                <Button
+                  title="Verificar"
+                  onPress={handleLogin}
+                  loading={loading}
+                  style={styles.button}
+                />
+                <Text style={styles.centerLink} onPress={volverAlLogin}>
+                  Volver al inicio de sesión
                 </Text>
               </View>
-              <Button
-                title="Iniciar Sesión"
-                onPress={handleLogin}
-                loading={loading}
-                style={styles.button}
-              />
-            </View>
+            ) : (
+              <View style={styles.form}>
+                <View style={styles.inputGroup}>
+                  <Input
+                    value={values.email}
+                    onChangeText={(v) => handleChange('email', v)}
+                    onBlur={() => handleBlur('email')}
+                    placeholder="tucorreo@ejemplo.com"
+                    error={touched.email && errors.email}
+                    keyboardType="email-address"
+                    autoComplete="email"
+                    textContentType="username"
+                    returnKeyType="next"
+                  />
+                </View>
+                <View style={styles.inputGroup}>
+                  <Input
+                    value={values.password}
+                    onChangeText={(v) => handleChange('password', v)}
+                    onBlur={() => handleBlur('password')}
+                    placeholder="••••••••"
+                    error={touched.password && errors.password}
+                    secureTextEntry
+                    autoComplete="current-password"
+                    textContentType="password"
+                    returnKeyType="go"
+                    onSubmitEditing={handleLogin}
+                  />
+                </View>
+                <View style={styles.utilities}>
+                  <Text
+                    style={styles.forgotLink}
+                    onPress={() => navigation?.navigate('ResetPassword')}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Text>
+                </View>
+                <Button
+                  title="Iniciar Sesión"
+                  onPress={handleLogin}
+                  loading={loading}
+                  style={styles.button}
+                />
+              </View>
+            )}
+
             <Text style={styles.footerText}>
               ¿No tienes una cuenta?{' '}
               <Text
@@ -102,7 +242,7 @@ export const LoginScreen = ({ navigation }) => {
           </View>
           <View style={styles.securityBadge}>
             <Text style={styles.securityIcon}>✓</Text>
-            <Text style={styles.securityText}>ISO 27001 Certified</Text>
+            <Text style={styles.securityText}>Sesión protegida</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -146,6 +286,15 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.bodyMd,
     color: colors.onSurfaceVariant,
+    textAlign: 'center',
+  },
+  info: {
+    ...typography.bodySm,
+    color: colors.onSurface,
+    backgroundColor: `${colors.primaryContainer}26`,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
   },
   form: { gap: spacing.lg },
   inputGroup: {
@@ -155,29 +304,19 @@ const styles = StyleSheet.create({
   },
   utilities: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-  },
-  rememberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  checkbox: {
-    width: 16,
-    height: 16,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-  },
-  rememberText: {
-    ...typography.bodySm,
-    color: colors.onSurfaceVariant,
   },
   forgotLink: {
     ...typography.bodySm,
     color: colors.primary,
     fontWeight: '600',
+  },
+  centerLink: {
+    ...typography.bodySm,
+    color: colors.primary,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   button: { marginTop: spacing.base },
   footerText: {

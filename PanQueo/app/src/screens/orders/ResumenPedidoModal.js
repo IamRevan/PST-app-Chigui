@@ -163,8 +163,8 @@ export const ResumenPedidoModal = ({
         detalles,
       };
 
-      await apiClient.post(ENDPOINTS.PEDIDOS, payload);
-      onSuccess?.();
+      const res = await apiClient.post(ENDPOINTS.PEDIDOS, payload);
+      onSuccess?.(res.data?.data);
     } catch (err) {
       Alert.alert("Error al guardar", err.message || "No se pudo crear el pedido");
     } finally {
@@ -174,8 +174,8 @@ export const ResumenPedidoModal = ({
 
   return (
     <>
-      <SheetModal visible={visible} onClose={onClose} title="Confirmar Pedido">
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <SheetModal visible={visible && !showClienteSelector} onClose={onClose} title="Confirmar Pedido">
+        <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {/* Líneas de pedido */}
           <Text style={styles.sectionHeader}>Resumen de Productos</Text>
           {selected.map((p) => {
@@ -306,7 +306,7 @@ export const ResumenPedidoModal = ({
 
       {/* Modal de Selector de Clientes */}
       <SheetModal
-        visible={showClienteSelector}
+        visible={visible && showClienteSelector}
         onClose={() => setShowClienteSelector(false)}
         title="Seleccionar Cliente"
       >
@@ -321,7 +321,7 @@ export const ResumenPedidoModal = ({
               onChangeText={setClienteSearch}
             />
           </View>
-          <ScrollView style={{ maxHeight: 360 }}>
+          <ScrollView style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
             {clientesFiltrados.map((c) => (
               <TouchableOpacity
                 key={c.id_cliente}

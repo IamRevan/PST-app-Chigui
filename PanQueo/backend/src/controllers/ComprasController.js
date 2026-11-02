@@ -34,6 +34,7 @@ exports.crearLista = async (req, res) => {
         id_lista: lista.id_lista,
         id_ingrediente: d.id_ingrediente,
         cantidad_sugerida: d.cantidad_sugerida,
+        cantidad_comprada: d.cantidad_comprada != null ? parseFloat(d.cantidad_comprada) : 0,
         precio_estimado_unitario: d.precio_estimado_unitario,
       }));
       await DetalleListaCompra.bulkCreate(detalleData, { transaction });

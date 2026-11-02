@@ -195,9 +195,9 @@ export const DetalleProductoScreen = ({ navigation, route }) => {
         onClose={() => setShowAjusteModal(false)}
         ingrediente={ingrediente}
         lote={selectedLote}
-        onSuccess={() => {
+        onSuccess={(data) => {
           refetchLotes();
-          navigation.navigate("LoteExitoso");
+          navigation.navigate("LoteExitoso", data);
         }}
       />
     </ScreenWrapper>

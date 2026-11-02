@@ -841,51 +841,83 @@
       <img class="logo-img" src="PANQUEO ICONO.png" alt="PanQueo Logo">
       <span class="app-name">PanQueo</span>
     </div>
+    <div id="error-message" class="error-message hidden" role="alert" aria-live="assertive"></div>
+    <div id="auth-notice" class="auth-notice hidden" role="status" aria-live="polite"></div>
+
     <div id="login-form" class="auth-card">
       <h2>¡Bienvenido de vuelta!</h2>
       <p class="auth-subtitle">Inicia sesión para gestionar tu negocio</p>
-      <div id="error-message" class="error-message hidden"></div>
       <div class="input-group">
         <div class="input-line">
           <span class="input-icon material-symbols-outlined">mail</span>
-          <input type="email" id="login-email" placeholder="tucorreo@ejemplo.com" />
+          <input type="email" id="login-email" name="email" autocomplete="username" inputmode="email" placeholder="tucorreo@ejemplo.com" />
         </div>
       </div>
       <div class="input-group">
         <div class="input-line">
           <span class="input-icon material-symbols-outlined">lock</span>
-          <input type="password" id="login-password" placeholder="••••••••" />
+          <input type="password" id="login-password" name="password" autocomplete="current-password" placeholder="••••••••" />
           <span class="input-eye material-symbols-outlined" onclick="togglePassword()">visibility</span>
         </div>
       </div>
       <div class="utilities-row">
-        <label class="remember-me"><input type="checkbox" /> Recordarme</label>
         <a href="#" onclick="showReset()" class="forgot-link">¿Olvidaste tu contraseña?</a>
       </div>
-      <button class="btn btn-primary" onclick="handleLogin()">Iniciar Sesión <span class="material-symbols-outlined" style="font-size:20px;">arrow_forward</span></button>
+      <button class="btn btn-primary" type="button" onclick="handleLogin()">Iniciar Sesión <span class="material-symbols-outlined" style="font-size:20px;">arrow_forward</span></button>
+      <p class="auth-link-row hidden" id="resend-verify-link">
+        <a href="#" onclick="event.preventDefault(); handleResendVerification()" class="forgot-link">Reenviar correo de verificación</a>
+      </p>
       <p class="auth-footer-text">¿No tienes una cuenta? <a href="#" onclick="showRegister()">Regístrate aquí</a></p>
     </div>
+
+    <div id="mfa-form" class="auth-card hidden">
+      <h2>Verificación en dos pasos</h2>
+      <p class="auth-subtitle">Ingresa el código de 6 dígitos de tu aplicación autenticadora. También puedes usar un código de recuperación.</p>
+      <div class="input-group">
+        <div class="input-line">
+          <span class="input-icon material-symbols-outlined">verified_user</span>
+          <input type="text" id="mfa-code" name="one-time-code" autocomplete="one-time-code" inputmode="numeric" maxlength="11" placeholder="123 456" />
+        </div>
+      </div>
+      <button class="btn btn-primary" type="button" onclick="handleMfaVerify()">Verificar</button>
+      <p class="auth-footer-text"><a href="#" onclick="showLogin()">Volver al inicio de sesión</a></p>
+    </div>
+
     <div id="register-form" class="auth-card hidden">
       <h2>Crear Cuenta</h2>
       <p class="auth-subtitle">Regístrate para gestionar tu negocio</p>
-      <div class="input-group"><div class="input-line"><input type="text" id="reg-nombre" placeholder="Tu nombre" /></div></div>
-      <div class="input-group"><div class="input-line"><input type="text" id="reg-apellido" placeholder="Tu apellido" /></div></div>
-      <div class="input-group"><div class="input-line"><input type="email" id="reg-email" placeholder="tucorreo@ejemplo.com" /></div></div>
-      <div class="input-group"><div class="input-line"><input type="tel" id="reg-telefono" placeholder="+58 412 123 4567" /></div></div>
-      <div class="input-group"><div class="input-line"><input type="password" id="reg-password" placeholder="••••••••" /></div></div>
-      <button class="btn btn-primary" onclick="handleRegister()">Registrarse</button>
+      <div class="input-group"><div class="input-line"><input type="text" id="reg-nombre" name="given-name" autocomplete="given-name" placeholder="Tu nombre" /></div></div>
+      <div class="input-group"><div class="input-line"><input type="text" id="reg-apellido" name="family-name" autocomplete="family-name" placeholder="Tu apellido" /></div></div>
+      <div class="input-group"><div class="input-line"><input type="email" id="reg-email" name="email" autocomplete="email" inputmode="email" placeholder="tucorreo@ejemplo.com" /></div></div>
+      <div class="input-group"><div class="input-line"><input type="tel" id="reg-telefono" name="tel" autocomplete="tel" placeholder="+58 412 123 4567" /></div></div>
+      <div class="input-group"><div class="input-line"><input type="password" id="reg-password" name="new-password" autocomplete="new-password" placeholder="Contraseña (mín. 12 caracteres)" /></div></div>
+      <div class="input-group"><div class="input-line"><input type="password" id="reg-password-confirm" name="confirm-password" autocomplete="new-password" placeholder="Repite la contraseña" /></div></div>
+      <p class="auth-hint">Usa al menos 12 caracteres. Mejor si es una frase larga y fácil de recordar. Rechazamos contraseñas filtradas.</p>
+      <button class="btn btn-primary" type="button" onclick="handleRegister()">Registrarse</button>
       <p class="auth-footer-text">¿Ya tienes cuenta? <a href="#" onclick="showLogin()">Inicia sesión</a></p>
     </div>
+
     <div id="reset-form" class="auth-card hidden">
       <h2>Restablecer Contraseña</h2>
       <p class="auth-subtitle">Ingresa tu correo y te enviaremos las instrucciones.</p>
-      <div class="input-group"><div class="input-line"><input type="email" id="reset-email" placeholder="tucorreo@ejemplo.com" /></div></div>
-      <button class="btn btn-primary" onclick="handleReset()">Enviar enlace</button>
+      <div class="input-group"><div class="input-line"><input type="email" id="reset-email" name="email" autocomplete="email" inputmode="email" placeholder="tucorreo@ejemplo.com" /></div></div>
+      <button class="btn btn-primary" type="button" onclick="handleReset()">Enviar enlace</button>
       <p class="auth-footer-text"><a href="#" onclick="showLogin()">Volver al inicio de sesión</a></p>
     </div>
+
+    <div id="reset-password-form" class="auth-card hidden">
+      <h2>Nueva Contraseña</h2>
+      <p class="auth-subtitle">Elige una contraseña nueva para tu cuenta.</p>
+      <div class="input-group"><div class="input-line"><span class="input-icon material-symbols-outlined">lock</span><input type="password" id="rp-password" name="new-password" autocomplete="new-password" placeholder="Nueva contraseña (mín. 12)" /></div></div>
+      <div class="input-group"><div class="input-line"><span class="input-icon material-symbols-outlined">lock_reset</span><input type="password" id="rp-confirm" name="confirm-password" autocomplete="new-password" placeholder="Repite la contraseña" /></div></div>
+      <p class="auth-hint">Mínimo 12 caracteres. No uses contraseñas filtradas ni datos personales.</p>
+      <button class="btn btn-primary" type="button" onclick="handleResetPassword()">Guardar contraseña</button>
+      <p class="auth-footer-text"><a href="#" onclick="showReset()">Solicitar un enlace nuevo</a></p>
+    </div>
+
     <div class="security-badge">
       <span class="security-check">✓</span>
-      <span class="security-text">ISO 27001 Certified</span>
+      <span class="security-text">Sesión protegida con cookie httpOnly</span>
     </div>
   </div>
 
@@ -912,6 +944,7 @@
           <li><button class="pq-nav-item" data-tab="calculadora" onclick="openCalculadora()"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">calculate</span> Calculadora de Precios</span></button></li>
           <li><button class="pq-nav-item" data-tab="notificaciones" onclick="openAlertsSheet()"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">notifications</span> Notificaciones</span><span class="pq-nav-badge hidden" id="pq-nav-alert-badge-2">0</span></button></li>
           <li><button class="pq-nav-item" data-tab="profile" onclick="switchTab('profile')"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">person</span> Perfil y Tasa BCV</span></button></li>
+          <li data-admin-only class="hidden"><button class="pq-nav-item" data-tab="admin-users" onclick="openAdminUsers()"><span style="display:flex;align-items:center;"><span class="material-symbols-outlined">manage_accounts</span> Usuarios y Roles</span></button></li>
         </ul>
       </div>
       <div class="pq-sidebar-footer">
@@ -929,8 +962,11 @@
         <span class="app-title">PanQueo</span>
       </div>
       <div class="right">
-        <div class="pq-rate-pill" onclick="cycleCurrencyMode()" title="Haz clic para alternar: Dual ($ + Bs.) / Solo USD / Solo Bs.">
-          <span>Tasa: <strong id="rate-label">—</strong></span>
+        <div class="pq-rate-pill" onclick="cycleCurrencyMode()" title="Clic en $ o € para elegir la tasa de trabajo. Clic en el resto para alternar Dual / Solo USD / Solo Bs.">
+          <span class="pq-rate-dot" id="rate-sync-dot" title="Sincronización automática con el BCV"></span>
+          <button type="button" class="pq-rate-item active" id="rate-chip-usd" onclick="seleccionarTasa(event, 'usd')" title="Trabajar con la tasa del dólar"><span class="pq-rate-symbol">$</span><strong id="rate-label">—</strong></button>
+          <span class="pq-rate-sep"></span>
+          <button type="button" class="pq-rate-item" id="rate-chip-eur" onclick="seleccionarTasa(event, 'eur')" title="Trabajar con la tasa del euro"><span class="pq-rate-symbol">€</span><strong id="rate-label-eur">—</strong></button>
           <span class="pq-currency-tag" id="currency-mode-label">DUAL</span>
         </div>
         <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme(true)" title="Alternar modo claro / oscuro">
@@ -967,9 +1003,14 @@
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline" style="font-size:20px;">search</span>
             <input class="w-full pl-8 pr-3 py-2 bg-surface-container-lowest border-b border-outline-variant focus:border-primary-container focus:ring-0 transition-all rounded-xl shadow-sm text-body-md font-body-md" placeholder="Buscar por nombre o código" type="text" id="inventory-search">
           </div>
-          <button class="bg-primary-container text-on-primary-container h-[44px] px-4 rounded-xl font-button-text text-button-text flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-transform" onclick="openRegisterLot()">
-            <span class="material-symbols-outlined" style="font-size:18px;">add_box</span> Agregar Lote
-          </button>
+          <div class="flex gap-2">
+            <button class="bg-surface-container-high text-on-surface-variant h-[44px] px-4 rounded-xl font-button-text text-button-text flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-transform" onclick="openNuevoIngrediente()">
+              <span class="material-symbols-outlined" style="font-size:18px;">add</span> Ingrediente
+            </button>
+            <button class="bg-primary-container text-on-primary-container h-[44px] px-4 rounded-xl font-button-text text-button-text flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-transform" onclick="openRegisterLot()">
+              <span class="material-symbols-outlined" style="font-size:18px;">add_box</span> Agregar Lote
+            </button>
+          </div>
         </div>
         <div class="flex gap-1 overflow-x-auto pb-2" id="inventory-filters">
           <button class="active-pill px-3 py-1 rounded-full font-label-bold text-label-bold whitespace-nowrap transition-all shadow-sm text-xs" data-filter="all">Todos</button>
@@ -1052,6 +1093,10 @@
           </div>
           <div class="quick-item" onclick="openHelp()">
             <div class="left"><div class="icon-box"><span class="material-symbols-outlined">help_center</span></div><span class="label">Ayuda</span></div>
+            <span class="chevron material-symbols-outlined">chevron_right</span>
+          </div>
+          <div class="quick-item hidden" data-admin-only onclick="openAdminUsers()">
+            <div class="left"><div class="icon-box"><span class="material-symbols-outlined">manage_accounts</span></div><span class="label">Gestión de usuarios</span></div>
             <span class="chevron material-symbols-outlined">chevron_right</span>
           </div>
         </div>
@@ -1445,6 +1490,17 @@
             <div class="border-bottom-line"></div>
           </div>
         </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-bold text-label-bold text-on-surface-variant text-sm">URL del servidor API</label>
+          <div class="relative input-focus-animate">
+            <input class="w-full bg-transparent border-none py-1 px-0 font-body-md text-body-md focus:ring-0 text-sm" id="settings-api-url" placeholder="http://localhost:3000/api" autocomplete="off" />
+            <div class="border-bottom-line"></div>
+          </div>
+          <div class="flex items-center gap-2 mt-1">
+            <button class="px-3 py-1.5 rounded-lg bg-surface-container-high text-on-surface-variant font-label-bold text-xs hover:bg-secondary-container/50 transition-colors" type="button" onclick="testApiConnection()">Probar conexión</button>
+            <span class="font-body-sm text-xs text-on-surface-variant" id="settings-api-status"></span>
+          </div>
+        </div>
         <div class="flex items-center justify-between py-1">
           <div><span class="font-body-md text-sm font-semibold text-on-surface">Notificaciones push</span><span class="font-body-sm text-xs text-on-surface-variant block">Recibir alertas de tus pedidos</span></div>
           <label class="relative inline-flex items-center cursor-pointer"><input checked class="sr-only peer" type="checkbox"><div class="w-10 h-5 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-container"></div></label>
@@ -1461,8 +1517,100 @@
           <div class="relative input-focus-animate"><select class="w-full bg-transparent border-none py-1 px-0 font-body-md text-body-md focus:ring-0 appearance-none cursor-pointer text-sm"><option selected value="es">Español</option><option value="en">Inglés</option></select><span class="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-outline">translate</span><div class="border-bottom-line"></div></div>
         </div>
         <div class="flex items-center gap-3 bg-[#FFF8E1] p-3 rounded-lg border border-[#FFECB3]"><span class="material-symbols-outlined text-primary-container" style="font-variation-settings:'FILL'1;">stars</span><div><p class="font-label-bold text-label-bold text-primary text-sm">Nivel Repostería Gold</p><p class="font-body-sm text-xs text-on-surface-variant">¡Tus ajustes ayudan a mejorar tus sugerencias!</p></div></div>
-        <button class="w-full h-[44px] bg-primary-container text-on-primary-container font-button-text text-button-text rounded-xl shadow-md hover:bg-[#E6AF06] active:scale-[0.98] transition-all flex items-center justify-center gap-1 text-sm" type="button" onclick="closeView('view-settings'); showToast('Configuración guardada', 'ok');"><span class="material-symbols-outlined">save</span> Guardar Configuración</button>
+        <button class="w-full h-[44px] bg-primary-container text-on-primary-container font-button-text text-button-text rounded-xl shadow-md hover:bg-[#E6AF06] active:scale-[0.98] transition-all flex items-center justify-center gap-1 text-sm" type="button" onclick="saveSettings()"><span class="material-symbols-outlined">save</span> Guardar Configuración</button>
       </form>
+    </div>
+  </div>
+
+  <!-- Seguridad -->
+  <div id="view-security" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-security')">arrow_back</button>
+      <span class="title">Seguridad</span>
+    </div>
+    <div class="flex flex-col gap-4 pb-6">
+      <section class="sec-card">
+        <div class="sec-card-head">
+          <span class="material-symbols-outlined">password</span>
+          <div>
+            <h3>Contraseña</h3>
+            <p class="sec-hint">Mínimo 12 caracteres. Rechazamos contraseñas comunes o filtradas.</p>
+          </div>
+        </div>
+        <form class="flex flex-col gap-2" onsubmit="event.preventDefault(); handleChangePassword();">
+          <label class="sec-label" for="sec-pass-actual">Contraseña actual</label>
+          <input class="pq-input" id="sec-pass-actual" type="password" autocomplete="current-password" placeholder="Tu contraseña actual">
+          <label class="sec-label" for="sec-pass-nueva">Nueva contraseña</label>
+          <input class="pq-input" id="sec-pass-nueva" type="password" autocomplete="new-password" placeholder="Nueva contraseña">
+          <label class="sec-label" for="sec-pass-confirm">Repite la nueva contraseña</label>
+          <input class="pq-input" id="sec-pass-confirm" type="password" autocomplete="new-password" placeholder="Repite la contraseña">
+          <button class="btn btn-primary" type="submit">Actualizar contraseña</button>
+        </form>
+      </section>
+
+      <section class="sec-card">
+        <div class="sec-card-head">
+          <span class="material-symbols-outlined">verified_user</span>
+          <div>
+            <h3>Verificación en dos pasos</h3>
+            <p class="sec-hint">Estado: <strong id="sec-mfa-status">—</strong></p>
+          </div>
+        </div>
+        <p class="sec-hint" id="sec-mfa-hint">Añade una capa extra con Google Authenticator, Authy o 1Password.</p>
+
+        <div id="sec-mfa-setup" class="flex flex-col gap-2">
+          <label class="sec-label" for="sec-mfa-setup-password">Confirma tu contraseña para empezar</label>
+          <input class="pq-input" id="sec-mfa-setup-password" type="password" autocomplete="current-password" placeholder="Contraseña actual">
+          <button class="btn btn-secondary btn-sm" type="button" onclick="startMfaSetup()">Generar secreto</button>
+
+          <div id="sec-mfa-pending" class="hidden flex flex-col gap-2">
+            <p class="sec-hint">Copia este secreto en tu aplicación autenticadora (opción “añadir cuenta manualmente”).</p>
+            <code id="sec-mfa-secret" class="sec-secret"></code>
+            <label class="sec-label" for="sec-mfa-uri">URI otpauth</label>
+            <input class="pq-input" id="sec-mfa-uri" type="text" readonly>
+            <label class="sec-label" for="sec-mfa-code">Código de 6 dígitos que muestra la app</label>
+            <input class="pq-input" id="sec-mfa-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456">
+            <button class="btn btn-primary btn-sm" type="button" onclick="confirmMfaSetup()">Activar verificación en dos pasos</button>
+            <div id="sec-mfa-recovery" class="hidden"></div>
+          </div>
+        </div>
+
+        <div id="sec-mfa-enabled-actions" class="hidden flex flex-col gap-2">
+          <p class="sec-hint">Para desactivarla, confirma tu contraseña y un código vigente (o de recuperación).</p>
+          <label class="sec-label" for="sec-mfa-disable-password">Contraseña actual</label>
+          <input class="pq-input" id="sec-mfa-disable-password" type="password" autocomplete="current-password" placeholder="Contraseña actual">
+          <label class="sec-label" for="sec-mfa-disable-code">Código de verificación</label>
+          <input class="pq-input" id="sec-mfa-disable-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="11" placeholder="123456 o código de recuperación">
+          <button class="sec-danger-btn" type="button" onclick="disableMfa()">Desactivar verificación en dos pasos</button>
+        </div>
+      </section>
+
+      <section class="sec-card">
+        <div class="sec-card-head">
+          <span class="material-symbols-outlined">devices</span>
+          <div>
+            <h3>Sesiones activas</h3>
+            <p class="sec-hint">Puedes revocar cualquier dispositivo que no reconozcas.</p>
+          </div>
+        </div>
+        <div id="sec-sessions-list" class="sec-list">
+          <p class="sec-hint">Cargando sesiones…</p>
+        </div>
+        <button class="sec-danger-btn" type="button" onclick="handleLogoutAll()">Cerrar todas las sesiones</button>
+      </section>
+
+      <section class="sec-card">
+        <div class="sec-card-head">
+          <span class="material-symbols-outlined">history</span>
+          <div>
+            <h3>Actividad reciente</h3>
+            <p class="sec-hint">Últimos eventos de autenticación de tu cuenta.</p>
+          </div>
+        </div>
+        <div id="sec-events-list" class="sec-list">
+          <p class="sec-hint">Cargando actividad…</p>
+        </div>
+      </section>
     </div>
   </div>
 
@@ -1509,6 +1657,152 @@
     </div>
   </div>
 
+  <!-- Gestión de usuarios (solo admin / desarrollador) -->
+  <div id="view-admin-users" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-admin-users')">arrow_back</button>
+      <span class="title">Usuarios y roles</span>
+    </div>
+    <div class="flex flex-col gap-3 pb-6">
+      <p class="sec-hint">Consulta los usuarios registrados, cambia su rol o desactiva su cuenta. Los cambios aplican de inmediato.</p>
+      <div id="admin-users-list" class="flex flex-col gap-3">
+        <div class="p-6 text-center"><div class="loader-ring"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nueva Receta (Recetas y Producción) -->
+  <div id="view-nueva-receta" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-nueva-receta')">arrow_back</button>
+      <span class="title">Nueva Receta</span>
+    </div>
+    <div class="bg-white rounded-xl card-shadow p-4 flex flex-col gap-4">
+      <div>
+        <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Nombre de la receta</label>
+        <div class="flex items-center border-b border-outline-variant py-1 transition-all input-focus-effect">
+          <span class="material-symbols-outlined text-outline mr-2">bakery_dining</span>
+          <input class="w-full bg-transparent border-none focus:ring-0 font-body-md text-sm" id="nr-nombre" placeholder="Ej: Pan de Jamón Tradicional" />
+        </div>
+      </div>
+      <div>
+        <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Descripción / Procedimiento</label>
+        <textarea class="w-full bg-transparent border-b border-outline-variant focus:ring-0 font-body-md text-sm p-1" id="nr-instrucciones" rows="3" placeholder="Opcional: notas de horneado o preparación"></textarea>
+      </div>
+
+      <div>
+        <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Ingredientes requeridos</label>
+        <div class="flex gap-2 items-end">
+          <div class="flex-1">
+            <div class="flex items-center border-b border-outline-variant py-1">
+              <span class="material-symbols-outlined text-outline mr-2">egg_alt</span>
+              <select class="w-full bg-transparent border-none focus:ring-0 font-body-md text-sm" id="nr-ingrediente"><option value="">Cargando…</option></select>
+            </div>
+          </div>
+          <div style="width:90px;">
+            <div class="flex items-center border-b border-outline-variant py-1">
+              <input class="w-full bg-transparent border-none focus:ring-0 font-body-md text-sm" id="nr-cantidad" type="number" min="0.01" step="0.01" placeholder="0.0" />
+              <span class="font-label-bold text-label-bold text-on-surface-variant text-xs ml-1" id="nr-unidad"></span>
+            </div>
+          </div>
+          <button class="bg-primary-container text-on-primary-container font-button-text text-button-text px-3 py-2 rounded-lg shrink-0" onclick="nrAgregarIngrediente()">Añadir</button>
+        </div>
+        <div id="nr-ingredientes-list" class="mt-3 flex flex-col gap-2"></div>
+      </div>
+
+      <div>
+        <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Rendimiento base (porciones)</label>
+        <div class="flex items-center border-b border-outline-variant py-1">
+          <span class="material-symbols-outlined text-outline mr-2">groups</span>
+          <input class="w-full bg-transparent border-none focus:ring-0 font-body-md text-sm" id="nr-rendimiento" type="number" min="1" placeholder="Ej: 12" value="1" />
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-1">
+        <button class="btn btn-outline btn-sm flex-1" onclick="cerrarNuevaReceta()">Cancelar</button>
+        <button class="btn btn-primary btn-sm flex-1" onclick="saveNuevaReceta()">Guardar Receta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lista de Compra (editor) -->
+  <div id="view-lista-compras" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="cerrarListaCompras()">arrow_back</button>
+      <span class="title">Lista de Compra</span>
+    </div>
+    <div class="bg-white rounded-xl card-shadow p-4 flex flex-col gap-4">
+      <div class="flex gap-2" id="lc-resumen"></div>
+
+      <div>
+        <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Agregar ítem</label>
+        <div class="flex gap-2 items-end flex-wrap">
+          <div class="flex-1 min-w-[140px]">
+            <div class="flex items-center border-b border-outline-variant py-1">
+              <span class="material-symbols-outlined text-outline mr-2">egg_alt</span>
+              <select class="w-full bg-transparent border-none focus:ring-0 font-body-md text-sm" id="lc-ingrediente"><option value="">Cargando…</option></select>
+            </div>
+          </div>
+          <div style="width:80px;">
+            <input class="w-full bg-transparent border-b border-outline-variant focus:ring-0 font-body-md text-sm py-1" id="lc-cantidad" type="number" min="0.01" step="0.01" placeholder="Cant." />
+          </div>
+          <div style="width:110px;">
+            <input class="w-full bg-transparent border-b border-outline-variant focus:ring-0 font-body-md text-sm py-1" id="lc-precio" type="number" min="0" step="0.01" placeholder="Precio $ (opc.)" />
+          </div>
+          <button class="bg-primary-container text-on-primary-container font-button-text text-button-text px-3 py-2 rounded-lg" onclick="lcAgregarItem()">Añadir</button>
+        </div>
+      </div>
+
+      <div id="lc-items" class="flex flex-col gap-2"></div>
+
+      <div class="flex flex-col gap-2 pt-1">
+        <button class="btn btn-outline btn-sm" onclick="saveListaCompra()">Guardar Borrador</button>
+        <button class="btn btn-primary btn-sm" onclick="finalizarListaCompra()">Finalizar Compra y Convertir a Lotes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nuevo Ingrediente -->
+  <div id="view-nuevo-ingrediente" class="full-screen-view">
+    <div class="back-header">
+      <button class="back-btn material-symbols-outlined" onclick="closeView('view-nuevo-ingrediente')">arrow_back</button>
+      <span class="title">Nuevo Ingrediente</span>
+    </div>
+    <div class="bg-white rounded-xl card-shadow p-4 flex flex-col gap-4">
+      <div>
+        <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Nombre del ingrediente</label>
+        <div class="flex items-center border-b border-outline-variant py-1 transition-all input-focus-effect">
+          <span class="material-symbols-outlined text-outline mr-2">egg_alt</span>
+          <input class="w-full bg-transparent border-none focus:ring-0 font-body-md text-sm" id="ni-nombre" placeholder="Ej: Esencia de Vainilla" />
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Unidad de medida</label>
+          <div class="flex items-center border-b border-outline-variant py-1">
+            <input class="w-full bg-transparent border-none focus:ring-0 font-body-md text-sm" id="ni-unidad" placeholder="Ej: L, kg" />
+          </div>
+        </div>
+        <div>
+          <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Stock mínimo</label>
+          <div class="flex items-center border-b border-outline-variant py-1">
+            <input class="w-full bg-transparent border-none focus:ring-0 font-body-md text-sm" id="ni-minimo" type="number" min="0" placeholder="0" />
+          </div>
+        </div>
+      </div>
+      <div>
+        <label class="font-label-bold text-label-bold text-secondary mb-1 block text-sm">Categoría (opcional)</label>
+        <div class="flex items-center border-b border-outline-variant py-1">
+          <input class="w-full bg-transparent border-none focus:ring-0 font-body-md text-sm" id="ni-categoria" placeholder="Ej: Lácteos" />
+        </div>
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button class="btn btn-outline btn-sm flex-1" onclick="closeView('view-nuevo-ingrediente')">Cancelar</button>
+        <button class="btn btn-primary btn-sm flex-1" onclick="saveNuevoIngrediente()">Guardar Ingrediente</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal -->
   <div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal()">
     <div class="modal-box" onclick="event.stopPropagation()">
@@ -1526,16 +1820,63 @@
 
   <div class="pq-sheet" id="sheet-tasa" role="dialog">
     <div class="pq-sheet-handle" style="position:relative;"><button class="pq-sheet-close" onclick="closeSheets()"><span class="material-symbols-outlined">close</span></button></div>
-    <h3>Tasa de Cambio BCV</h3>
-    <p class="pq-sheet-sub">Monto en Bs. por 1 USD. Se usa para la bimoneda y los reportes (Regla 4).</p>
-    <div id="pq-tasa-current" style="font-size:28px;font-family:Poppins;font-weight:700;color:#785900;margin-bottom:12px;"></div>
-    <div class="input-group"><div class="input-line">
-      <span class="input-icon material-symbols-outlined">currency_exchange</span>
-      <input type="number" step="0.01" min="0.01" id="pq-tasa-input" placeholder="Ej: 42.50" />
-    </div></div>
-    <button class="btn btn-primary" style="width:100%;height:44px;" onclick="saveTasa()">
-      Actualizar Tasa <span class="material-symbols-outlined" style="font-size:18px;">arrow_forward</span>
+    <h3>Tasas oficiales BCV</h3>
+    <p class="pq-sheet-sub">Dólar y euro oficiales sincronizados automáticamente desde bcv.org.ve cada hora. Elige la tasa con la que quieres trabajar: los montos en bolívares se calculan con ella.</p>
+
+    <div class="pq-tasa-grid">
+      <button type="button" class="pq-tasa-card" id="pq-tasa-card-usd" onclick="setTasaBase('usd')" title="Calcular los bolívares con la tasa del dólar">
+        <span class="pq-tasa-inuse" id="pq-tasa-inuse-usd">En uso</span>
+        <span class="pq-tasa-cur">$ USD</span>
+        <strong id="pq-tasa-usd">—</strong>
+        <span class="pq-tasa-unit">Bs. por 1 USD</span>
+      </button>
+      <button type="button" class="pq-tasa-card" id="pq-tasa-card-eur" onclick="setTasaBase('eur')" title="Calcular los bolívares con la tasa del euro">
+        <span class="pq-tasa-inuse" id="pq-tasa-inuse-eur">En uso</span>
+        <span class="pq-tasa-cur">€ EUR</span>
+        <strong id="pq-tasa-eur">—</strong>
+        <span class="pq-tasa-unit">Bs. por 1 EUR</span>
+      </button>
+    </div>
+
+    <p class="pq-tasa-hint" id="pq-tasa-hint">Trabajando con la tasa del dólar.</p>
+
+    <div class="pq-mode-title">Modo de visualización</div>
+    <div class="pq-mode-grid" role="group" aria-label="Modo de visualización de los montos">
+      <button type="button" class="pq-mode-chip" id="pq-mode-dual" onclick="setCurrencyMode('dual')">
+        Dual<span>Bs. + $</span>
+      </button>
+      <button type="button" class="pq-mode-chip" id="pq-mode-usd" onclick="setCurrencyMode('usd')">
+        Solo USD<span>$</span>
+      </button>
+      <button type="button" class="pq-mode-chip" id="pq-mode-bs" onclick="setCurrencyMode('bs')">
+        Solo Bs.<span>VES</span>
+      </button>
+    </div>
+
+    <div class="pq-tasa-status" id="pq-tasa-status">Consultando el BCV…</div>
+
+    <button class="btn btn-primary" id="btn-sync-tasa" style="width:100%;height:44px;" onclick="sincronizarTasaBCV()">
+      Sincronizar ahora con el BCV <span class="material-symbols-outlined" style="font-size:18px;">sync</span>
     </button>
+
+    <details class="pq-tasa-manual">
+      <summary>Ajuste manual de tasas</summary>
+      <div class="input-group" style="margin-top:10px;"><div class="input-line">
+        <span class="input-icon material-symbols-outlined">attach_money</span>
+        <input type="number" step="0.0001" min="0.0001" id="pq-tasa-input" placeholder="Bs. por 1 USD" />
+      </div></div>
+      <div class="input-group"><div class="input-line">
+        <span class="input-icon material-symbols-outlined">euro</span>
+        <input type="number" step="0.0001" min="0.0001" id="pq-tasa-input-eur" placeholder="Bs. por 1 EUR" />
+      </div></div>
+      <button class="btn" style="width:100%;height:42px;background:var(--pq-surface-2);color:var(--pq-on-surface);" onclick="saveTasa()">
+        Guardar tasas manuales
+      </button>
+    </details>
+
+    <a class="pq-tasa-link" href="https://www.bcv.org.ve/" target="_blank" rel="noopener">
+      <span class="material-symbols-outlined" style="font-size:15px;">open_in_new</span> Fuente oficial: bcv.org.ve
+    </a>
   </div>
 
   <div class="pq-sheet" id="sheet-notifs" role="dialog">
@@ -1574,6 +1915,7 @@
       <button class="pq-rep-tab active" data-rep-tab="produccion" onclick="renderReporteTab('produccion')">Producción</button>
       <button class="pq-rep-tab" data-rep-tab="mermas" onclick="renderReporteTab('mermas')">Mermas</button>
       <button class="pq-rep-tab" data-rep-tab="trazabilidad" onclick="renderReporteTab('trazabilidad')">FEFO</button>
+      <button class="pq-rep-tab" data-rep-tab="balance" onclick="renderReporteTab('balance')">Balance</button>
     </div>
     <div id="pq-rep-body"></div>
   </div>

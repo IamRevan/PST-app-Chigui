@@ -25,12 +25,12 @@ import { HistorialClienteScreen } from '../screens/clients/HistorialClienteScree
 import { DetalleProductoScreen } from '../screens/inventory/DetalleProductoScreen';
 import { ConfiguracionScreen } from '../screens/profile/ConfiguracionScreen';
 import { SeguridadScreen } from '../screens/profile/SeguridadScreen';
+import { UsuariosScreen } from '../screens/profile/UsuariosScreen';
 import { AcercaDeScreen } from '../screens/profile/AcercaDeScreen';
 import { ReportesScreen } from '../screens/dashboard/ReportesScreen';
 import { ListaComprasScreen } from '../screens/inventory/ListaComprasScreen';
 import { PedidoExitosoScreen } from '../screens/success/PedidoExitosoScreen';
 import { LoteExitosoScreen } from '../screens/success/LoteExitosoScreen';
-import { RegistroExitosoScreen } from '../screens/success/RegistroExitosoScreen';
 
 const Stack = createNativeStackNavigator();
 const Tabs = createBottomTabs([
@@ -61,12 +61,12 @@ const MainStack = () => (
     <Stack.Screen name="DetalleProducto" component={DetalleProductoScreen} />
     <Stack.Screen name="Configuracion" component={ConfiguracionScreen} />
     <Stack.Screen name="Seguridad" component={SeguridadScreen} />
+    <Stack.Screen name="Usuarios" component={UsuariosScreen} />
     <Stack.Screen name="AcercaDe" component={AcercaDeScreen} />
     <Stack.Screen name="Reportes" component={ReportesScreen} />
     <Stack.Screen name="ListaCompras" component={ListaComprasScreen} />
     <Stack.Screen name="PedidoExitoso" component={PedidoExitosoScreen} />
     <Stack.Screen name="LoteExitoso" component={LoteExitosoScreen} />
-    <Stack.Screen name="RegistroExitoso" component={RegistroExitosoScreen} />
   </Stack.Navigator>
 );
 

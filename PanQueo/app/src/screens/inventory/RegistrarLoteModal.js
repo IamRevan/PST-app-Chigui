@@ -67,7 +67,12 @@ export const RegistrarLoteModal = ({
         payload.precio_compra_unitario = parseFloat(form.precio_compra);
       }
       await apiClient.post(ENDPOINTS.LOTES, payload);
-      onSuccess?.();
+      onSuccess?.({
+        nombre: ingredienteActual?.nombre_ing || "Ingrediente",
+        unidad: ingredienteActual?.unidad_medida || "",
+        cantidad: parseFloat(form.cantidad_actual),
+        tipo: "entrada",
+      });
       setForm({ cantidad_actual: "", fecha_venc: "", precio_compra: "" });
       setIngredienteId(initialIngredienteId || "");
       onClose();
@@ -84,7 +89,11 @@ export const RegistrarLoteModal = ({
       onClose={onClose}
       title="Registrar Nuevo Lote"
     >
-      <View style={styles.content}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={styles.content}
+      >
         <ErrorMessage message={error} />
 
         <Text style={styles.fieldLabel}>Ingrediente</Text>
@@ -156,7 +165,7 @@ export const RegistrarLoteModal = ({
           disabled={saving}
           style={styles.confirmBtn}
         />
-      </View>
+      </ScrollView>
 
       <SheetModal
         visible={showSelector}
@@ -168,7 +177,7 @@ export const RegistrarLoteModal = ({
           onChangeText={setIngSearch}
           placeholder="Buscar ingrediente..."
         />
-        <ScrollView style={styles.selectorList}>
+        <ScrollView style={styles.selectorList} keyboardShouldPersistTaps="handled">
           {ingredientesFiltrados.length === 0 && (
             <Text style={styles.selectorEmpty}>
               No hay ingredientes que coincidan
@@ -206,7 +215,7 @@ export const RegistrarLoteModal = ({
 };
 
 const styles = StyleSheet.create({
-  content: { gap: spacing.sm },
+  content: { gap: spacing.sm, paddingBottom: spacing.lg },
   row: { flexDirection: "row", gap: spacing.md },
   half: { flex: 1 },
   fieldLabel: {

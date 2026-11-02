@@ -280,13 +280,13 @@ export const ReportesScreen = ({ navigation }) => {
           <View style={styles.tabBody}>
             <View style={styles.revenueCard}>
               <Text style={styles.revenueLabel}>Ingresos Totales Cobrados</Text>
-              <Text style={styles.revenueValue}>{formatDual(balance.total_ingresos || 0)}</Text>
+              <Text style={styles.revenueValue}>{formatDual(balance.totalAbonado || 0)}</Text>
             </View>
 
             <View style={styles.kpiRow}>
               <View style={[styles.kpiCard, { borderColor: `${colors.error}40` }]}>
                 <Text style={[styles.kpiValue, { color: colors.error }]}>
-                  {formatDual(balance.total_pendientes || 0)}
+                  {formatDual(balance.balancePendiente || 0)}
                 </Text>
                 <Text style={styles.kpiLabel}>Pendiente por Cobrar</Text>
                 <Text style={styles.kpiSub}>Pedidos abonados o pendientes</Text>

@@ -17,7 +17,7 @@ export const NotificacionesScreen = ({ navigation }) => {
     ...proximos.map((item, idx) => ({
       id: `venc-${idx}`,
       title: 'Lote próximo a vencer',
-      message: `${item.ingrediente?.nombre_ing || 'Ingrediente'} (${item.cantidad || 0} ${item.ingrediente?.unidad_medida || 'unidades'}) vence en ${item.diasRestantes ?? 'pocos'} días.`,
+      message: `${item.ingrediente || 'Ingrediente'} (${item.cantidad || 0} ${item.unidad || 'unidades'}) vence en ${item.diasRestantes ?? 'pocos'} días.`,
       date: item.fechaVencimiento ? `Vence: ${item.fechaVencimiento}` : 'Próximo',
       type: 'critical',
       target: 'AlertasVencimiento',
@@ -25,7 +25,7 @@ export const NotificacionesScreen = ({ navigation }) => {
     ...stockBajo.map((item, idx) => ({
       id: `stock-${idx}`,
       title: 'Stock bajo en inventario',
-      message: `${item.nombre_ing} tiene ${item.stock_actual} ${item.unidad_medida} (mínimo requerido: ${item.stock_minimo} ${item.unidad_medida}).`,
+      message: `${item.nombre || 'Ingrediente'} tiene ${item.stockActual ?? 0} ${item.unidad || ''} (mínimo requerido: ${item.stockMinimo ?? 0} ${item.unidad || ''}).`,
       date: 'Alerta inmediata',
       type: 'warning',
       target: 'Inventario',
@@ -112,7 +112,9 @@ export const NotificacionesScreen = ({ navigation }) => {
                 key={notif.id}
                 style={[styles.notifCard, { backgroundColor: cfg.bg, borderLeftColor: cfg.border }]}
                 onPress={() => {
-                  if (notif.target) {
+                  if (notif.target === 'Inventario') {
+                    navigation.navigate('Tabs', { screen: 'Inventario' });
+                  } else if (notif.target) {
                     navigation.navigate(notif.target);
                   }
                 }}

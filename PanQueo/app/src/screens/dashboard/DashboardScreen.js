@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { ScreenWrapper } from "../../components/navigation/ScreenWrapper";
 import { Card, Badge, Button } from "../../components/ui";
 import {
@@ -18,29 +19,44 @@ import {
 } from "../../lib/theme";
 import { useAuth } from "../../auth/AuthContext";
 import { usePedidos } from "../../lib/hooks/usePedidos";
-import { useAlertasVencimiento } from "../../lib/hooks/useInventario";
+import { useAlertasStockBajo } from "../../lib/hooks/useInventario";
 import { useCurrency } from "../../lib/currency";
 import { CalculadoraModal } from "../recipes/CalculadoraModal";
 
 export const DashboardScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const { data: rawPedidos, loading: loadingPedidos } = usePedidos();
-  const { data: rawAlertas } = useAlertasVencimiento();
+  const { data: rawPedidos, loading: loadingPedidos, refetch } = usePedidos();
+  const { data: rawStockBajo, refetch: refetchStock } = useAlertasStockBajo();
   const { format, formatDual } = useCurrency();
   const [showCalculadora, setShowCalculadora] = useState(false);
 
+  // Refresca al volver a la pantalla (pedidos y stock al día)
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+      refetchStock();
+    }, [refetch, refetchStock]),
+  );
+
   const pedidos = Array.isArray(rawPedidos) ? rawPedidos : (rawPedidos?.pedidos || []);
-  const alertas = Array.isArray(rawAlertas) ? rawAlertas : [];
+  const stockBajoList = Array.isArray(rawStockBajo) ? rawStockBajo : [];
 
   const pedidosEnCocina = pedidos.filter(
     (p) => p.estado_entrega === "En Cocina",
   );
-  const pedidosHoy = pedidos.filter((p) => {
-    const hoy = new Date().toISOString().split("T")[0];
-    return p.fecha_entrega === hoy;
-  });
 
-  const stockBajo = alertas?.length || 0;
+  // Fecha local (toISOString() usa UTC y se desfasa en la tarde/noche de Venezuela).
+  const hoyLocal = (() => {
+    const d = new Date();
+    const dos = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
+  })();
+  // Paridad con la web: "Entrega Hoy" = pedidos con fecha_entrega igual a hoy.
+  const entregaHoy = pedidos.filter(
+    (p) => (p.fecha_entrega || "").slice(0, 10) === hoyLocal,
+  ).length;
+
+  const stockBajo = stockBajoList.length || 0;
   const porCobrar = pedidos
     .filter((p) => p.estado_pago !== "Pagado")
     .reduce(
@@ -48,12 +64,11 @@ export const DashboardScreen = ({ navigation }) => {
         sum + (parseFloat(p.costo_total || 0) - parseFloat(p.monto_abonado || 0)),
       0,
     );
-  const totalAlertas = alertas?.length || 0;
 
   const METRICS = [
     {
-      label: "Pedidos Hoy",
-      value: String(pedidosHoy.length),
+      label: "Pedidos Registrados",
+      value: String(pedidos.length),
       bg: colors.metricBg1,
       border: colors.metricBorder1,
       textColor: colors.metricText1,
@@ -61,7 +76,7 @@ export const DashboardScreen = ({ navigation }) => {
       onPress: () => navigation.navigate("Pedidos"),
     },
     {
-      label: "Stock Crítico",
+      label: "Stock Bajo",
       value: String(stockBajo),
       bg: colors.metricBg2,
       border: colors.metricBorder2,
@@ -79,13 +94,13 @@ export const DashboardScreen = ({ navigation }) => {
       onPress: () => navigation.navigate("Pedidos"),
     },
     {
-      label: "Alertas Venc.",
-      value: String(totalAlertas),
+      label: "Entrega Hoy",
+      value: String(entregaHoy),
       bg: colors.metricBg4,
       border: colors.metricBorder4,
       textColor: colors.metricText4,
-      iconName: "notifications-active",
-      onPress: () => navigation.navigate("AlertasVencimiento"),
+      iconName: "event-available",
+      onPress: () => navigation.navigate("Pedidos"),
     },
   ];
 

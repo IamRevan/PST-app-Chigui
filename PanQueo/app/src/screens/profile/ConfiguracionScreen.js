@@ -28,8 +28,51 @@ export const ConfiguracionScreen = ({ navigation }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
 
-  const { currency, setCurrency, tasa, registrarTasa } = useCurrency();
+  const {
+    currency,
+    setCurrency,
+    tasa,
+    tasaEur,
+    tasaBase,
+    tasaTrabajo,
+    monedaTrabajo,
+    setTasaBase,
+    tasaMeta,
+    registrarTasa,
+    sincronizarTasa,
+  } = useCurrency();
   const [tasaInput, setTasaInput] = useState('');
+  const [tasaEurInput, setTasaEurInput] = useState('');
+  const [syncingTasa, setSyncingTasa] = useState(false);
+
+  const fmtTasa = (valor) => {
+    const num = parseFloat(valor);
+    if (!Number.isFinite(num)) return '—';
+    return num.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const handleSincronizarTasa = async () => {
+    setSyncingTasa(true);
+    try {
+      const res = await sincronizarTasa();
+      Alert.alert(
+        'Tasas BCV actualizadas',
+        `USD: ${fmtTasa(res.usd)} Bs.\nEUR: ${fmtTasa(res.eur)} Bs.`,
+      );
+    } catch (err) {
+      Alert.alert('No se pudo sincronizar', err.message || 'Revisa la conexión con el BCV');
+    } finally {
+      setSyncingTasa(false);
+    }
+  };
+
+  const handleSelectTasaBase = async (base) => {
+    try {
+      await setTasaBase(base);
+    } catch (err) {
+      Alert.alert('Tasa no disponible', err.message);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -72,8 +115,12 @@ export const ConfiguracionScreen = ({ navigation }) => {
       if (apiUrl.trim()) {
         await setItem(STORAGE_KEYS.API_URL, apiUrl.trim().replace(/\/+$/, ''));
       }
-      if (tasaInput.trim()) {
-        await registrarTasa(tasaInput.trim(), 'Configuración Móvil');
+      if (tasaInput.trim() || tasaEurInput.trim()) {
+        await registrarTasa(
+          tasaInput.trim() || String(tasa ?? ''),
+          'Configuración Móvil',
+          tasaEurInput.trim() || null,
+        );
       }
       await setItem(STORAGE_KEYS.THEME_MODE, isDarkMode ? 'dark' : 'light');
       setShowSuccess(true);
@@ -159,19 +206,87 @@ export const ConfiguracionScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Tasa BCV Oficial (Bs / USD)</Text>
+            <Text style={styles.label}>Tasas oficiales BCV (automáticas)</Text>
+            <Text style={styles.helperText}>
+              Elige con qué tasa se calculan los bolívares.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+              <TouchableOpacity
+                style={[styles.tasaCard, { flex: 1 }, tasaBase === 'usd' && styles.tasaCardActive]}
+                onPress={() => handleSelectTasaBase('usd')}
+                activeOpacity={0.8}
+              >
+                {tasaBase === 'usd' && (
+                  <View style={styles.tasaBadge}>
+                    <MaterialIcons name="check" size={10} color={colors.onPrimary} />
+                    <Text style={styles.tasaBadgeText}>EN USO</Text>
+                  </View>
+                )}
+                <Text style={styles.tasaCur}>$ USD</Text>
+                <Text style={styles.tasaValue}>{fmtTasa(tasa)}</Text>
+                <Text style={styles.tasaUnit}>Bs. por 1 USD</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tasaCard, { flex: 1 }, tasaBase === 'eur' && styles.tasaCardActive]}
+                onPress={() => handleSelectTasaBase('eur')}
+                activeOpacity={0.8}
+              >
+                {tasaBase === 'eur' && (
+                  <View style={styles.tasaBadge}>
+                    <MaterialIcons name="check" size={10} color={colors.onPrimary} />
+                    <Text style={styles.tasaBadgeText}>EN USO</Text>
+                  </View>
+                )}
+                <Text style={styles.tasaCur}>€ EUR</Text>
+                <Text style={styles.tasaValue}>{fmtTasa(tasaEur)}</Text>
+                <Text style={styles.tasaUnit}>Bs. por 1 EUR</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.helperText}>
+              {tasaBase === 'eur' ? 'Trabajando con tasa EUR' : 'Trabajando con tasa USD'}
+              {tasaTrabajo ? `: 1 ${monedaTrabajo} = ${fmtTasa(tasaTrabajo)} Bs.` : ''}
+              {tasaMeta?.sincronizadoEn
+                ? `\nAutomático · ${tasaMeta.fuente || 'BCV'} · fecha valor ${tasaMeta.fechaValor || 'n/d'}`
+                : tasa
+                  ? `\nTasa manual${tasaMeta?.fuente ? ` (${tasaMeta.fuente})` : ''}`
+                  : '\nSin tasa oficial registrada'}
+            </Text>
+            <TouchableOpacity
+              style={[styles.syncTasaBtn, syncingTasa && { opacity: 0.6 }]}
+              onPress={handleSincronizarTasa}
+              disabled={syncingTasa}
+            >
+              <MaterialIcons name="sync" size={16} color={colors.onPrimary} />
+              <Text style={styles.syncTasaBtnText}>
+                {syncingTasa ? 'Consultando BCV...' : 'Sincronizar ahora con el BCV'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Ajuste manual de tasas (opcional)</Text>
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.textInput}
                 value={tasaInput}
                 onChangeText={setTasaInput}
-                placeholder={tasa ? `Actual: ${tasa} Bs/USD` : 'Ingresa tasa vigente'}
+                placeholder={tasa ? `USD actual: ${fmtTasa(tasa)} Bs.` : 'Bs. por 1 USD'}
+                placeholderTextColor={colors.outline}
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={[styles.inputContainer, { marginTop: spacing.xs }]}>
+              <TextInput
+                style={styles.textInput}
+                value={tasaEurInput}
+                onChangeText={setTasaEurInput}
+                placeholder={tasaEur ? `EUR actual: ${fmtTasa(tasaEur)} Bs.` : 'Bs. por 1 EUR'}
                 placeholderTextColor={colors.outline}
                 keyboardType="numeric"
               />
             </View>
             <Text style={styles.helperText}>
-              {tasa ? `Tasa vigente en sistema: ${tasa} Bs/USD` : 'Sin tasa oficial registrada'}
+              Si guardas un valor manual se sobrescribe la tasa automática hasta la próxima sincronización.
             </Text>
           </View>
 
@@ -235,7 +350,7 @@ export const ConfiguracionScreen = ({ navigation }) => {
         {[
           { key: 'dual', label: 'Dual (Bs. y USD en simultáneo)', desc: 'Muestra importes en ambas monedas' },
           { key: 'usd', label: 'Dólares (USD $)', desc: 'Precios base de venta' },
-          { key: 'bs', label: 'Bolívares (Bs. Digitales / VES)', desc: 'Precios convertidos a tasa oficial' },
+          { key: 'bs', label: 'Bolívares (Bs. Digitales / VES)', desc: `Precios convertidos a tasa ${monedaTrabajo}` },
         ].map((opt) => (
           <TouchableOpacity
             key={opt.key}
@@ -305,6 +420,46 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
   helperText: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 11 },
+  tasaCard: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap: 2,
+  },
+  tasaCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#FFF8E1',
+  },
+  tasaBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: borderRadius.full ?? 999,
+    backgroundColor: colors.primary,
+  },
+  tasaBadgeText: { ...typography.labelCaption, color: colors.onPrimary, fontSize: 8, letterSpacing: 0.3 },
+  tasaCur: { ...typography.labelCaption, color: colors.onSurfaceVariant, fontSize: 11, letterSpacing: 0.4 },
+  tasaValue: { ...typography.valueDisplay, color: colors.primary, fontSize: 20 },
+  tasaUnit: { ...typography.metadata, color: colors.onSurfaceVariant, fontSize: 10 },
+  syncTasaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+    height: 40,
+    marginTop: spacing.xs,
+  },
+  syncTasaBtnText: { ...typography.labelBold, color: colors.onPrimary, fontSize: 12 },
   testRow: { marginTop: 4 },
   testBtn: {
     flexDirection: 'row',

@@ -170,14 +170,6 @@ export const ListaComprasScreen = ({ navigation }) => {
   };
 
   const handleCompletar = async () => {
-    if (!listaActiva) {
-      Alert.alert(
-        "Error",
-        "Debes guardar la lista primero antes de completarla.",
-      );
-      return;
-    }
-
     const compradosCount = localItems.filter(
       (i) => i.status === "Comprado",
     ).length;
@@ -188,16 +180,21 @@ export const ListaComprasScreen = ({ navigation }) => {
 
     setCompleting(true);
     try {
-      // 1. Persistir checkpoint de compra (cantidades compradas) vía PATCH
-      await guardarEnBackend();
+      // 1. Persistir checkpoint de compra (crea o actualiza la lista) y obtener su id real
+      const data = await guardarEnBackend();
+      const idLista = listaActiva?.id_lista || data?.id_lista || data?.id;
+      if (!idLista) {
+        Alert.alert("Error", "No se pudo guardar la lista antes de completarla.");
+        return;
+      }
       // 2. Completar: backend genera LOTES_INGREDIENTES (RF-02) en transacción
       await apiClient.patch(
-        ENDPOINTS.LISTA_COMPRA_BY_ID(listaActiva.id_lista) + "/completar",
+        ENDPOINTS.LISTA_COMPRA_BY_ID(idLista) + "/completar",
       );
       Alert.alert(
         "Éxito",
         "Lista convertida en adquisición. Se han creado los lotes de inventario.",
-        [{ text: "OK", onPress: () => navigation.navigate("Inventario") }],
+        [{ text: "OK", onPress: () => navigation.navigate("Tabs", { screen: "Inventario" }) }],
       );
     } catch (err) {
       Alert.alert("Error", err.message || "No se pudo procesar la adquisición");
@@ -327,6 +324,7 @@ export const ListaComprasScreen = ({ navigation }) => {
         onClose={() => setShowAdd(false)}
         title="Nuevo ítem de compra"
       >
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.modalContent}>
         <Text
           style={{
             ...typography.labelBold,
@@ -336,7 +334,7 @@ export const ListaComprasScreen = ({ navigation }) => {
         >
           Ingrediente
         </Text>
-        <ScrollView style={{ maxHeight: 150, marginBottom: spacing.md }}>
+        <ScrollView style={{ maxHeight: 150, marginBottom: spacing.md }} keyboardShouldPersistTaps="handled">
           {ingredientes?.map((i) => (
             <TouchableOpacity
               key={i.id_ingrediente}
@@ -377,6 +375,7 @@ export const ListaComprasScreen = ({ navigation }) => {
           onPress={addItem}
           style={{ marginTop: spacing.md }}
         />
+        </ScrollView>
       </SheetModal>
     </ScreenWrapper>
   );
@@ -385,6 +384,7 @@ export const ListaComprasScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.gutter, paddingBottom: 40, gap: spacing.md },
+  modalContent: { paddingBottom: spacing.lg, gap: spacing.xs },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",

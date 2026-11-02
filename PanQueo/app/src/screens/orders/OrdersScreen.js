@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { ScreenWrapper } from "../../components/navigation/ScreenWrapper";
 import { Card, Badge, Button } from "../../components/ui";
 import {
@@ -68,6 +69,13 @@ export const OrdersScreen = ({ navigation }) => {
   const { data: rawOrders, loading, refetch } = usePedidos();
   const { format, formatDual } = useCurrency();
   const orders = Array.isArray(rawOrders) ? rawOrders : (rawOrders?.pedidos || []);
+
+  // Refresca al volver a la pantalla (nuevo pedido, cambio de estado, etc.)
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
 
   const filtered = orders.filter((p) => {
     if (activeFilter === "Todos") return true;

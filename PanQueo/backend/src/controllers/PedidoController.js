@@ -47,7 +47,7 @@ exports.crear = async (req, res) => {
   try {
     const {
       id_cliente, fecha_entrega, detalles, costo_total,
-      estado_entrega, estado_pago, es_delivery, direccion_delivery, observaciones,
+      estado_entrega, estado_pago, monto_abonado, es_delivery, direccion_delivery, observaciones,
     } = req.body;
 
     // --- Validación mínima (evita pedidos vacíos / huérfanos) ---
@@ -108,6 +108,14 @@ exports.crear = async (req, res) => {
     // Compatibilidad: id_receta único solo cuando el pedido es de una sola receta
     const idRecetaUnica = idsRecetas.length === 1 ? idsRecetas[0] : null;
 
+    // Coherencia de pago: si el pedido nace "Pagado", el abono debe igualar el total.
+    const pagoFinal = estado_pago || 'Pendiente';
+    const abonoRecibido = monto_abonado != null ? parseFloat(monto_abonado) : NaN;
+    let abonoFinal = Number.isFinite(abonoRecibido) && abonoRecibido > 0
+      ? abonoRecibido
+      : (pagoFinal === 'Pagado' ? costoFinal : 0);
+    abonoFinal = Math.min(Math.max(0, abonoFinal), costoFinal);
+
     const pedido = await Pedido.create(
       {
         id_cliente,
@@ -115,7 +123,8 @@ exports.crear = async (req, res) => {
         fecha_entrega,
         costo_total: costoFinal,
         estado_entrega: estado_entrega || 'Por Preparar',
-        estado_pago: estado_pago || 'Pendiente',
+        estado_pago: pagoFinal,
+        monto_abonado: abonoFinal,
         es_delivery: es_delivery || false,
         direccion_delivery: direccion_delivery || null,
         observaciones: observaciones || null,
@@ -177,15 +186,27 @@ exports.cambiarEstado = async (req, res) => {
     }
 
     if (estado_entrega) pedido.estado_entrega = estado_entrega;
-    if (estado_pago) pedido.estado_pago = estado_pago;
-    const abono = monto_abonado != null ? parseFloat(monto_abonado) : NaN;
-    if (Number.isFinite(abono) && abono > 0) {
-      pedido.monto_abonado = parseFloat(pedido.monto_abonado) + abono;
-      if (parseFloat(pedido.monto_abonado) >= parseFloat(pedido.costo_total)) {
-        pedido.estado_pago = 'Pagado';
-      } else if (parseFloat(pedido.monto_abonado) > 0) {
-        pedido.estado_pago = 'Abonado';
+
+    // El abono se interpreta como MONTO TOTAL abonado (no incremental), que es lo
+    // que envían web y móvil al "Marcar Pagado". El estado de pago se deriva del
+    // abono para mantener la coherencia con el CHECK monto_abonado <= costo_total.
+    if (monto_abonado != null) {
+      const abono = parseFloat(monto_abonado);
+      if (!Number.isFinite(abono) || abono < 0) {
+        await transaction.rollback();
+        return res.status(400).json({ status: 'error', message: 'Monto de abono inválido' });
       }
+      if (abono > parseFloat(pedido.costo_total)) {
+        await transaction.rollback();
+        return res.status(400).json({ status: 'error', message: 'El abono no puede superar el costo total del pedido' });
+      }
+      pedido.monto_abonado = abono;
+      if (abono >= parseFloat(pedido.costo_total)) pedido.estado_pago = 'Pagado';
+      else if (abono > 0) pedido.estado_pago = 'Abonado';
+      else pedido.estado_pago = 'Pendiente';
+    } else if (estado_pago) {
+      pedido.estado_pago = estado_pago;
+      if (estado_pago === 'Pagado') pedido.monto_abonado = pedido.costo_total;
     }
 
     await pedido.save({ transaction });

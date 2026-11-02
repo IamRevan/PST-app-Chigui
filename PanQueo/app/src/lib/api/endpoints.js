@@ -5,6 +5,23 @@ export const ENDPOINTS = {
   RESET_PASSWORD: "/api/auth/reset-password",
   PERFIL: "/api/auth/perfil",
 
+  // Seguridad de la cuenta
+  MFA_ESTADO: "/api/auth/mfa/estado",
+  MFA_INICIAR: "/api/auth/mfa/iniciar",
+  MFA_ACTIVAR: "/api/auth/mfa/activar",
+  MFA_DESACTIVAR: "/api/auth/mfa/desactivar",
+  CAMBIAR_PASSWORD: "/api/auth/cambiar-password",
+  SESIONES: "/api/auth/sesiones",
+  SESION_BY_ID: (id) => `/api/auth/sesiones/${id}`,
+  EVENTOS: "/api/auth/eventos",
+  LOGOUT: "/api/auth/logout",
+  LOGOUT_TODOS: "/api/auth/logout-todos",
+
+  // Administración de usuarios (roles y cuentas)
+  ADMIN_USUARIOS: "/api/admin/usuarios",
+  ADMIN_USUARIO_ROL: (id) => `/api/admin/usuarios/${id}/rol`,
+  ADMIN_USUARIO_ESTADO: (id) => `/api/admin/usuarios/${id}/estado`,
+
   // Clients
   CLIENTES: "/api/clientes",
   CLIENTE_BY_ID: (id) => `/api/clientes/${id}`,
@@ -44,6 +61,7 @@ export const ENDPOINTS = {
 
   // Exchange Rates
   TASAS_ACTUAL: "/api/finanzas/tasas/actual",
+  TASAS_SINCRONIZAR: "/api/finanzas/tasas/sincronizar",
   TASAS: "/api/finanzas/tasas",
 
   // Assistant

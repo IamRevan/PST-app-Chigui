@@ -91,9 +91,9 @@ export const NuevoPedidoScreen = ({ navigation, route }) => {
     setShowResumen(true);
   };
 
-  const handleSuccess = () => {
+  const handleSuccess = (pedido) => {
     setShowResumen(false);
-    navigation.navigate("PedidoExitoso");
+    navigation.navigate("PedidoExitoso", { pedido });
   };
 
   return (

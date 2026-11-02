@@ -1,45 +1,33 @@
 const { isValidPassword, validatePasswordMiddleware } = require('../../../src/middleware/validatePassword');
 
-describe('Password Complexity Validator', () => {
-  describe('isValidPassword function', () => {
-    test('rejects non-string values', () => {
+describe('Password policy (compatibilidad middleware)', () => {
+  describe('isValidPassword', () => {
+    test('rechaza valores no string o vacíos', () => {
       expect(isValidPassword(12345678)).toBe(false);
       expect(isValidPassword(null)).toBe(false);
       expect(isValidPassword(undefined)).toBe(false);
       expect(isValidPassword({})).toBe(false);
+      expect(isValidPassword('')).toBe(false);
     });
 
-    test('rejects passwords shorter than 8 characters', () => {
+    test('rechaza contraseñas menores a 12 caracteres', () => {
       expect(isValidPassword('P1!a')).toBe(false);
-      expect(isValidPassword('A1!b234')).toBe(false); // 7 chars
-    });
-
-    test('rejects passwords longer than 72 characters', () => {
-      const longPass = 'A1!a' + 'a'.repeat(70); // 74 chars
-      expect(isValidPassword(longPass)).toBe(false);
-    });
-
-    test('rejects passwords missing uppercase letters', () => {
-      expect(isValidPassword('password123!')).toBe(false);
-    });
-
-    test('rejects passwords missing lowercase letters', () => {
-      expect(isValidPassword('PASSWORD123!')).toBe(false);
-    });
-
-    test('rejects passwords missing digits', () => {
-      expect(isValidPassword('Password!!')).toBe(false);
-    });
-
-    test('rejects passwords missing special characters', () => {
       expect(isValidPassword('Password123')).toBe(false);
     });
 
-    test('accepts valid passwords with required complexity', () => {
-      expect(isValidPassword('Password123!')).toBe(true);
-      expect(isValidPassword('P@ssw0rd2026')).toBe(true);
-      expect(isValidPassword('Str0ng#Pass')).toBe(true);
-      expect(isValidPassword('Complex123$456')).toBe(true);
+    test('rechaza contraseñas mayores a 72 caracteres', () => {
+      expect(isValidPassword('A1!a' + 'a'.repeat(70))).toBe(false);
+    });
+
+    test('rechaza contraseñas comunes', () => {
+      expect(isValidPassword('contraseña123')).toBe(false);
+      expect(isValidPassword('mi contraseña')).toBe(false);
+    });
+
+    test('acepta contraseñas largas sin exigir composición artificial', () => {
+      expect(isValidPassword('correcto caballo batería grapa')).toBe(true);
+      expect(isValidPassword('frase larga y facil de recordar')).toBe(true);
+      expect(isValidPassword('P@ssw0rd2026!')).toBe(true);
     });
   });
 
@@ -55,20 +43,20 @@ describe('Password Complexity Validator', () => {
       next = jest.fn();
     });
 
-    test('returns 400 status and error message when password is weak', () => {
+    test('responde 400 cuando la contraseña es débil', () => {
       req.body.password = '12345';
       validatePasswordMiddleware(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
         status: 'error',
-        message: 'La contraseña debe tener entre 8 y 72 caracteres, e incluir al menos una mayúscula, una minúscula, un número y un carácter especial.',
-      });
+        code: 'PASSWORD_CORTA',
+      }));
       expect(next).not.toHaveBeenCalled();
     });
 
-    test('calls next() when password meets complexity rules', () => {
-      req.body.password = 'ValidP@ss123';
+    test('llama next() cuando la contraseña cumple la política', () => {
+      req.body.password = 'frase larga y facil de recordar';
       validatePasswordMiddleware(req, res, next);
 
       expect(next).toHaveBeenCalled();

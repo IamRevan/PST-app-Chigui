@@ -91,5 +91,10 @@ export const useData = (endpoint, cacheKey, options = {}) => {
     fetchData();
   }, [fetchData]);
 
-  return { data, loading, error, isOffline, refetch: () => fetchData(false) };
+  // refetch debe tener identidad estable: lo usamos como dependencia en
+  // useFocusEffect/useCallback de las pantallas. Si se recreara en cada render,
+  // provocaría un bucle "Maximum update depth exceeded".
+  const refetch = useCallback(() => fetchData(false), [fetchData]);
+
+  return { data, loading, error, isOffline, refetch };
 };

@@ -1,9 +1,16 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { ScreenWrapper } from '../../components/navigation/ScreenWrapper';
 import { Button } from '../../components/ui';
 import { colors, typography, spacing, borderRadius, shadows } from '../../lib/theme';
 
-export const LoteExitosoScreen = ({ navigation }) => {
+export const LoteExitosoScreen = ({ navigation, route }) => {
+  const params = route?.params || {};
+  const nombre = params.nombre || 'Ingrediente';
+  const unidad = params.unidad || '';
+  const cantidad = params.cantidad != null ? parseFloat(params.cantidad) : null;
+  const esAjuste = params.tipo === 'ajuste';
+  const motivo = params.motivo || '';
+
   return (
     <ScreenWrapper>
       <View style={styles.container}>
@@ -13,45 +20,60 @@ export const LoteExitosoScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <Text style={styles.title}>¡Ajuste Realizado con Éxito!</Text>
-        <Text style={styles.subtitle}>El stock ha sido actualizado correctamente.</Text>
+        <Text style={styles.title}>
+          {esAjuste ? '¡Ajuste Realizado con Éxito!' : '¡Stock Registrado con Éxito!'}
+        </Text>
+        <Text style={styles.subtitle}>
+          {esAjuste
+            ? 'El inventario físico ha sido actualizado correctamente.'
+            : 'El nuevo lote fue registrado correctamente.'}
+        </Text>
 
         <View style={styles.summaryCard}>
           <View style={styles.productRow}>
             <View style={styles.productIcon}>
-              <Text style={styles.productEmoji}>🍩</Text>
+              <Text style={styles.productEmoji}>{esAjuste ? '📦' : '➕'}</Text>
             </View>
-            <View>
-              <Text style={styles.productName}>Donas de Chocolate Glaseadas</Text>
-              <Text style={styles.productSku}>SKU: DON-01</Text>
+            <View style={styles.productInfo}>
+              <Text style={styles.productName}>{nombre}</Text>
+              <Text style={styles.productSku}>{esAjuste ? 'Ajuste de inventario' : 'Nuevo lote'}</Text>
             </View>
           </View>
           <View style={styles.divider} />
           <View style={styles.detailsRow}>
             <View>
-              <Text style={styles.detailLabel}>Tipo de Ajuste</Text>
+              <Text style={styles.detailLabel}>Tipo</Text>
               <View style={styles.detailChip}>
-                <Text style={styles.detailChipIcon}>➕</Text>
-                <Text style={styles.detailChipText}>Entrada (+50)</Text>
+                <Text style={styles.detailChipIcon}>{esAjuste ? '✏️' : '➕'}</Text>
+                <Text style={styles.detailChipText}>{esAjuste ? 'Ajuste' : 'Entrada'}</Text>
               </View>
             </View>
-            <View>
-              <Text style={styles.detailLabel}>Stock Actualizado</Text>
-              <View style={styles.stockBadge}>
-                <Text style={styles.stockText}>200 UND</Text>
+            {cantidad != null && (
+              <View>
+                <Text style={styles.detailLabel}>Cantidad</Text>
+                <View style={styles.stockBadge}>
+                  <Text style={styles.stockText}>
+                    {cantidad} {unidad}
+                  </Text>
+                </View>
               </View>
-            </View>
+            )}
           </View>
-        </View>
-
-        <View style={styles.logNotice}>
-          <Text style={styles.logIcon}>📝</Text>
-          <Text style={styles.logText}>El cambio ha sido registrado en el log de inventario.</Text>
+          {motivo ? (
+            <View style={styles.logNotice}>
+              <Text style={styles.logIcon}>📝</Text>
+              <Text style={styles.logText}>{motivo}</Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.actions}>
-          <Button title="Ver Inventario General" variant="primary" onPress={() => navigation.navigate('Inventario')} />
-          <Button title="Realizar otro ajuste" variant="outline" onPress={() => navigation.goBack()} />
+          <Button
+            title="Ver Inventario"
+            variant="primary"
+            onPress={() => navigation.navigate('Tabs', { screen: 'Inventario' })}
+          />
+          <Button title="Volver" variant="outline" onPress={() => navigation.goBack()} />
         </View>
       </View>
     </ScreenWrapper>
@@ -86,8 +108,9 @@ const styles = StyleSheet.create({
   productRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   productIcon: { width: 64, height: 64, borderRadius: borderRadius.lg, backgroundColor: colors.surfaceContainer, alignItems: 'center', justifyContent: 'center' },
   productEmoji: { fontSize: 32 },
+  productInfo: { flex: 1 },
   productName: { ...typography.titleSm, color: colors.onSurface },
-  productSku: { ...typography.bodySm, color: colors.onSurfaceVariant, fontWeight: '600', textTransform: 'uppercase' },
+  productSku: { ...typography.bodySm, color: colors.onSurfaceVariant, fontWeight: '600' },
   divider: { height: 1, backgroundColor: `${colors.outlineVariant}4D` },
   detailsRow: { flexDirection: 'row', gap: spacing.md },
   detailLabel: { ...typography.bodySm, color: colors.onSurfaceVariant },
@@ -96,8 +119,8 @@ const styles = StyleSheet.create({
   detailChipText: { ...typography.labelBold, color: colors.tertiary },
   stockBadge: { backgroundColor: colors.primaryContainer, paddingHorizontal: spacing.base, paddingVertical: spacing.xs, borderRadius: borderRadius.md, marginTop: spacing.xs, alignSelf: 'flex-start' },
   stockText: { ...typography.labelBold, color: colors.onPrimaryContainer },
-  logNotice: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  logNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
   logIcon: { fontSize: 16 },
-  logText: { ...typography.bodySm, color: colors.onSurfaceVariant },
+  logText: { ...typography.bodySm, color: colors.onSurfaceVariant, flex: 1 },
   actions: { width: '100%', gap: spacing.sm, marginTop: spacing.md },
 });

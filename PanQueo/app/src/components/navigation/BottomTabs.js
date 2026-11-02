@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -9,13 +9,15 @@ import {
   Image,
   TextInput,
   Alert,
+  Linking,
+  ScrollView,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SheetModal } from '../ui/Modal';
 import { colors, typography, borderRadius, spacing, shadows } from '../../lib/theme';
-import { useCurrency, MODE_LABELS } from '../../lib/currency';
+import { useCurrency } from '../../lib/currency';
 
 const Tab = createBottomTabNavigator();
 
@@ -36,23 +38,78 @@ const TabIcon = ({ label, focused }) => (
   />
 );
 
+const fmtTasa = (valor) => {
+  const num = parseFloat(valor);
+  if (!Number.isFinite(num)) return '—';
+  return num.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 const HeaderRight = () => {
   const navigation = useNavigation();
   const [showCurrency, setShowCurrency] = useState(false);
   const [nuevaTasa, setNuevaTasa] = useState('');
+  const [nuevaTasaEur, setNuevaTasaEur] = useState('');
   const [actualizando, setActualizando] = useState(false);
-  const { currency, setCurrency, tasa, registrarTasa } = useCurrency();
+  const [sincronizando, setSincronizando] = useState(false);
+  const {
+    currency,
+    setCurrency,
+    tasa,
+    tasaEur,
+    tasaBase,
+    tasaTrabajo,
+    monedaTrabajo,
+    setTasaBase,
+    tasaMeta,
+    registrarTasa,
+    sincronizarTasa,
+  } = useCurrency();
+
+  // Al abrir el sheet se precargan las tasas vigentes para el ajuste manual.
+  useEffect(() => {
+    if (showCurrency) {
+      setNuevaTasa(tasa ? String(tasa) : '');
+      setNuevaTasaEur(tasaEur ? String(tasaEur) : '');
+    }
+  }, [showCurrency, tasa, tasaEur]);
+
+  const handleSelectTasaBase = async (base) => {
+    try {
+      await setTasaBase(base);
+    } catch (err) {
+      Alert.alert('Tasa no disponible', err.message || 'Sincroniza con el BCV primero.');
+    }
+  };
+
+  const handleSincronizarTasa = async () => {
+    setSincronizando(true);
+    try {
+      const res = await sincronizarTasa();
+      Alert.alert(
+        'Tasas BCV actualizadas',
+        `USD: ${fmtTasa(res.usd)} Bs.\nEUR: ${fmtTasa(res.eur)} Bs.`,
+      );
+    } catch (err) {
+      Alert.alert('No se pudo sincronizar', err.message || 'Revisa la conexión con el BCV');
+    } finally {
+      setSincronizando(false);
+    }
+  };
 
   const handleUpdateTasa = async () => {
-    if (!nuevaTasa.trim()) {
-      Alert.alert('Valor requerido', 'Ingresa el nuevo valor de la tasa BCV.');
+    if (!nuevaTasa.trim() && !nuevaTasaEur.trim()) {
+      Alert.alert('Valor requerido', 'Ingresa al menos una de las dos tasas (USD o EUR).');
       return;
     }
     setActualizando(true);
     try {
-      await registrarTasa(nuevaTasa, 'BCV Móvil');
-      Alert.alert('Tasa Actualizada', `Nueva tasa vigente: ${nuevaTasa} Bs/USD`);
-      setNuevaTasa('');
+      const usd = nuevaTasa.trim() || (tasa ? String(tasa) : '');
+      const eur = nuevaTasaEur.trim() || null;
+      await registrarTasa(usd, 'Manual móvil', eur);
+      Alert.alert(
+        'Tasas actualizadas',
+        `USD: ${fmtTasa(usd)} Bs.${eur ? `\nEUR: ${fmtTasa(eur)} Bs.` : ''}`,
+      );
     } catch (err) {
       Alert.alert('Error', err.message || 'No se pudo actualizar la tasa');
     } finally {
@@ -61,9 +118,24 @@ const HeaderRight = () => {
   };
 
   const getPillLabel = () => {
-    if (currency === 'usd') return 'USD';
-    if (currency === 'bs') return 'Bs.';
-    return 'Bs/$';
+    const valor = tasaBase === 'eur' ? tasaEur : tasa;
+    if (!Number.isFinite(parseFloat(valor))) return 'Sin tasa';
+    return `${tasaBase === 'eur' ? '€' : '$'} ${fmtTasa(valor)}`;
+  };
+
+  const getEstadoTasa = () => {
+    if (tasaMeta?.sincronizadoEn) {
+      const fecha = new Date(tasaMeta.sincronizadoEn).toLocaleString('es-VE', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      });
+      const valor = tasaMeta.fechaValor ? ` · fecha valor ${tasaMeta.fechaValor}` : '';
+      return `Automático · ${tasaMeta.fuente || 'BCV'}${valor}\nÚltima sincronización: ${fecha}`;
+    }
+    if (tasa || tasaEur) {
+      return `Tasa manual${tasaMeta?.fuente ? ` (${tasaMeta.fuente})` : ''}. Sincroniza para volver al valor oficial.`;
+    }
+    return 'Sin tasa registrada. Sincroniza con el BCV para empezar.';
   };
 
   return (
@@ -95,67 +167,152 @@ const HeaderRight = () => {
         </TouchableOpacity>
       </View>
 
-      <SheetModal visible={showCurrency} onClose={() => setShowCurrency(false)} title="Moneda y Tasa BCV">
-        <View style={styles.rateCard}>
-          <Text style={styles.rateLabel}>Tasa de cambio vigente</Text>
-          <Text style={styles.rateValue}>
-            {tasa ? `${tasa.toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs. / USD` : 'Sin tasa registrada'}
+      <SheetModal visible={showCurrency} onClose={() => setShowCurrency(false)} title="Tasas oficiales BCV">
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetContent}>
+          <Text style={styles.sheetSub}>
+            Dólar y euro oficiales sincronizados desde bcv.org.ve. Elige la tasa con la que quieres
+            trabajar: los montos en bolívares se calculan con ella.
           </Text>
-          <Text style={styles.rateSource}>Fuente: Banco Central de Venezuela</Text>
-        </View>
 
-        <Text style={styles.sectionSubtitle}>Modo de visualización</Text>
-        {[
-          { key: 'dual', label: 'Dual (Bs. y USD en simultáneo)', desc: 'Recomendado para repostería bimonetaria' },
-          { key: 'usd', label: 'Dólares (USD $)', desc: 'Muestra únicamente importes en divisas' },
-          { key: 'bs', label: 'Bolívares (Bs. Digitales / VES)', desc: 'Calculado a la tasa oficial BCV' },
-        ].map((opt) => {
-          const isSelected = currency === opt.key;
-          return (
+          <View style={styles.rateCardsRow}>
             <TouchableOpacity
-              key={opt.key}
-              style={[styles.currencyOption, isSelected && styles.currencyOptionActive]}
-              onPress={() => {
-                setCurrency(opt.key);
-                setShowCurrency(false);
-              }}
-              activeOpacity={0.7}
+              style={[styles.rateSelectCard, tasaBase === 'usd' && styles.rateSelectCardActive]}
+              onPress={() => handleSelectTasaBase('usd')}
+              activeOpacity={0.8}
             >
-              <MaterialIcons
-                name={isSelected ? 'radio-button-checked' : 'radio-button-unchecked'}
-                size={20}
-                color={isSelected ? colors.primary : colors.outline}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.currencyOptionText, isSelected && styles.currencyOptionTextActive]}>
-                  {opt.label}
-                </Text>
-                <Text style={styles.currencyOptionDesc}>{opt.desc}</Text>
-              </View>
+              {tasaBase === 'usd' && (
+                <View style={styles.rateInUse}>
+                  <MaterialIcons name="check" size={9} color={colors.onPrimary} />
+                  <Text style={styles.rateInUseText}>EN USO</Text>
+                </View>
+              )}
+              <Text style={styles.rateCur}>$ USD</Text>
+              <Text style={styles.rateValueBig}>{fmtTasa(tasa)}</Text>
+              <Text style={styles.rateUnit}>Bs. por 1 USD</Text>
             </TouchableOpacity>
-          );
-        })}
 
-        <View style={styles.tasaUpdateBox}>
-          <Text style={styles.tasaUpdateTitle}>Actualizar Tasa Oficial BCV</Text>
-          <View style={styles.tasaInputRow}>
+            <TouchableOpacity
+              style={[styles.rateSelectCard, tasaBase === 'eur' && styles.rateSelectCardActive]}
+              onPress={() => handleSelectTasaBase('eur')}
+              activeOpacity={0.8}
+            >
+              {tasaBase === 'eur' && (
+                <View style={styles.rateInUse}>
+                  <MaterialIcons name="check" size={9} color={colors.onPrimary} />
+                  <Text style={styles.rateInUseText}>EN USO</Text>
+                </View>
+              )}
+              <Text style={styles.rateCur}>€ EUR</Text>
+              <Text style={styles.rateValueBig}>{fmtTasa(tasaEur)}</Text>
+              <Text style={styles.rateUnit}>Bs. por 1 EUR</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.tasaHint}>
+            Trabajando con la tasa del{' '}
+            <Text style={styles.tasaHintStrong}>{tasaBase === 'eur' ? 'euro' : 'dólar'}</Text>
+            {Number.isFinite(parseFloat(tasaTrabajo))
+              ? `: 1 ${monedaTrabajo} = ${fmtTasa(tasaTrabajo)} Bs.`
+              : ''}
+            {' · '}los montos en bolívares usan esta tasa.
+          </Text>
+
+          <View style={styles.tasaStatusBox}>
+            <MaterialIcons
+              name={tasaMeta?.sincronizadoEn ? 'verified' : 'info-outline'}
+              size={15}
+              color={tasaMeta?.sincronizadoEn ? colors.primary : colors.onSurfaceVariant}
+            />
+            <Text style={styles.tasaStatusText}>{getEstadoTasa()}</Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.syncBtn, sincronizando && { opacity: 0.6 }]}
+            onPress={handleSincronizarTasa}
+            disabled={sincronizando}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="sync" size={18} color={colors.onPrimary} />
+            <Text style={styles.syncBtnText}>
+              {sincronizando ? 'Sincronizando…' : 'Sincronizar ahora con el BCV'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => Linking.openURL('https://www.bcv.org.ve/')}
+            activeOpacity={0.7}
+            style={styles.tasaLinkBtn}
+          >
+            <MaterialIcons name="open-in-new" size={13} color={colors.onSurfaceVariant} />
+            <Text style={styles.tasaLink}>Ver tasas en bcv.org.ve</Text>
+          </TouchableOpacity>
+
+          <Text style={[styles.sectionSubtitle, { marginTop: spacing.md }]}>Modo de visualización</Text>
+          {[
+            { key: 'dual', label: 'Dual (Bs. y USD en simultáneo)', desc: 'Recomendado para repostería bimonetaria' },
+            { key: 'usd', label: 'Dólares (USD $)', desc: 'Muestra únicamente importes en divisas' },
+            { key: 'bs', label: 'Bolívares (Bs. Digitales / VES)', desc: `Calculado a la tasa ${monedaTrabajo}` },
+          ].map((opt) => {
+            const isSelected = currency === opt.key;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                style={[styles.currencyOption, isSelected && styles.currencyOptionActive]}
+                onPress={() => {
+                  setCurrency(opt.key);
+                  setShowCurrency(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons
+                  name={isSelected ? 'radio-button-checked' : 'radio-button-unchecked'}
+                  size={20}
+                  color={isSelected ? colors.primary : colors.outline}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.currencyOptionText, isSelected && styles.currencyOptionTextActive]}>
+                    {opt.label}
+                  </Text>
+                  <Text style={styles.currencyOptionDesc}>{opt.desc}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+
+          <View style={styles.tasaUpdateBox}>
+            <Text style={styles.tasaUpdateTitle}>Ajuste manual (opcional)</Text>
+            <Text style={styles.tasaUpdateSub}>
+              Solo si necesitas fijar un valor distinto al oficial. Se guardan las dos tasas.
+            </Text>
+            <Text style={styles.tasaFieldLabel}>Bs. por 1 USD</Text>
             <TextInput
               style={styles.tasaInput}
-              placeholder={tasa ? String(tasa) : 'Ej: 42.50'}
+              placeholder={tasa ? String(tasa) : 'Ej: 888.12'}
               placeholderTextColor={colors.outline}
               keyboardType="numeric"
               value={nuevaTasa}
               onChangeText={setNuevaTasa}
             />
+            <Text style={styles.tasaFieldLabel}>Bs. por 1 EUR</Text>
+            <TextInput
+              style={styles.tasaInput}
+              placeholder={tasaEur ? String(tasaEur) : 'Ej: 989.72'}
+              placeholderTextColor={colors.outline}
+              keyboardType="numeric"
+              value={nuevaTasaEur}
+              onChangeText={setNuevaTasaEur}
+            />
             <TouchableOpacity
-              style={[styles.tasaSaveBtn, actualizando && { opacity: 0.6 }]}
+              style={[styles.tasaSaveBtn, styles.tasaSaveBtnWide, actualizando && { opacity: 0.6 }]}
               onPress={handleUpdateTasa}
               disabled={actualizando}
             >
-              <Text style={styles.tasaSaveBtnText}>{actualizando ? 'Guardando...' : 'Actualizar'}</Text>
+              <Text style={styles.tasaSaveBtnText}>
+                {actualizando ? 'Guardando…' : 'Guardar tasas manuales'}
+              </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </ScrollView>
       </SheetModal>
     </>
   );
@@ -267,30 +424,119 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceContainerLow,
   },
   avatarImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  rateCard: {
-    backgroundColor: colors.metricBg1,
-    borderWidth: 1,
-    borderColor: colors.metricBorder1,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  rateLabel: {
-    ...typography.labelCaption,
-    color: colors.primary,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  rateValue: {
-    ...typography.headlineMd,
-    color: colors.primary,
-    marginTop: 2,
-  },
-  rateSource: {
+  sheetContent: { paddingBottom: spacing.xs },
+  sheetSub: {
     ...typography.metadata,
     color: colors.onSurfaceVariant,
-    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: spacing.md,
+  },
+  rateCardsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  rateSelectCard: {
+    flex: 1,
+    backgroundColor: colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap: 2,
+  },
+  rateSelectCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.metricBg1,
+  },
+  rateInUse: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary,
+  },
+  rateInUseText: {
+    ...typography.labelCaption,
+    color: colors.onPrimary,
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  rateCur: {
+    ...typography.labelCaption,
+    color: colors.primary,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
+  rateValueBig: {
+    ...typography.headlineMd,
+    color: colors.onSurface,
+    marginTop: 2,
+  },
+  rateUnit: {
+    ...typography.metadata,
+    color: colors.onSurfaceVariant,
+    fontSize: 10,
+  },
+  tasaHint: {
+    ...typography.metadata,
+    color: colors.onSurfaceVariant,
+    fontSize: 11.5,
+    lineHeight: 16,
+    marginTop: spacing.sm,
+  },
+  tasaHintStrong: { color: colors.primary, fontWeight: '700' },
+  tasaStatusBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  tasaStatusText: {
+    ...typography.metadata,
+    color: colors.onSurfaceVariant,
     fontSize: 11,
+    lineHeight: 15,
+    flex: 1,
+  },
+  syncBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    height: 44,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary,
+    marginTop: spacing.md,
+  },
+  syncBtnText: {
+    ...typography.buttonText,
+    color: colors.onPrimary,
+    fontSize: 14,
+  },
+  tasaLinkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: spacing.xs,
+    marginTop: 2,
+  },
+  tasaLink: {
+    ...typography.metadata,
+    color: colors.onSurfaceVariant,
+    fontSize: 11,
+    textDecorationLine: 'underline',
   },
   sectionSubtitle: {
     ...typography.labelBold,
@@ -326,7 +572,21 @@ const styles = StyleSheet.create({
   tasaUpdateTitle: {
     ...typography.labelBold,
     color: colors.onSurface,
+    marginBottom: 2,
+  },
+  tasaUpdateSub: {
+    ...typography.metadata,
+    color: colors.onSurfaceVariant,
+    fontSize: 11,
+    lineHeight: 15,
     marginBottom: spacing.xs,
+  },
+  tasaFieldLabel: {
+    ...typography.labelCaption,
+    color: colors.onSurfaceVariant,
+    fontWeight: '600',
+    marginTop: spacing.xs,
+    marginBottom: 3,
   },
   tasaInputRow: {
     flexDirection: 'row',
@@ -334,7 +594,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   tasaInput: {
-    flex: 1,
+    width: '100%',
     height: 44,
     backgroundColor: colors.surfaceContainerLow,
     borderWidth: 1,
@@ -351,6 +611,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  tasaSaveBtnWide: {
+    width: '100%',
+    marginTop: spacing.sm,
   },
   tasaSaveBtnText: {
     ...typography.buttonText,

@@ -29,7 +29,7 @@ export const CalculadoraModal = ({
   const [loadingCosto, setLoadingCosto] = useState(false);
   const [showSelector, setShowSelector] = useState(false);
 
-  const { format, formatDual, tasa } = useCurrency();
+  const { format, formatDual, tasaTrabajo, monedaTrabajo } = useCurrency();
 
   useEffect(() => {
     if (visible) {
@@ -258,7 +258,7 @@ export const CalculadoraModal = ({
               </View>
 
               <Text style={styles.footerCaption}>
-                Basado en precios de compra de lotes recientes. Tasa BCV: {tasa || '—'} Bs/USD.
+                Basado en precios de compra de lotes recientes. Tasa BCV usada para bolívares: {tasaTrabajo ? `${tasaTrabajo.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs/${monedaTrabajo}` : '—'} ({monedaTrabajo === 'EUR' ? 'euro' : 'dólar'}).
               </Text>
             </View>
           )}

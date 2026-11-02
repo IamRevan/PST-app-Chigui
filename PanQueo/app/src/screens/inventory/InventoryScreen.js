@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TextInput,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { ScreenWrapper } from "../../components/navigation/ScreenWrapper";
 import { Card, Badge } from "../../components/ui";
 import {
@@ -18,22 +19,32 @@ import {
   shadows,
 } from "../../lib/theme";
 import { RegistrarLoteModal } from "./RegistrarLoteModal";
+import { NuevoIngredienteModal } from "./NuevoIngredienteModal";
 import {
   useInventario,
-  useAlertasVencimiento,
+  useAlertasStockBajo,
 } from "../../lib/hooks/useInventario";
 
 export const InventoryScreen = ({ navigation }) => {
   const [search, setSearch] = useState("");
   const [showLoteModal, setShowLoteModal] = useState(false);
   const [selectedIngrediente, setSelectedIngrediente] = useState("");
+  const [showIngModal, setShowIngModal] = useState(false);
 
-  const { data: rawIngredientes, loading } = useInventario();
+  const { data: rawIngredientes, loading, refetch } = useInventario();
   const ingredientes = Array.isArray(rawIngredientes) ? rawIngredientes : (rawIngredientes?.ingredientes || []);
-  const { data: alertas } = useAlertasVencimiento();
+  const { data: stockBajo, refetch: refetchStock } = useAlertasStockBajo();
 
-  const stockBajoCount = alertas?.length || 0;
-  const criticalItem = alertas && alertas.length > 0 ? alertas[0] : null;
+  // Refresca al volver a la pantalla (stock actualizado al día)
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+      refetchStock();
+    }, [refetch, refetchStock]),
+  );
+
+  const stockBajoCount = stockBajo?.length || 0;
+  const criticalItem = stockBajo && stockBajo.length > 0 ? stockBajo[0] : null;
 
   const filtered = ingredientes.filter((i) =>
     (i.nombre_ing || "").toLowerCase().includes(search.toLowerCase()),
@@ -55,8 +66,18 @@ export const InventoryScreen = ({ navigation }) => {
         contentContainerStyle={styles.content}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Inventario de Materias Primas</Text>
-          <Text style={styles.subtitle}>Stock disponible y control de lotes</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>Inventario de Materias Primas</Text>
+            <Text style={styles.subtitle}>Stock disponible y control de lotes</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.nuevoIngBtn}
+            onPress={() => setShowIngModal(true)}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="add" size={18} color={colors.onPrimaryContainer} />
+            <Text style={styles.nuevoIngText}>Ingrediente</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Buscador de insumos */}
@@ -85,7 +106,7 @@ export const InventoryScreen = ({ navigation }) => {
             <View style={styles.alertText}>
               <Text style={styles.alertTitle}>Stock Crítico</Text>
               <Text style={styles.alertDesc}>
-                {criticalItem.nombre_ing || "Ingrediente"}: Stock por debajo del mínimo
+                {criticalItem.nombre || "Ingrediente"}: stock por debajo del mínimo ({criticalItem.stockMinimo} {criticalItem.unidad || ""})
               </Text>
             </View>
             <TouchableOpacity
@@ -260,12 +281,18 @@ export const InventoryScreen = ({ navigation }) => {
         <MaterialIcons name="add" size={28} color={colors.white} />
       </TouchableOpacity>
 
+      <NuevoIngredienteModal
+        visible={showIngModal}
+        onClose={() => setShowIngModal(false)}
+        onSuccess={() => refetch()}
+      />
+
       <RegistrarLoteModal
         visible={showLoteModal}
         onClose={() => setShowLoteModal(false)}
         initialIngredienteId={selectedIngrediente}
         ingredientes={ingredientes}
-        onSuccess={() => navigation.navigate("LoteExitoso")}
+        onSuccess={(data) => navigation.navigate("LoteExitoso", data)}
       />
     </ScreenWrapper>
   );
@@ -275,6 +302,16 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.gutter, paddingBottom: 100, gap: spacing.sm },
   header: { marginBottom: spacing.xs },
+  nuevoIngBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.primaryContainer,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+  },
+  nuevoIngText: { ...typography.labelCaption, color: colors.onPrimaryContainer, fontWeight: "700" },
   title: { ...typography.headlineMd, fontSize: 20, color: colors.onSurface },
   subtitle: { ...typography.metadata, color: colors.onSurfaceVariant, marginTop: -2 },
   inputRow: {

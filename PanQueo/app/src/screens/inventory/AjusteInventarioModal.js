@@ -51,7 +51,13 @@ export const AjusteInventarioModal = ({
       if (anomalia) {
         Alert.alert("Aviso de Desviación", anomalia.mensaje);
       }
-      onSuccess?.();
+      onSuccess?.({
+        nombre: ingrediente?.nombre_ing || "Ingrediente",
+        unidad: ingrediente?.unidad_medida || "",
+        cantidad: cantNum,
+        tipo: "ajuste",
+        motivo: motivo.trim() || "Ajuste manual de inventario",
+      });
       setNuevaCant("");
       setMotivo("");
       onClose();

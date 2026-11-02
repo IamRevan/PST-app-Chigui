@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/navigation/ScreenWrapper';
 import { Card, Button } from '../../components/ui';
 import { useAuth } from '../../auth/AuthContext';
+import apiClient from '../../lib/api/client';
+import { ENDPOINTS } from '../../lib/api/endpoints';
 import { colors, typography, spacing, borderRadius, shadows } from '../../lib/theme';
 
 const MENU_ITEMS = [
@@ -12,8 +15,29 @@ const MENU_ITEMS = [
   { label: 'Acerca de PanQueo', icon: 'help-outline', route: 'AcercaDe' },
 ];
 
+const MENU_ADMIN = { label: 'Gestión de usuarios', icon: 'manage-accounts', route: 'Usuarios' };
+
 export const ProfileScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
+  const [saliendo, setSaliendo] = useState(false);
+
+  const esGestor = Boolean(user && (user.rol === 'admin' || user.rol === 'desarrollador'));
+  const menuItems = esGestor
+    ? [...MENU_ITEMS.slice(0, 2), MENU_ADMIN, ...MENU_ITEMS.slice(2)]
+    : MENU_ITEMS;
+
+  const cerrarSesion = async () => {
+    if (saliendo) return;
+    setSaliendo(true);
+    try {
+      // Revoca la sesión en el servidor antes de borrar el Bearer local.
+      await apiClient.post(ENDPOINTS.LOGOUT);
+    } catch (error) {
+      console.warn('[perfil] logout:', error.message);
+    } finally {
+      await logout();
+    }
+  };
 
   return (
     <ScreenWrapper>
@@ -63,10 +87,10 @@ export const ProfileScreen = ({ navigation }) => {
         </Card>
 
         <Card style={styles.menuCard}>
-          {MENU_ITEMS.map((item, i) => (
+          {menuItems.map((item, i) => (
             <TouchableOpacity
-              key={i}
-              style={[styles.menuItem, i < MENU_ITEMS.length - 1 && styles.menuItemBorder]}
+              key={item.route}
+              style={[styles.menuItem, i < menuItems.length - 1 && styles.menuItemBorder]}
               onPress={() => navigation.navigate(item.route)}
               activeOpacity={0.7}
             >
@@ -79,9 +103,14 @@ export const ProfileScreen = ({ navigation }) => {
           ))}
         </Card>
 
-        <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={[styles.logoutBtn, saliendo && styles.logoutBtnDisabled]}
+          onPress={cerrarSesion}
+          disabled={saliendo}
+          activeOpacity={0.7}
+        >
           <MaterialIcons name="logout" size={18} color={colors.error} />
-          <Text style={styles.logoutText}>Cerrar Sesión</Text>
+          <Text style={styles.logoutText}>{saliendo ? 'Cerrando sesión…' : 'Cerrar Sesión'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </ScreenWrapper>
@@ -160,4 +189,5 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   logoutText: { ...typography.buttonText, color: colors.error, fontSize: 14 },
+  logoutBtnDisabled: { opacity: 0.6 },
 });
